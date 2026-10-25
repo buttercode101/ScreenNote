@@ -1,0 +1,2 @@
+[functions.screennote-store]
+verify_jwt = false

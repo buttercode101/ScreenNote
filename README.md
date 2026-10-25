@@ -1,10 +1,10 @@
-# ScreenNote v0.2.0
+# ScreenNote v0.3.0
 
 Record a short screen message, review it locally, and explicitly publish a clean viewer with timestamped replies and reactions. This is the second product following InvoiceFlow, implemented independently without inspecting or copying proprietary software.
 
 ## Stack
 
-Buildless-style HTML/CSS with an esbuild-bundled browser app; Vercel Node Functions; private Vercel Blob storage. No paid AI, database, editor suite, account provider or payment service. Blob remains subject to the connected account's quotas and billing plan; unlimited free hosting is not promised.
+Buildless-style HTML/CSS with an esbuild-bundled browser app; Vercel Node Functions; private Supabase Storage and Postgres via an authenticated server gateway. The gateway secret stays in Vercel; the Supabase service role stays in the Edge Function. No paid AI, editor suite, account provider or payment service. Hosting remains subject to the connected free-tier quotas; unlimited capacity is not promised.
 
 ## Behavior
 
@@ -20,7 +20,7 @@ Buildless-style HTML/CSS with an esbuild-bundled browser app; Vercel Node Functi
 
 ## Development
 
-`npm ci`, `npm test`, `npm run build`. Deploy to Vercel with a private Blob store connected to the project (`BLOB_READ_WRITE_TOKEN`, or OIDC plus `BLOB_STORE_ID`). Never expose storage credentials in the browser. A static local preview supports local import/review/trim/download; the sharing API runs on Vercel.
+`npm ci`, `npm test`, `npm run build`. Apply the checked-in Supabase migration and deploy `supabase/functions/screennote-store`. Register the SHA-256 hash of a cryptographically random 32-byte gateway key in `screennote_gateway_keys`, then configure the same key as server-only `SCREENNOTE_STORAGE_KEY` and the project URL as `SUPABASE_URL` in Vercel. Never expose storage credentials in the browser. The legacy Blob adapter remains for existing deployments without Supabase configuration; a configured Supabase backend never silently falls back after a failure. A static local preview supports local import/review/trim/download; the sharing API runs on Vercel.
 
 ## Verification status
 
@@ -28,7 +28,7 @@ Buildless-style HTML/CSS with an esbuild-bundled browser app; Vercel Node Functi
 
 Browser-tested import of the bundled seven-second sample, persistence after reload, local trim and actual video download. The first trim test exposed a silent-audio bug; the corrected three-second download has VP8 video and measurable Opus audio (mean -21.1 dB). Live upload/viewer/reply checks and final deployment evidence are recorded in the completion report. Native screen/camera/microphone permission-picker flows and physical mobile devices are not yet verified end to end.
 
-Current feature and release gates: [LAUNCH-READINESS.md](LAUNCH-READINESS.md). Captions, transcripts and bug reports are owner supplied; no automatic transcription runs. The public GitHub integration rejected source writes with 403 and is not synchronized.
+Current feature and release gates: [LAUNCH-READINESS.md](LAUNCH-READINESS.md). Captions, transcripts and bug reports are owner supplied; no automatic transcription runs. Canonical source is https://github.com/buttercode101/ScreenNote. Older links from the suspended Blob service cannot be copied while reads are denied. Refresh shared status on the original local recording and publish a replacement; preserve old recovery keys. Do not claim historical media was migrated.
 
 Previous UI audit: [UI-QA-2026-10-23.md](UI-QA-2026-10-23.md). Earlier source and production audit: [AUDIT-2026-10-23.md](AUDIT-2026-10-23.md). The deployment remains constrained early access; see the recorded unverified boundaries.
 
@@ -47,3 +47,7 @@ For an explicitly authorized production smoke test with non-sensitive synthetic 
 Version 0.2.2 adds cancellable pending capture, portrait-aligned annotation previews, verified-container fallback for missing file MIME, synchronous audio unlock for local processing, actual storage health probes, a sharing connection retry, and bounded setup/finalization retries. 64 automated tests pass. See AUDIT-2026-10-25.md for fresh user-side evidence and remaining device limits.
 
 Version 0.2.3 distinguishes suspended/denied storage access from transient errors, avoids retrying that condition automatically, and shows service availability across owner screens. 66 automated tests pass. As of 25 October 2026, the actual connected store is quota-suspended: online sharing and shared playback are blocked until account storage access is restored. Do not call the live product end-to-end certified.
+
+## Supabase migration release
+
+Chunk status is queried before retries so already saved complete parts are skipped. Metadata uses revision compare-and-swap with bounded conflict retries; comments and reactions are persisted in separate Postgres rows. All tables have RLS and no browser-role access; RPC functions are service-only. The private bucket rejects public configuration. Existing local recordings remain intact. See PROJECT-ENGINE-AUDIT.md for current release evidence and limitations.
