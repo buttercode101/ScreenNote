@@ -39,6 +39,7 @@ window.fetch=async(url,options={})=>{
  await new Promise(resolve=>setTimeout(resolve,lag));
  if(op==='view'){if(mode==='unavailable')return json({error:'This link has expired or is no longer shared.'},404);return json({...record,mediaUrl:'/sample.webm'})}
  if(op==='details'){Object.assign(record,{captions:body.captions,chapters:body.chapters,report:body.report});return json(body)}
+ if(op==='upload-state')return json({parts:[]});
  if(op==='manage')return body.owner===owner?json(record):json({error:'This browser does not have permission to manage the link.'},403);
  if(op==='reserve'){if(mode==='transfer-retry'&&++reserveCalls<3)return json({error:'Temporary setup failure (QA)'},503);record.passwordProtected=!!body.password;return json({id:body.id,status:'pending'},201)};
  if(op==='upload-chunk')return mode==='upload-failed'?json({error:'Upload failed (QA simulation). Your local copy is safe.'},503):json({uploaded:true});
