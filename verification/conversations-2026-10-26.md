@@ -30,3 +30,14 @@ The proposed improvement is a design hypothesis, not an independently measured c
 ## Validation
 
 Local regression suite and browser/live acceptance are recorded after implementation. Synthetic clips and comments are used for testing; original user media must remain unchanged. Production must match the tested source fingerprint, and all disposable cloud uploads must be removed after acceptance.
+
+### Acceptance evidence before final release
+
+- 101 automated tests pass with zero failures/skips, including backward compatibility, all-parent replies, capabilities, optimistic edit conflicts, password/cross-clip denial, deletion preserving children, revision ordering and deterministic bubble/timeline selection.
+- Public production API: actual synthetic WebM upload/publication; nested reply inherited its parent's time; creator badge checked by server; wrong-author edit rejected 403, missing parent rejected 409, stale edit rejected 409; public responses omit author/owner secrets.
+- Chrome live browser at 1348 × 926: guest replied under a creator reply; replied to their own reply; edited the reply; created and resolved a second root; filtered to resolved; reply reopened the thread. A reply draft and parent survived both manual refresh and full page reload. Comment link copied and opened in a fresh tab, selected the exact comment, expanded the thread and sought to 1 second. Bubble cycling and hiding worked; hiding preserved the conversation list. No horizontal document overflow at this tested width.
+- A seek test exposed a timing issue: bubbles waited for media `seeked` data readiness. The final change synchronizes the bubble immediately when a timeline item changes currentTime. This is separate from renewing an expired five-minute signed media URL; manual refresh renewed playback and retained the draft.
+- Responsive CSS and touch marker grouping implemented, but **phone/tablet rendered checks remain unverified in this session**. The responsive synthetic preview was blocked by deployment protection; automatic approval rejected opening a temporary Vercel share link. That link was revoked. Production protection settings and frame-ancestor policy remain unchanged. No alternate route was used to access that protected preview.
+- Native-device camera/microphone recording, physical phones and competitor paid editors were not tested in this feature task. No claim of flawless behaviour on every device is made.
+
+Final source fingerprint, live checks and disposable-upload cleanup are reconciled after the last code patch. The synthetic live clip is not a retained product example.
