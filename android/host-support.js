@@ -39,7 +39,7 @@ window.__ANDROID_APP__=true;
    if(original){
     const row=document.createElement('div');row.dataset.androidCapture='';row.className='actions';Object.assign(row.style,{display:'flex',flexWrap:'wrap',gap:'12px',marginBlock:'20px'});
     for(const [label,op,primary]of [['Record screen','recordScreen',true],['Recordings','openRecordings',false]]){
-     const button=document.createElement('button');button.type='button';button.className=primary?'btn primary':'btn';button.textContent=label;button.dataset.androidAction=op;Object.assign(button.style,{flex:'1 1 160px',minHeight:'48px',whiteSpace:'normal',overflowWrap:'anywhere'});button.onclick=()=>call(op).catch(e=>alert(e.message));row.append(button);
+     const button=document.createElement('button');button.type='button';button.className=primary?'btn primary':'btn';button.textContent=label;button.dataset.androidAction=op;Object.assign(button.style,{flex:'1 1 160px',minHeight:'48px',margin:'0',width:'auto',whiteSpace:'normal',overflowWrap:'anywhere'});button.onclick=()=>call(op).catch(e=>alert(e.message));row.append(button);
     }
     original.replaceWith(row);
     const heading=panel.querySelector('h2');if(heading)heading.textContent='Record your screen.';
