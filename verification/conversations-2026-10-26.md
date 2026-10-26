@@ -41,3 +41,14 @@ Local regression suite and browser/live acceptance are recorded after implementa
 - Native-device camera/microphone recording, physical phones and competitor paid editors were not tested in this feature task. No claim of flawless behaviour on every device is made.
 
 Final source fingerprint, live checks and disposable-upload cleanup are reconciled after the last code patch. The synthetic live clip is not a retained product example.
+
+### Final reconciliation
+
+- Production code commit: `6e11e1376746c68589f584dd041f45d4a30567e4`, deployment `dpl_GN53qvrAzwCfpdcvU9VKtoPiBHSB`, canonical `https://screennote-woad.vercel.app/`, version 0.4.0. Local and downloaded release manifests matched exactly: `6185cdf41fe982a627ef3e043dd9fa19572442b69ec7d29cb9dbbf961c168811`. Both GitHub workflow runs succeeded.
+- Final timeline-jump fix retested through the public browser: bubble immediately visible after choosing the 1-second timeline group; latest reply, cycle/hide and exact deep-link selection observed. [Live desktop screenshot](conversations-live-2026-10-26.jpg) is synthetic acceptance data, not a user recording.
+- Separate protected synthetic video: password required on comment/edit/remove/resolve; cross-clip parent rejected; client-supplied creator flag ignored; removal erased the root body and preserved the child in a subsequent real database-backed view. Its upload was cleaned in `finally`.
+- Main browser-created conversation read back through the public API: 6 comments, 2 roots, 4 replies, revision 9, edited browser text persisted. Main disposable upload deleted; viewer then returned 404. Capacity returned exactly to baseline: 1 recording, 10,704,790 reserved bytes, 989,295,210 available bytes. Original user media remains outside test mutation scope.
+- Runtime error scan for the release showed expected negative-test 404/409 responses and a Node 24 dependency/platform `url.parse()` deprecation warning; no unexpected feature failure was observed in these checked flows. This is a scoped result, not a guarantee of absence of all errors.
+- Documentation/screenshot evidence can be committed after the code acceptance without changing the application source fingerprint. Phone/tablet rendered verification remains pending protected-preview access approval.
+
+Verdict: **READY WITH KNOWN LIMITATIONS** for the desktop/API flows above. Mobile/tablet rendering is explicitly unverified, and native fullscreen/PiP cannot display the HTML comment overlay.
