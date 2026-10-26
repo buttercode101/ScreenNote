@@ -34,3 +34,25 @@ progress{width:100%;height:12px;margin-top:16px;accent-color:var(--accent)}selec
 /* Keep pointer coordinates aligned with captured pixels, including portrait sources. */
 .capture-frame{width:min(100%,calc(65vh * var(--capture-ratio,1.7777778)));aspect-ratio:var(--capture-ratio,1.7777778);margin-inline:auto}
 .capture-frame video,.canvas-editor .capture-frame video{width:100%;height:auto;max-height:none}
+
+/* Review follows the task: title, preview, share, optional tools. */
+.heading h1.recording-title{font-size:clamp(24px,3vw,30px);line-height:1.2;letter-spacing:-.8px}
+.editor-heading{margin-bottom:20px}.title-field{max-width:900px;margin-bottom:22px}
+.title-controls{display:flex;gap:10px;align-items:stretch}.title-controls input{min-width:0;flex:1}
+.title-controls .btn{flex:none}.title-field #title-status:empty{display:none}
+.source-filename{font-size:12px;color:var(--muted)}.source-filename span{display:block;padding-top:8px;overflow-wrap:anywhere}
+.source-filename summary,.local-options summary,.password-options summary{cursor:pointer;min-height:44px;display:flex;align-items:center}
+.editor-preview{min-width:0}.editor-tools{grid-column:1/-1;display:grid;gap:12px;align-content:start}
+.editor-tools .panel{margin:0;padding:16px 20px}.editor-tools summary{font-size:15px;font-weight:600;cursor:pointer;min-height:44px;padding:8px 0}
+.editor-tools details[open] summary{margin-bottom:12px}.editor-tools details p{font-size:13px}
+.video-panel{width:min(100%,calc(65dvh * var(--media-ratio,1.7777778)));margin-inline:auto}
+.video-panel video{width:100%;height:auto;aspect-ratio:auto;max-height:none;object-fit:contain}
+.viewer .video-panel video{min-height:0}.editor-actions{padding:12px 0;justify-content:space-between}
+.local-options{position:relative;font-size:13px}.local-options[open] .btn{display:block;margin-top:8px}
+.password-options{margin-bottom:14px;font-size:13px}.password-options .field{margin-top:8px}
+.editor-grid>aside>.panel{padding:20px}.editor-grid>aside .eyebrow{margin-bottom:8px}
+.editor-grid>aside .notice{font-size:12px;margin:12px 0;padding:12px}
+.reply-panel{align-self:start}.viewer-grid{align-items:start}
+@media(max-width:1150px){.editor-grid>aside{display:block}.editor-grid{gap:16px}}
+@media(max-width:767px){.editor-heading p{font-size:13px}.title-field{margin-bottom:16px}.editor-tools .panel{padding:12px 16px}.viewer{padding-top:20px}.viewer h1{font-size:24px;line-height:1.25}.viewer .eyebrow{margin-bottom:10px}.reactions{margin:12px 0}.viewer-grid{gap:16px}.panel.reply-panel{padding:18px}.reply-panel h2{font-size:20px}}
+@media(max-width:480px){.content{padding:20px 16px}.editor-heading{gap:12px;margin-bottom:16px}.heading h1.recording-title{font-size:26px}.editor-heading>div{flex:1 1 160px}.title-controls{gap:8px}.title-controls .btn{padding:10px 12px}.editor-grid>aside>.panel{padding:18px}.viewer{padding-inline:16px}.viewer h1{font-size:24px}.player-tools{font-size:13px}}
