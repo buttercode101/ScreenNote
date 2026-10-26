@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {applyCommentAction} from '../lib/comment-actions.js';
-import {discussionThreads,bubbleThreads,timelineGroups} from '../lib/discussion.js';
+import {discussionThreads,bubbleThreads,timelineGroups,mergeDiscussion} from '../lib/discussion.js';
 import {randomId,publicClip} from '../lib/rules.js';
 const authorKey='a'.repeat(64),otherKey='b'.repeat(64),owner='c'.repeat(64);
 const hash=s=>createHash('sha256').update(s).digest('hex');
@@ -17,3 +17,6 @@ test('creator badge is server verified; creator can remove abusive guest comment
 test('legacy flat comments work; duplicate event retries do not add or change posts',()=>{const d=clip(),a=add(d,{authorKey:undefined}),id=a.id;applyCommentAction(d,'comment',{eventId:id,text:'different',name:'x',time:5,authorKey:otherKey},150);assert.equal(d.comments.length,1);assert.equal(d.comments[0].text,'A useful note');assert.throws(()=>applyCommentAction(d,'edit-comment',{commentId:id,authorKey,text:'changed',expectedVersion:100},200),e=>e.status===403);delete a.parentId;assert.equal(discussionThreads(d.comments)[0].root.id,id)});
 test('100-comment bound, unavailable links and invalid timestamps remain enforced',()=>{const d=clip();assert.throws(()=>add(d,{time:20}),/timestamp/);for(let n=0;n<100;n++)add(d,{},100+n);assert.throws(()=>add(d),/100/);d.status='revoked';assert.throws(()=>applyCommentAction(d,'delete-comment',{commentId:d.comments[0].id,authorKey},300),e=>e.status===404)});
 test('bubbles seek deterministically and group dense timeline markers',()=>{const d=clip();const a=add(d),b=add(d,{time:3.01},101);assert.equal(bubbleThreads(d.comments,2.9).length,0);assert.equal(bubbleThreads(d.comments,3.1).length,2);assert.equal(bubbleThreads(d.comments,8.1).length,0);assert.equal(bubbleThreads(d.comments,3.1).length,2);assert.equal(timelineGroups(d.comments,2,9)[0].threads.length,2);assert.equal(timelineGroups(d.comments,2,9)[0].threads[0].root.id,a.id);b.deleted=true;assert.equal(bubbleThreads(d.comments,3.1).length,1)});
+
+test('slow refreshes cannot overwrite newly posted or edited conversations',()=>{const newer={discussionRevision:3,comments:[{text:'New'}]},older={discussionRevision:2,comments:[{text:'Old'}],title:'Title'};assert.equal(mergeDiscussion(newer,older).comments[0].text,'New');assert.equal(mergeDiscussion(newer,older).title,'Title');assert.equal(mergeDiscussion(newer,{discussionRevision:4,comments:[]}).comments.length,0)});
+test('comment actions advance a revision; duplicate retries remain idempotent',()=>{const d=clip(),id=randomId();add(d,{eventId:id});assert.equal(d.discussionRevision,1);add(d,{eventId:id});assert.equal(d.discussionRevision,1);applyCommentAction(d,'resolve-thread',{commentId:id,authorKey,resolved:true},200);assert.equal(d.discussionRevision,2)});

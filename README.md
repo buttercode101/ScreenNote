@@ -1,6 +1,12 @@
-# ScreenNote v0.3.3
+# ScreenNote v0.4.0
 
 Record a short screen message, review it locally, and explicitly publish a clean viewer with timestamped replies and reactions. This is the second product following InvoiceFlow, implemented independently without inspecting or copying proprietary software.
+
+## Contextual conversations — v0.4.0
+
+Reply to any comment or reply, including your own. Exact parent references are retained in shallow mobile threads. Optional inline playback bubbles show the latest reply at its thread's moment; grouped timeline markers, comment links, open/resolved filtering and sorting make conversations easier to find. Authors can edit/remove their comments in their original browser; creators can moderate and resolve threads. Deleted comments retain their replies. Existing flat comments remain supported.
+
+Comment capabilities are private browser keys checked by hash on the server; names remain unverified. Drafts survive tab refresh. Bubbles do not appear in native video fullscreen or picture-in-picture. The 100-total-comment bound remains. Research, decisions, permissions and verification scope: [conversation report](verification/conversations-2026-10-26.md).
 
 ## Storage capacity release — v0.3.3
 
@@ -62,6 +68,6 @@ Version 0.2.3 distinguishes suspended/denied storage access from transient error
 
 ## Supabase migration release
 
-Chunk status is queried before retries so already saved complete parts are skipped. Metadata uses revision compare-and-swap with bounded conflict retries; comments and reactions are persisted in separate Postgres rows. All tables have RLS and no browser-role access; RPC functions are service-only. The private bucket rejects public configuration. Existing local recordings remain intact. See PROJECT-ENGINE-AUDIT.md for current release evidence and limitations.
+Chunk status is queried before retries so already saved complete parts are skipped. Metadata uses revision compare-and-swap with bounded conflict retries; active comments and reactions are persisted inside the recording’s JSON metadata under the same atomic revision. All tables have RLS and no browser-role access; RPC functions are service-only. The private bucket rejects public configuration. Existing local recordings remain intact. See PROJECT-ENGINE-AUDIT.md for current release evidence and limitations.
 
 Approved production verification on 26 October 2026 passed for protected and unprotected three-part uploads, actual resume, byte-identical playback, owner authorization, feedback idempotency/concurrency, revocation and deletion. All four synthetic uploads and their records/feedback were removed; no active test reservations remain. Native and physical-device gates remain open. See PROJECT-ENGINE-AUDIT.md and verification/live-sharing-2026-10-26.json.

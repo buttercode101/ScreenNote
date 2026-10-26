@@ -6,3 +6,5 @@ export const put=c=>transact(['clips'],t=>t.objectStore('clips').put(c));
 export const saveDraft=d=>transact(['drafts'],t=>t.objectStore('drafts').put(d));
 export const finish=(clip,draftId)=>transact(['clips','drafts'],t=>{t.objectStore('clips').put(clip);t.objectStore('drafts').delete(draftId)});
 export const remove=id=>transact(['clips'],t=>t.objectStore('clips').delete(id));
+
+export function get(id){return new Promise((resolve,reject)=>{const r=db.transaction('clips').objectStore('clips').get(id);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
