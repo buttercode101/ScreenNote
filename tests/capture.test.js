@@ -13,3 +13,22 @@ test('prepared capture begins once and selected microphone constraints are passe
 
 test('cancelling a pending picker releases a late screen and never starts recording',async()=>{const s=stream();let accept;await environment({getDisplayMedia:()=>new Promise(r=>accept=r)},async()=>{const c=new Capture({chunk:()=>{},status:()=>{},finished:()=>assert.fail('No recording should finish')});const pending=c.start({mic:false});c.cancel();accept(s);await assert.rejects(pending,{name:'AbortError'});assert.equal(s.track.stopped,true);assert.equal(c.recorder,undefined)})});
 test('cancelling while microphone permission is pending releases both streams',async()=>{const screen=stream(),mic=stream();let accept;await environment({getDisplayMedia:async()=>screen,getUserMedia:()=>new Promise(r=>accept=r)},async()=>{const c=new Capture({chunk:()=>{},status:()=>{},finished:()=>{}});const pending=c.start({mic:true});await new Promise(r=>setImmediate(r));c.cancel();accept(mic);await assert.rejects(pending,{name:'AbortError'});assert.equal(screen.track.stopped,true);assert.equal(mic.track.stopped,true)})});
+
+test('cancellation settles setup even when the native picker never responds',async()=>{
+ await environment({getDisplayMedia:()=>new Promise(()=>{})},async()=>{
+  const c=new Capture({chunk:()=>{},status:()=>{},finished:()=>assert.fail('Cancelled capture must not finish')});
+  const pending=c.start({mic:false});c.cancel();
+  let deadline;try{await assert.rejects(Promise.race([pending,new Promise((_,reject)=>{deadline=setTimeout(()=>reject(Error('Setup stayed pending after cancellation')),50)})]),{name:'AbortError'})}finally{clearTimeout(deadline)}
+  assert.equal(c.recorder,undefined);
+ });
+});
+
+test('permission timeout releases an acquired screen and cleans up a late device grant',async()=>{
+ const screen=stream(),device=stream();let accept;
+ await environment({getDisplayMedia:async()=>screen,getUserMedia:()=>new Promise(r=>accept=r)},async()=>{
+  const c=new Capture({chunk:()=>{},status:()=>{},finished:()=>assert.fail('Timed-out capture must not finish'),permissionTimeoutMs:10});
+  await assert.rejects(c.start({mic:true}),{name:'TimeoutError'});
+  assert.equal(screen.track.stopped,true);assert.equal(c.recorder,undefined);
+  accept(device);await new Promise(r=>setImmediate(r));assert.equal(device.track.stopped,true);
+ });
+});
