@@ -4,7 +4,7 @@
 
 ScreenNote lets you record or import a short explanation, review it privately, and choose when to publish a viewing link. Viewers can leave timestamped comments and reply to any reply, including their own. Optional playback bubbles bring a conversation back into view at its moment in the video.
 
-[Get started](#your-first-screennote) · [Development](#quick-start) · [Technical notes](docs/TECHNICAL-NOTES.md) · [Verification](REPOSITORY-VERIFICATION.md)
+[Open ScreenNote](https://screennote-woad.vercel.app) · [Get started](#your-first-screennote) · [Development](#quick-start) · [Technical notes](docs/TECHNICAL-NOTES.md) · [Verification](REPOSITORY-VERIFICATION.md)
 
 ## Your first ScreenNote
 
