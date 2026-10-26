@@ -1,3 +1,9 @@
+# Current verification record
+
+Use [PROJECT-ENGINE-AUDIT.md](PROJECT-ENGINE-AUDIT.md) for v0.3.0 migration evidence, live acceptance results and remaining gates. The dated records below describe older versions and are retained as history; their test counts and limitations are not the current state.
+
+---
+
 # ScreenNote v0.1 · 22 October 2026
 
 ## Implemented

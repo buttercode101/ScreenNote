@@ -1,16 +1,20 @@
-# Current blocker — 25 October 2026
+# Current release status — 26 October 2026
 
-Live online sharing is blocked. The connected private Blob store screennote-media (store_JL1iAHQb3zzX1czO) reports billingState suspended, usageQuotaExceeded true and status limits-exceeded-suspended. Actual private reads return 403 Forbidden. The configured token is linked to this same project/store; it is not evidence of a healthy service. Do not certify publication or shared playback until account storage allowance/access is restored and a fresh live user-flow test passes. No paid plan change, replacement store, public access weakening or migration was performed. Local import, processing and download remain available. No reset date or account-specific charge is inferred.
+The previous Blob outage has been resolved for new publications by the Supabase migration. Production serves v0.3.0 from GitHub implementation b5193d673981226a447f4836ab0c3ea03b22ae03. Live small-clip publication and recipient playback are directly verified. The approved larger-file, password, feedback, revocation and deletion acceptance run passed against the real service; cleanup left no test media, records, feedback or reservations. Evidence is recorded in PROJECT-ENGINE-AUDIT.md; its current verdict applies to the tested constrained beta scope. Native/physical device acceptance and commercial validation remain open.
 
-# ScreenNote 0.2.0 — release gates and operating model
+## Historical outage — 25 October 2026
+
+The former private Vercel Blob store was suspended and returned 403 on reads. No existing media could be copied while that service denied access. New uploads now use private Supabase Storage and Postgres; older unavailable links require the original local video to be republished. Preserve old recovery keys. No paid plan or public bucket was enabled.
+
+# ScreenNote 0.3.0 — release gates and operating model
 
 23 October 2026, South Africa. This file distinguishes implementation from acceptance evidence. A beta release is not a commercial readiness certification.
 
 ## Phase 1: source and runtime truth
 
-The connected public GitHub repository `buttercode101/ScreenNote` returned “This repository is empty” on 23 October. The working source was held in the existing Sites source project `appgprj_6ad9db91dbb08191986b875d90d7e732`; production is the Vercel project `prj_d3BUevPyfC7Dzcw5TR0vDGS3wIOa`, at https://screennote-woad.vercel.app/. Static Sites hosting cannot execute its Node API and must not replace the Vercel runtime.
+Canonical source is https://github.com/buttercode101/ScreenNote. The initial complete source import was d7a01c53c5c6c40d40dcd0f7e20554250246b1f0; the Supabase implementation was deployed from b5193d673981226a447f4836ab0c3ea03b22ae03. Earlier empty-repository and write-permission failures are historical, not current blockers. Vercel remains the Node API runtime; static Sites hosting must not replace it.
 
-Version 0.2.0 adds deterministic `/release.json`: version plus a SHA-256 fingerprint over deployable public, API, library, script and package files (hosting configuration is checked separately). Compare production against a clean local build. Repository commits and deployment IDs are recorded separately; the fingerprint verifies source content without pretending unrelated Git providers share a commit history. A CI workflow is included for installation, tests, a clean build and exclusion of internal QA pages; remote CI execution has not been verified. No environment files or bearer capabilities belong in Git. The attempt to initialize the public repository was rejected with `403 Resource not accessible by integration`; reported user push permission does not grant this integration repository write access. The public repository remains unsynchronized; the existing source repository and full source archive preserve this release.
+Compare production /release.json with a clean local build. Its SHA-256 fingerprint covers public, API, library, scripts, package and Supabase function/migration source; hosting headers are checked separately. Verify the intended GitHub commit against Vercel deployment metadata. Documentation-only changes can retain the same application fingerprint; do not confuse that with proof of an identical Git commit. A CI workflow exists but remote CI execution is not certified here. Never commit environment files or owner capabilities.
 
 ## Phase 2: device acceptance
 
@@ -38,19 +42,13 @@ Captions are owner-supplied and editable; no automatic transcription accuracy is
 
 ## Phase 4: constrained free beta
 
-No card, account, subscription or paid upgrade is enabled. Local recording/review/download does not use an AI API. Online sharing uses the hosting account's private Blob and Functions allowances. Limits: 16 global active/pending reservations, five minutes, 25 MiB, 100 replies and 500 reaction identifiers per clip. Each owner can revoke or delete their upload; expired/reserved objects are reclaimed under capacity pressure after a grace period, not on a guaranteed deletion schedule. Back up recovery keys and videos separately.
+No card, account, subscription or paid upgrade is enabled. Local recording/review/download does not use an AI API. Online sharing uses the connected Supabase private Storage, Postgres and Edge Function resources, plus Vercel Functions hosting. Limits: 16 global active/pending reservations, five minutes, 25 MiB, 100 replies and 500 reaction identifiers per clip. Each owner can revoke or delete their upload; expired/reserved objects are reclaimed under capacity pressure after a grace period, not on a guaranteed deletion schedule. Back up recovery keys and videos separately.
 
 ### Cost model, not a promise of free unlimited hosting
 
-Primary pricing references checked on 23 October 2026:
+Verify current provider pricing, quota and account usage before changing limits or charging users: https://supabase.com/pricing and https://vercel.com/pricing. The account's actual invoices, tax and exchange-rate inputs have not been validated. Do not infer unlimited free operation or publish a fabricated Rand margin. The previously inspected Blob usage/rate information does not describe the migrated storage service.
 
-- https://vercel.com/docs/vercel-blob/usage-and-pricing
-- https://vercel.com/pricing
-- https://vercel.com/docs/pricing/regional-pricing
-
-Blob charges distinguish stored GB-month, simple/advanced operations, transfer and CDN requests. Rates and included allowances depend on plan/region; verify them in the account before charging users. The account invoice, current region, actual usage and tax/exchange rate were not available as verified inputs here. No fabricated Rand price or margin is published.
-
-Capacity arithmetic: 16 × 25 MiB = 400 MiB of finalized media, plus metadata and temporary upload parts. Pending parts and assembled files may coexist, so transient storage can be roughly twice finalized media. Ten full views per maximum-size clip would transfer about 3.91 GiB; partial playback, repeats, range requests, captions/replies and retries change actual usage. Metadata reads/writes, signing, multipart assembly and cleanup also consume service operations and Functions resources. This is not a spending cap: public readers can produce repeated bandwidth costs.
+Capacity arithmetic: 16 × 25 MiB = 400 MiB of finalized media, plus metadata and temporary upload parts. Pending parts and assembled files may coexist, so transient storage can be roughly twice finalized media. Ten full views per maximum-size clip would transfer about 3.91 GiB; partial playback, repeats, range requests, captions/replies and retries change actual usage. Metadata reads/writes, signing, chunk assembly and cleanup also consume database, Edge Function and Vercel Function resources. This is not a spending cap: public readers can produce repeated bandwidth costs.
 
 Before raising capacity or selling subscriptions: inspect the hosting plan's commercial-use terms; verify current region/rates and a spend alert/hard cap through the account owner; measure at least a small cohort's actual transfer, failures and retention; calculate conservative unit economics, including abuse and support. Keep current upload limits until those results support expansion. No plan upgrade or billing change is made automatically.
 
@@ -60,4 +58,4 @@ Invite a small cohort through channels the owner chooses; no unsolicited message
 
 Commercial gate remains open until real device reports, real user feedback and account-specific costs are validated. Implemented launch safeguards are useful preparation; they do not substitute for these results.
 
-Billing evidence: the connected Vercel charges endpoint returned `404 costs_not_found` for both the requested recent range and the last complete UTC day. No invoice-level usage or actual margin can be inferred from that result. This is an unresolved launch input, not evidence of zero charges.
+Historical billing evidence (before migration): the connected Vercel charges endpoint returned `404 costs_not_found` for both the requested recent range and the last complete UTC day. No invoice-level usage or actual margin can be inferred from that result. This is an unresolved launch input, not evidence of zero charges.

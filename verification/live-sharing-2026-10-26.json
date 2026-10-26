@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-26",
+  "scope": "Approved synthetic production sharing API and recipient browser checks",
+  "implementationCommit": "b5193d673981226a447f4836ab0c3ea03b22ae03",
+  "scenarios": [
+    {
+      "protectedVideo": false,
+      "parts": 3,
+      "bytes": 5070338,
+      "sha256": "6d95d58be9d80cb61ed4baae4305f69e20deb2313da84d9014aeae293bd5aa9a",
+      "result": "passed"
+    },
+    {
+      "protectedVideo": true,
+      "parts": 3,
+      "bytes": 5070338,
+      "sha256": "6d95d58be9d80cb61ed4baae4305f69e20deb2313da84d9014aeae293bd5aa9a",
+      "result": "passed"
+    }
+  ],
+  "cleanup": {
+    "testUploadsRemoved": 4,
+    "mediaObjects": 0,
+    "clipRecords": 0,
+    "comments": 0,
+    "reactions": 0,
+    "activeReservations": 0
+  },
+  "browserChecks": [
+    "live reply persisted and literal text rendered",
+    "live reaction persisted",
+    "locked viewer exposes no video",
+    "deleted viewer shows unavailable message"
+  ],
+  "notVerified": [
+    "native screen-picker completion",
+    "physical Android/iOS/Safari",
+    "real camera/microphone combinations",
+    "commercial/scale readiness"
+  ]
+}

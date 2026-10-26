@@ -13,7 +13,7 @@ Buildless-style HTML/CSS with an esbuild-bundled browser app; Vercel Node Functi
 - Local IndexedDB library and incremental recording recovery chunks. Local storage is not a backup; download important videos.
 - Real local trim creates a new encoded file at playback speed, retaining the original; keep the tab open while processing.
 - Sharing uses bounded same-origin chunk transfers with private server-side assembly, private media, expiring playback URLs, and a clean `/v/:id` viewer. Sharing is explicit, never automatic.
-- Seven-day link expiry, timestamped comments, anonymous reactions and owner-controlled stop sharing. Issued playback URLs may persist for five minutes after stop-sharing.
+- Choice of 1, 3 or 7 day link expiry, timestamped comments, anonymous reactions and owner-controlled stop sharing. Issued playback URLs may persist for five minutes after stop-sharing.
 - Five minutes / 25 MB per clip; early-access shared capacity is 16 reservations, capped before accepting another upload. When capacity is full, new reservations reclaim expired uploads and abandoned reservations after an extra 24-hour grace period. Cleanup is demand-driven; a scheduled deletion job is not configured.
 - Owner management capabilities can be exported as private recovery-key JSON and restored at the same origin after changing browsers or clearing local data. Export first: without the original keys, ownership cannot be recovered. Recovery files do not include videos. Viewer names and browser reaction identifiers are not verified identities.
 - Vercel protection settings are retained. An unauthenticated HTTP check of the production health endpoint returned 200; the shared viewer also played in the browser.
@@ -24,7 +24,7 @@ Buildless-style HTML/CSS with an esbuild-bundled browser app; Vercel Node Functi
 
 ## Verification status
 
-58 automated API, recording-lifecycle and rules tests cover reservation/publication, owner authorization, expiry/revocation, reaction deduplication, comment idempotency, cross-origin rejection, capacity, upload limits, media sniffing, secure ID fallback and ordered recovery writes after storage failure. These use a simulated store and do not replace a live Blob integration test.
+73 automated API, recording-lifecycle, rules and Supabase gateway tests cover reservation/publication, owner authorization, expiry/revocation, reaction deduplication, comment idempotency, cross-origin rejection, capacity, upload limits, media sniffing, secure ID fallback and ordered recovery writes after storage failure. These use a simulated store and do not replace a live Blob integration test.
 
 Browser-tested import of the bundled seven-second sample, persistence after reload, local trim and actual video download. The first trim test exposed a silent-audio bug; the corrected three-second download has VP8 video and measurable Opus audio (mean -21.1 dB). Live upload/viewer/reply checks and final deployment evidence are recorded in the completion report. Native screen/camera/microphone permission-picker flows and physical mobile devices are not yet verified end to end.
 
@@ -51,3 +51,5 @@ Version 0.2.3 distinguishes suspended/denied storage access from transient error
 ## Supabase migration release
 
 Chunk status is queried before retries so already saved complete parts are skipped. Metadata uses revision compare-and-swap with bounded conflict retries; comments and reactions are persisted in separate Postgres rows. All tables have RLS and no browser-role access; RPC functions are service-only. The private bucket rejects public configuration. Existing local recordings remain intact. See PROJECT-ENGINE-AUDIT.md for current release evidence and limitations.
+
+Approved production verification on 26 October 2026 passed for protected and unprotected three-part uploads, actual resume, byte-identical playback, owner authorization, feedback idempotency/concurrency, revocation and deletion. All four synthetic uploads and their records/feedback were removed; no active test reservations remain. Native and physical-device gates remain open. See PROJECT-ENGINE-AUDIT.md and verification/live-sharing-2026-10-26.json.
