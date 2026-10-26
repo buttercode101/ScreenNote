@@ -1,5 +1,6 @@
-import test from'node:test';import assert from'node:assert/strict';import{createHandler}from'../api/clip.js';import{MAX_SHARED,randomId}from'../lib/rules.js';
-function setup(overrides={},inspect=async()=>({width:960,height:540,duration:7})){const map=new Map(),store={configured:()=>true,key:id=>'clip/'+id,media:id=>'media/'+id,read:async k=>map.has(k)?{data:structuredClone(map.get(k)),etag:'1'}:null,write:async(k,d)=>{if(map.has(k))throw Error('already exists');map.set(k,structuredClone(d))},mutate:async(k,fn,initial)=>{const d=structuredClone(map.get(k)||initial?.());if(!d)throw Object.assign(Error('Missing'),{status:404});const r=fn(d);map.set(k,d);return r??d},mediaInfo:async()=>({size:1000,contentType:'video/webm'}),mediaMagic:async()=>new Uint8Array([26,69,223,163]),mediaURL:async()=> 'https://example.test/signed-video',removeMedia:async()=>{},uploadSmall:async()=>{},uploadPart:async()=>{},assemble:async()=>{},clearParts:async()=>{}};Object.assign(store,overrides);const handler=createHandler(store,undefined,inspect);async function call(op,body,method='POST',headers={host:'example.test',origin:'https://example.test'}){let status,result;const res={setHeader(){},status(n){status=n;return this},json(v){result=v;return this}};await handler({query:{op,id:body?.id},url:'/api/clip',method,headers,body},res);return{status,data:result}}
+import test from'node:test';import assert from'node:assert/strict';import{createHandler}from'../api/clip.js';import{randomId}from'../lib/rules.js';
+const MAX_SHARED=16;
+function setup(overrides={},inspect=async()=>({width:960,height:540,duration:7}),limits={maxBytes:1_000_000_000,maxClips:MAX_SHARED}){const map=new Map(),store={configured:()=>true,key:id=>'clip/'+id,media:id=>'media/'+id,read:async k=>map.has(k)?{data:structuredClone(map.get(k)),etag:'1'}:null,write:async(k,d)=>{if(map.has(k))throw Error('already exists');map.set(k,structuredClone(d))},mutate:async(k,fn,initial)=>{const d=structuredClone(map.get(k)||initial?.());if(!d)throw Object.assign(Error('Missing'),{status:404});const r=fn(d);map.set(k,d);return r??d},mediaInfo:async()=>({size:1000,contentType:'video/webm'}),mediaMagic:async()=>new Uint8Array([26,69,223,163]),mediaURL:async()=> 'https://example.test/signed-video',removeMedia:async()=>{},uploadSmall:async()=>{},uploadPart:async()=>{},assemble:async()=>{},clearParts:async()=>{}};Object.assign(store,overrides);const handler=createHandler(store,undefined,inspect,limits);async function call(op,body,method='POST',headers={host:'example.test',origin:'https://example.test'}){let status,result;const res={setHeader(){},status(n){status=n;return this},json(v){result=v;return this}};await handler({query:{op,id:body?.id},url:'/api/clip',method,headers,body},res);return{status,data:result}}
 return{map,store,call}}
 const input=()=>({id:randomId(),owner:'a'.repeat(64),title:'Message',type:'video/webm',size:1000,duration:7,start:0,end:7});
 test('reserve, publish, view, react and comment form a complete API flow',async()=>{const{call}=setup(),c=input();assert.equal((await call('reserve',c)).status,201);assert.equal((await call('view',c,'GET')).status,404);assert.equal((await call('publish',c)).status,200);const view=await call('view',c,'GET');assert.equal(view.data.ownerHash,undefined);assert.ok(view.data.mediaUrl);const who=randomId();assert.equal((await call('reaction',{id:c.id,viewer:who,reaction:'like'})).data.reactions.like,1);assert.equal((await call('reaction',{id:c.id,viewer:who,reaction:'like'})).data.reactions.like,1);const comment={id:c.id,viewer:who,eventId:randomId(),text:'Looks good',time:3};assert.equal((await call('comment',comment)).data.comments.length,1);assert.equal((await call('comment',comment)).data.comments.length,1)});
@@ -69,7 +70,7 @@ test('recovery metadata requires the owner capability and exposes no owner hash'
 test('full capacity reclaims expired media but preserves active and recently expired records',async()=>{
  let removed=0;const{call,map}=setup({removeMedia:async()=>{removed++}}),records=[];
  for(let n=0;n<MAX_SHARED;n++){const c=input();records.push(c);await call('reserve',c)}
- const old=map.get('clip/'+records[0].id);old.uploadUntil=Date.now()-2*86400000;
+ const old=map.get('clip/'+records[0].id);old.uploadUntil=Date.now()-2*86400000;map.get('screennote/capacity.json').deadlines[old.id]=0;
  const recent=map.get('clip/'+records[1].id);recent.uploadUntil=Date.now()-1000;
  assert.equal((await call('reserve',input())).status,201);assert.equal(removed,1);
  assert.equal(map.get('clip/'+old.id).status,'expired');assert.equal(map.get('clip/'+old.id).cleanupComplete,true);
@@ -78,7 +79,7 @@ test('full capacity reclaims expired media but preserves active and recently exp
 test('failed expired cleanup cannot release its slot or erase another live reservation',async()=>{
  const{call,map}=setup({removeMedia:async()=>{throw Error('Blob unavailable')}});let first;
  for(let n=0;n<MAX_SHARED;n++){const c=input();first||=c;await call('reserve',c)}
- map.get('clip/'+first.id).uploadUntil=Date.now()-2*86400000;
+ map.get('clip/'+first.id).uploadUntil=Date.now()-2*86400000;map.get('screennote/capacity.json').deadlines[first.id]=0;
  assert.equal((await call('reserve',input())).status,429);assert.equal(map.get('screennote/capacity.json').ids.length,MAX_SHARED);
 });
 test('failed reservation creation releases its slot and can be retried',async()=>{
@@ -90,7 +91,7 @@ test('capacity retains fresh orphan slots, then recovers them after the safety d
  const{call,map}=setup();const ids=Array.from({length:MAX_SHARED},()=>randomId());map.set('screennote/capacity.json',{ids});
  assert.equal((await call('reserve',input())).status,429);
  const capacity=map.get('screennote/capacity.json');for(const id of ids)capacity.orphanSince[id]=Date.now()-600001;
- assert.equal((await call('reserve',input())).status,201);assert.equal(map.get('screennote/capacity.json').ids.length,1);
+ assert.equal((await call('reserve',input())).status,201);assert.equal(map.get('screennote/capacity.json').ids.length,13);
 });
 
 test('password protected videos expose no metadata or media without the password',async()=>{const{call,map}=setup(),c={...input(),password:'correct test password',linkDays:1,captions:[{start:0,end:2,text:'Protected caption'}],chapters:[{time:0,title:'Context'}],report:{steps:'Click Save'}};assert.equal((await call('reserve',c)).status,201);const stored=map.get('clip/'+c.id);assert.notEqual(stored.passwordHash,c.password);assert.equal(stored.password,undefined);const pub=await call('publish',c);assert.equal(pub.data.passwordProtected,true);assert.ok(pub.data.expiresAt<Date.now()+86400000+1000);const locked=await call('view',c,'GET');assert.equal(locked.status,401);assert.equal(locked.data.title,undefined);assert.equal(locked.data.mediaUrl,undefined);assert.equal((await call('view',{id:c.id,accessPassword:'wrong'})).status,401);const view=await call('view',{id:c.id,accessPassword:c.password});assert.equal(view.status,200);assert.equal(view.data.captions[0].text,'Protected caption');assert.equal(view.data.passwordHash,undefined);assert.equal(view.data.passwordSalt,undefined);const reaction={id:c.id,viewer:randomId(),reaction:'like'};assert.equal((await call('reaction',reaction)).status,401);assert.equal((await call('reaction',{...reaction,accessPassword:c.password})).status,200);await call('revoke',c);assert.equal((await call('view',{id:c.id,accessPassword:c.password})).status,404)});
@@ -124,4 +125,21 @@ test('the publication boundary rejects signature-only media and leaves it pendin
  assert.equal((await call('upload-chunk',{...c,part:0,data:bytes.toString('base64')})).status,200);
  assert.equal((await call('publish',c)).status,400);assert.equal(map.get('clip/'+c.id).status,'pending');
  assert.equal((await call('view',c,'GET')).status,404);
+});
+
+test('production byte policy accepts more than sixteen small API reservations',async()=>{
+ const {defaultCapacityLimits}=await import('../lib/capacity.js');const{call}=setup({},undefined,defaultCapacityLimits);
+ for(let i=0;i<20;i++)assert.equal((await call('reserve',input())).status,201);
+ const health=await call('health',undefined,'GET');assert.equal(health.data.reservedRecordings,20);assert.equal(health.data.reservedBytes,40000);assert.equal(health.data.maxStorageBytes,1_000_000_000);
+});
+test('legacy capacity is upgraded without losing existing owners or recordings',async()=>{
+ const {call,map}=setup(),c=input();await call('reserve',c);await call('publish',c);
+ map.set('screennote/capacity.json',{ids:[c.id]});const h=await call('health',undefined,'GET');
+ assert.equal(h.data.reservedBytes,c.size);assert.equal(h.data.reservedRecordings,1);assert.equal((await call('manage',c)).status,200);
+ assert.ok(map.get('screennote/capacity.json').deadlines[c.id]>Date.now());
+});
+test('publication retains its assembly reservation until chunk cleanup succeeds',async()=>{
+ let failed=true;const {call,map}=setup({clearParts:async()=>{if(failed)throw Error('Temporary cleanup interruption')}}),c=input();
+ await call('reserve',c);await call('publish',c);assert.equal(map.get('screennote/capacity.json').allocations[c.id],2*c.size);
+ failed=false;await call('publish',c);assert.equal(map.get('screennote/capacity.json').allocations[c.id],c.size);
 });

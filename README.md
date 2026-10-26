@@ -1,10 +1,18 @@
-# ScreenNote v0.3.2
+# ScreenNote v0.3.3
 
 Record a short screen message, review it locally, and explicitly publish a clean viewer with timestamped replies and reactions. This is the second product following InvoiceFlow, implemented independently without inspecting or copying proprietary software.
 
-## Current verified release — 26 October 2026
+## Storage capacity release — v0.3.3
 
-Version 0.3.2 repairs the mobile review/share flow, intrinsic square/portrait playback, generated filename titles, owner-authorized published title edits, trusted container/track validation and diagnostic build labels. All 81 local tests pass, GitHub verification succeeds, and real preview/production checks passed for square MP4 and password-protected browser-trimmed WebM, including feedback, owner denial, title changes, byte-identical downloads, revocation/deletion and invalid-container rejection. See [verification/mobile-media-fixes-2026-10-26.md](verification/mobile-media-fixes-2026-10-26.md) for fresh evidence and precise scope. Physical handset and native hardware acceptance are still not certified. One synthetic UI-only test upload is revoked; its permanent cleanup awaits confirmation. Existing user recordings remain intact.
+The 16-slot restriction is removed. Shared videos draw from a 1 GB (1,000,000,000-byte) storage budget, with temporary chunks and assembly accounted for atomically. Pending uploads reserve twice their size; successful publication releases temporary capacity only after chunk cleanup. Existing reservations are migrated without changing videos or owner keys. The healthy connected organization is on Supabase Free. Its nominal file storage quota is organization-wide; other projects and provider usage restrictions still apply. No plan upgrade is enabled. The 25 MiB per-file limit remains.
+
+About 37 maximum-sized videos fit when uploaded sequentially into an otherwise empty budget, or hundreds of smaller videos. Simultaneous pending uploads reserve extra space. Expired/abandoned uploads are reclaimed under capacity pressure using a bounded cleanup batch. Health reports the actual reserved and remaining budget. Egress and hosting quotas are separate limits, not guaranteed viewing capacity.
+
+See verification/storage-capacity-2026-10-26.md for acceptance evidence.
+
+## Previous verified release — 26 October 2026
+
+Version 0.3.2 repaired the mobile review/share flow, intrinsic square/portrait playback, generated filename titles, owner-authorized published title edits, trusted container/track validation and diagnostic build labels. All 81 local tests pass, GitHub verification succeeds, and real preview/production checks passed for square MP4 and password-protected browser-trimmed WebM, including feedback, owner denial, title changes, byte-identical downloads, revocation/deletion and invalid-container rejection. See [verification/mobile-media-fixes-2026-10-26.md](verification/mobile-media-fixes-2026-10-26.md) for fresh evidence and precise scope. Physical handset and native hardware acceptance are still not certified. The synthetic UI-only upload was subsequently deleted after explicit approval. Existing user recordings remain intact.
 
 ## Stack
 
@@ -18,7 +26,7 @@ Buildless-style HTML/CSS with an esbuild-bundled browser app; Vercel Node Functi
 - Real local trim creates a new encoded file at playback speed, retaining the original; keep the tab open while processing.
 - Sharing uses bounded same-origin chunk transfers with private server-side assembly, private media, expiring playback URLs, and a clean `/v/:id` viewer. Sharing is explicit, never automatic.
 - Choice of 1, 3 or 7 day link expiry, timestamped comments, anonymous reactions and owner-controlled stop sharing. Issued playback URLs may persist for five minutes after stop-sharing.
-- Five minutes / 25 MB per clip; early-access shared capacity is 16 reservations, capped before accepting another upload. When capacity is full, new reservations reclaim expired uploads and abandoned reservations after an extra 24-hour grace period. Cleanup is demand-driven; a scheduled deletion job is not configured.
+- Five minutes / 25 MB per clip; shared storage uses a 1,000,000,000-byte budget. Reservations account for temporary assembly copies; the count depends on video sizes. A 10,000-record metadata safety bound also applies. When capacity is full, new reservations reclaim expired uploads and abandoned reservations after an extra 24-hour grace period. Cleanup is demand-driven; a scheduled deletion job is not configured.
 - Owner management capabilities can be exported as private recovery-key JSON and restored at the same origin after changing browsers or clearing local data. Export first: without the original keys, ownership cannot be recovered. Recovery files do not include videos. Viewer names and browser reaction identifiers are not verified identities.
 - Vercel protection settings are retained. An unauthenticated HTTP check of the production health endpoint returned 200; the shared viewer also played in the browser.
 

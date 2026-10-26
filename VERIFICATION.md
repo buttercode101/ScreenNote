@@ -1,3 +1,7 @@
+# Storage capacity verification — v0.3.3
+
+The 16-slot restriction is replaced by a 1 GB storage budget with assembly accounting. See [storage capacity acceptance](verification/storage-capacity-2026-10-26.md). Earlier UI/media acceptance follows as dated evidence.
+
 # Current verification — v0.3.2, 26 October 2026
 
 The current evidence is [mobile/media fix verification](verification/mobile-media-fixes-2026-10-26.md). Eighty-one local tests and GitHub CI pass. New real-service preview and production scenarios verify MP4/WebM publication, title editing, private playback, feedback preservation, invalid media rejection and owner-controlled revocation/deletion. Browser import/publication/title-edit/playback were also exercised through production UI. Phone/tablet sizing was emulated, not tested on a physical handset. The sections below are historical evidence and do not expand this scope.
