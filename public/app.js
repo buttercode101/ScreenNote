@@ -98,3 +98,5 @@ async function boot(){const match=location.pathname.match(/^\/v\/([a-f0-9-]{36})
 boot().then(async()=>{if(!globalThis.AppHost)return;const id=new URLSearchParams(location.search).get('nativeRecording');if(!/^[a-f0-9-]{36}$/.test(id||''))return;try{const response=await fetch('/__native_recordings/'+id);if(!response.ok)throw Error('This native recording is unavailable. Open Recordings to choose it again.');const blob=await response.blob();await importVideo(new File([blob],'Screen recording.mp4',{type:'video/mp4'}));history.replaceState(null,'','/')}catch(e){error(e)}});
 
 if(globalThis.AppHost)window.handleAndroidBack=()=>{if(busy||recording)return true;if(modal.open){modal.close();return true}if(selected){home();return true}return false};
+
+if(globalThis.AppHost)window.requestAndroidHome=()=>{if(!busy&&!recording)home();return true};
