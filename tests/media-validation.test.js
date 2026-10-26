@@ -20,4 +20,5 @@ test('trusted fetch is bounded, verifies downloaded bytes, and fails closed on u
   assert.equal((await validatePublishedMedia('https://storage.test/video',expected,async()=>new Response(b))).width,360);
   await assert.rejects(validatePublishedMedia('https://storage.test/video',{...expected,size:8},async()=>new Response(b)),{status:400});
   await assert.rejects(validatePublishedMedia('https://storage.test/video',expected,async()=>new Response(null,{status:503})),{status:503});
+  await assert.rejects(validatePublishedMedia('https://storage.test/video',expected,async()=>new Response(new ReadableStream({start(c){c.error(Error('Connection interrupted'))}}))),{status:503});
 });
