@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-26",
+  "scope": "Generated local media streams; actual browser MediaRecorder, Web Audio, canvas composition and IndexedDB",
+  "nativePicker": "Blocked: live request remained pending; no controllable native picker exposed",
+  "simulatedPendingCancellation": "passed: returned to library with zero recordings",
+  "countdown": "passed: three-second visible countdown before recording",
+  "pauseResume": "passed: timer remained 0:07 while paused, then recording resumed",
+  "stopAndPersist": "passed: recording reopened from same isolated IndexedDB namespace in a second top-level tab",
+  "download": {
+    "bytes": 875591,
+    "sha256": "adae2ce9697e67cc1e8bd0861c0256fe1b89b8b8511af508680390d35b120960",
+    "durationSeconds": 15.1167,
+    "video": "VP8 960x540",
+    "audio": "Opus 48000Hz stereo",
+    "meanVolumeDb": -15.1,
+    "maxVolumeDb": -11.8,
+    "cameraBubble": "visually confirmed in encoded frame"
+  },
+  "toolLimit": "Embedded-frame blob download unsupported; full-page editor download succeeded",
+  "remaining": [
+    "native source-picker completion and cancellation",
+    "real camera/microphone hardware",
+    "physical Android/iOS/Safari"
+  ]
+}
