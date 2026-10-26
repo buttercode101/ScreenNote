@@ -143,3 +143,24 @@ test('publication retains its assembly reservation until chunk cleanup succeeds'
  await call('reserve',c);await call('publish',c);assert.equal(map.get('screennote/capacity.json').allocations[c.id],2*c.size);
  failed=false;await call('publish',c);assert.equal(map.get('screennote/capacity.json').allocations[c.id],c.size);
 });
+
+test('real API operations persist replies and enforce comment capabilities',async()=>{
+ const {call,map}=setup(),c=input(),viewer=randomId(),authorKey='d'.repeat(64);await call('reserve',c);await call('publish',c);
+ const root=randomId(),child=randomId();const post={id:c.id,viewer,authorKey,eventId:root,text:'Question',time:2};
+ assert.equal((await call('comment',post)).status,200);
+ const reply=await call('comment',{...post,eventId:child,parentId:root,text:'Answer',time:6});assert.equal(reply.data.comments[1].parentId,root);assert.equal(reply.data.comments[1].time,2);
+ assert.equal(reply.data.comments[0].authorHash,undefined);
+ assert.equal((await call('edit-comment',{id:c.id,viewer,commentId:root,authorKey:'e'.repeat(64),text:'Tamper',expectedVersion:reply.data.comments[0].createdAt})).status,403);
+ assert.equal((await call('edit-comment',{id:c.id,viewer,commentId:root,authorKey,text:'Edited',expectedVersion:reply.data.comments[0].createdAt})).status,200);
+ assert.equal((await call('resolve-thread',{id:c.id,viewer,commentId:root,owner:c.owner,resolved:true})).data.comments[0].resolved,true);
+ assert.equal((await call('delete-comment',{id:c.id,viewer,commentId:root,owner:c.owner})).status,200);
+ assert.equal(map.get('clip/'+c.id).comments[0].deleted,true);assert.equal((await call('view',{id:c.id},'GET')).data.comments[1].text,'Answer');
+});
+
+test('protected discussions require password on every action and reject cross-clip parents',async()=>{
+ const {call}=setup(),c={...input(),password:'my-test-password'},viewer=randomId(),authorKey='d'.repeat(64);await call('reserve',c);await call('publish',c);
+ const root=randomId();assert.equal((await call('comment',{id:c.id,viewer,eventId:root,authorKey,text:'Private',time:1})).status,401);
+ assert.equal((await call('comment',{id:c.id,viewer,eventId:root,authorKey,text:'Private',time:1,accessPassword:c.password})).status,200);
+ for(const op of ['edit-comment','delete-comment','resolve-thread'])assert.equal((await call(op,{id:c.id,viewer,commentId:root,authorKey,text:'changed',resolved:true})).status,401);
+ assert.equal((await call('comment',{id:c.id,viewer,eventId:randomId(),parentId:randomId(),authorKey,text:'bad parent',time:1,accessPassword:c.password})).status,409);
+});

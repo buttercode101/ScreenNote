@@ -11,6 +11,11 @@ const mediaPath=mode.includes('square')?'/qa-square.mp4':mode.includes('portrait
 const longTitle=mode.includes('square')?'f84e7cf4-4f8a-493e-a654-98c85e705a88-1_all_463':'ScreenNote_'+ 'W'.repeat(89);
 const record={passwordProtected:mode==='protected',captions:[{start:0,end:2,text:'A clear introduction'},{start:3,end:6,text:'Show the bug <literal>'}],chapters:[{time:0,title:'Context'},{time:3,title:'The problem'}],report:{url:'https://example.com/bug',steps:'Open the page, then Save',expected:'A saved message',actual:'An error appears',environment:'QA browser'},id,owner,title:longTitle,type:'video/webm',size:348711,duration:7.008,start:0,end:7.008,createdAt:Date.now(),expiresAt:Date.now()+86400000,status:'published',comments:[{id:'22222222-2222-4222-8222-222222222222',name:'W'.repeat(40),text:'W'.repeat(500),time:2,createdAt:Date.now()}],reactions:{like:1,thanks:0,idea:0}};
 if(mediaPath!=='/sample.webm')Object.assign(record,{type:'video/mp4',duration:2,end:2,captions:[],chapters:[],report:null,originalFilename:longTitle+'.mp4'});
+if(mode==='viewer-discussion'){
+ record.title='A better welcome, one detail at a time';record.chapters=[];record.report=null;record.captions=[];
+ const root='22222222-2222-4222-8222-222222222222',reply='33333333-3333-4333-8333-333333333333';
+ record.comments=[{id:root,name:'Alex',text:'Could we make the welcome feel a little warmer?',time:1,parentId:null,createdAt:100},{id:reply,name:'Sam',text:'Yes — a short personal greeting would help.',time:1,parentId:root,createdAt:200},{id:'44444444-4444-4444-8444-444444444444',name:'Alex',text:'Exactly. Keep it simple and give the next step.',time:1,parentId:reply,createdAt:300},{id:'55555555-5555-4555-8555-555555555555',name:'Morgan',text:'The pacing here works really well.',time:4,parentId:null,createdAt:400,resolved:true}];
+}
 indexedDB.open=(name,version)=>realOpen('screennote-qa-'+mode+'-'+run+'-'+name,version);
 if(mode==='storage-unavailable')indexedDB.open=()=>{throw Error('Device storage is unavailable (QA simulation).')};
 if(!['empty','viewer','unavailable','storage-unavailable','recording','permission','quota','permission-pending','portrait-capture'].includes(mode)){
@@ -50,7 +55,8 @@ window.fetch=async(url,options={})=>{
  if(op==='revoke'){record.status='revoked';return json({revoked:true})}
  if(op==='delete'){record.status='deleted';record.cleanupComplete=true;return json({deleted:true})}
  if(op==='reaction'){for(const k in record.reactions)record.reactions[k]=k===body.reaction?1:0;return json(record)}
- if(op==='comment'){if(!record.comments.some(c=>c.id===body.eventId))record.comments.push({id:body.eventId,name:body.name||'Guest',text:body.text,time:body.time});return json(record)}
+ if(op==='comment'){if(!record.comments.some(c=>c.id===body.eventId))record.comments.push({id:body.eventId,name:body.name||'Guest',text:body.text,time:body.parentId?record.comments.find(c=>c.id===body.parentId)?.time:body.time,parentId:body.parentId,createdAt:Date.now()});record.discussionRevision=(record.discussionRevision||0)+1;return json(record)}
+ if(['edit-comment','delete-comment','resolve-thread'].includes(op)){const c=record.comments.find(x=>x.id===body.commentId);if(!c)return json({error:'Comment not found'},404);if(op==='edit-comment'){c.text=body.text;c.editedAt=Date.now()}if(op==='delete-comment'){c.deleted=true;c.text='';c.name='Deleted comment'}if(op==='resolve-thread')c.resolved=body.resolved;record.discussionRevision=(record.discussionRevision||0)+1;return json(record)}
  return json({error:'Unknown fixture action'},400);
 };
 if((mode.startsWith('viewer')||mode==='unavailable'))history.replaceState({},'',`/v/${id}?fixture=${mode}`);
