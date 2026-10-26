@@ -1,0 +1,24 @@
+{
+  "status": "Engineering inventory, not completed Google Play declarations",
+  "local": [
+    "native MP4 recordings",
+    "imported videos",
+    "editor metadata",
+    "private recovery keys",
+    "comment editing capabilities"
+  ],
+  "server": [
+    "videos explicitly published by users",
+    "titles and supplied context",
+    "guest names and comments",
+    "anonymous reaction identifiers",
+    "normal hosting/security logs"
+  ],
+  "remaining": [
+    "Terms acceptance before upload/comment",
+    "In-app reporting and blocking appropriate to anonymous shared-link discussions",
+    "Operator moderation workflow and real contact details",
+    "Stable public privacy-policy page naming actual publisher",
+    "Foreground-service declaration with a real recording demonstration"
+  ]
+}
