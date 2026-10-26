@@ -1,6 +1,10 @@
-# ScreenNote v0.3.0
+# ScreenNote v0.3.2
 
 Record a short screen message, review it locally, and explicitly publish a clean viewer with timestamped replies and reactions. This is the second product following InvoiceFlow, implemented independently without inspecting or copying proprietary software.
+
+## Current verified release — 26 October 2026
+
+Version 0.3.2 repairs the mobile review/share flow, intrinsic square/portrait playback, generated filename titles, owner-authorized published title edits, trusted container/track validation and diagnostic build labels. All 81 local tests pass, GitHub verification succeeds, and real preview/production checks passed for square MP4 and password-protected browser-trimmed WebM, including feedback, owner denial, title changes, byte-identical downloads, revocation/deletion and invalid-container rejection. See [verification/mobile-media-fixes-2026-10-26.md](verification/mobile-media-fixes-2026-10-26.md) for fresh evidence and precise scope. Physical handset and native hardware acceptance are still not certified. One synthetic UI-only test upload is revoked; its permanent cleanup awaits confirmation. Existing user recordings remain intact.
 
 ## Stack
 

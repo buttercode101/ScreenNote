@@ -1,6 +1,6 @@
 # Current release status — 26 October 2026
 
-The previous Blob outage has been resolved for new publications by the Supabase migration. Production serves v0.3.0 from GitHub implementation b5193d673981226a447f4836ab0c3ea03b22ae03. Live small-clip publication and recipient playback are directly verified. The approved larger-file, password, feedback, revocation and deletion acceptance run passed against the real service; cleanup left no test media, records, feedback or reservations. Evidence is recorded in PROJECT-ENGINE-AUDIT.md; its current verdict applies to the tested constrained beta scope. Native/physical device acceptance and commercial validation remain open.
+Production now serves v0.3.2. The seven confirmed mobile/media/title findings are repaired. Code release 24ac801ef04622408ada21c344bd7be0fa964e7c passed 81 local tests, successful GitHub checks and real preview/production media acceptance. The exact clean release manifest matches production. Read verification/mobile-media-fixes-2026-10-26.md for current evidence. Native hardware and physical Android/iOS/Safari acceptance remain open; this is not universal browser certification. The earlier Blob outage remains historical. Source/deployment references below describe earlier release stages unless explicitly identified as v0.3.2.
 
 ## Historical outage — 25 October 2026
 
