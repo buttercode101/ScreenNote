@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {retryTransfer} from '../lib/transfer.js';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
 const origin=new URL(process.argv[2]).origin,bytes=await readFile(process.argv[3]);
 assert.ok(bytes.length>0&&bytes.length<=50_000_000);
@@ -15,13 +15,17 @@ async function ok(op,body){return retryTransfer(async()=>{const r=await call(op,
 try{
  for(const protectedVideo of [false,true]){
  const c={id:randomUUID(),owner:randomBytes(32).toString('hex'),title:'Disposable ScreenNote production QA',type:'video/webm',size:bytes.length,duration,start:0,end:duration,linkDays:1,password:protectedVideo?'synthetic QA '+randomBytes(12).toString('hex'):'',captions:[{start:0,end:3,text:'QA literal <caption>'}],chapters:[{time:0,title:'Start'},{time:5,title:'Next'}],report:{actual:'Synthetic QA only'}};
- records.push(c);await ok('reserve',c);assert.equal((await call('manage',{id:c.id,owner:randomBytes(32).toString('hex')})).status,403);
- let parts=0;for(let offset=0;offset<bytes.length;offset+=2*1024*1024){await ok('upload-chunk',{id:c.id,owner:c.owner,part:parts++,data:bytes.subarray(offset,offset+2*1024*1024).toString('base64')})}
- await ok('publish',c);
+ records.push(c);await writeFile(process.env.QA_CLEANUP_FILE||'/tmp/screennote-qa-cleanup-private.json',JSON.stringify(records),{mode:0o600});console.log(JSON.stringify({stage:'reserve',id:c.id,protectedVideo}));await ok('reserve',c);assert.equal((await call('manage',{id:c.id,owner:randomBytes(32).toString('hex')})).status,403);
+ let parts=0;for(let offset=0;offset<bytes.length;offset+=2*1024*1024){await ok('upload-chunk',{id:c.id,owner:c.owner,part:parts++,data:bytes.subarray(offset,offset+2*1024*1024).toString('base64')});console.log(JSON.stringify({stage:'uploaded-part',part:parts}))}
+ console.log(JSON.stringify({stage:'publish'}));await ok('publish',c);
+ assert.equal((await call('restore-media',{id:c.id,owner:randomBytes(32).toString('hex')})).status,403);
+ const restored=await ok('restore-media',c);assert.ok(restored.mediaUrl);
+ await ok('review-status',{...c,reviewStatus:'approved'});
  if(protectedVideo){const locked=await call('view',{id:c.id});assert.equal(locked.status,401);assert.equal(locked.data.mediaUrl,undefined);assert.equal((await call('view',{id:c.id,accessPassword:'wrong synthetic'})).status,401)}
  const auth={id:c.id,accessPassword:c.password};let view=await ok('view',auth);assert.equal(view.ownerHash,undefined);assert.equal(view.captions[0].text,'QA literal <caption>');assert.equal(view.chapters.length,2);
- const playback=await request(view.mediaUrl);assert.equal(playback.status,200);const played=playback.bytes;assert.equal(createHash('sha256').update(played).digest('hex'),createHash('sha256').update(bytes).digest('hex'));
+ assert.equal(view.reviewStatus,'approved');const playback=await request(view.mediaUrl);assert.equal(playback.status,200);const played=playback.bytes;assert.equal(createHash('sha256').update(played).digest('hex'),createHash('sha256').update(bytes).digest('hex'));
  const viewer=randomUUID(),eventId=randomUUID();for(let i=0;i<2;i++)view=await ok('comment',{...auth,viewer,eventId,time:2,name:'QA',text:'Literal <script> QA reply'});assert.equal(view.comments.length,1);
+ view=await ok('comment',{...auth,viewer,eventId:randomUUID(),time:3,name:'QA',text:'Synthetic nested reply',parentId:view.comments[0].id});assert.equal(view.comments.length,2);assert.equal(view.comments[1].parentId,view.comments[0].id);
  view=await ok('reaction',{...auth,viewer,reaction:'like'});assert.equal(view.reactions.like,1);view=await ok('reaction',{...auth,viewer,reaction:''});assert.equal(view.reactions.like,0);
  await ok('details',{id:c.id,owner:c.owner,captions:[{start:0,end:2,text:'Updated'}],chapters:[],report:null});view=await ok('view',auth);assert.equal(view.captions[0].text,'Updated');
  await ok('revoke',c);assert.equal((await call('view',auth)).status,404);assert.equal((await ok('manage',c)).status,'revoked');
@@ -29,5 +33,5 @@ try{
  }
 }finally{
  for(const c of records){const r=await call('delete',{id:c.id,owner:c.owner});if(r.status===404)continue;assert.equal(r.status,200,'Cleanup failed: '+c.id);const state=await ok('manage',c);assert.equal(state.cleanupComplete,true);assert.equal((await call('view',{id:c.id,accessPassword:c.password})).status,404)}
- console.log(JSON.stringify({cleanup:'complete',records:records.length}));
+ await writeFile(process.env.QA_CLEANUP_FILE||'/tmp/screennote-qa-cleanup-private.json','[]',{mode:0o600});console.log(JSON.stringify({cleanup:'complete',records:records.length}));
 }
