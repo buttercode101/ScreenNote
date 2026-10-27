@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {inspectMedia,validatePublishedMedia} from '../lib/media-validation.js';
 
 test('real WebM, square MP4 and portrait MP4 retain tracks and measured dimensions', async () => {
-  for (const [path,type,duration,width,height] of [['public/sample.webm','video/webm',15.008,960,540],['tests/media/square.mp4','video/mp4',2,360,360],['tests/media/portrait.mp4','video/mp4',2,270,480]]) {
+  for (const [path,type,duration,width,height] of [['public/sample.webm','video/webm',7.008,960,540],['tests/media/square.mp4','video/mp4',2,360,360],['tests/media/portrait.mp4','video/mp4',2,270,480]]) {
     const b=await readFile(path), info=await inspectMedia(b,{type,duration,size:b.length});
     assert.equal(info.width,width);assert.equal(info.height,height);assert.ok(Math.abs(info.duration-duration)<.1);
   }

@@ -23,14 +23,7 @@ assert_no_system_dialog() {
 run_mode() {
   local mode="$1" result=0
   quieten_launcher
-  adb logcat -c
-  adb logcat -v threadtime > "android/emulator-evidence/${mode}-logcat.txt" 2>&1 &
-  local log_pid=$!
   ./android/gradlew -p android --no-daemon connectedDebugAndroidTest || result=$?
-  kill "$log_pid" 2>/dev/null || true
-  free -m > "android/emulator-evidence/${mode}-host-memory.txt"
-  adb shell uiautomator dump /sdcard/window-dump.xml >/dev/null 2>&1 || true
-  adb pull /sdcard/window-dump.xml "android/emulator-evidence/${mode}-window.xml" >/dev/null 2>&1 || true
   if ! adb pull /sdcard/Pictures/AndroidAcceptance android/emulator-evidence/; then
     if [ "$result" = 0 ]; then return 1; fi
   fi

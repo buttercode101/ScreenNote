@@ -1,4 +1,4 @@
-const BUCKET='screennote-media',MAX_BYTES=50_000_000,CHUNK_BYTES=2*1024*1024;
+const BUCKET='screennote-media',MAX_BYTES=25*1024*1024,CHUNK_BYTES=2*1024*1024;
 const idPattern=/^[a-f0-9-]{36}$/;
 const recordPattern=/^screennote\/(capacity\.json|[a-f0-9-]{36}\/record\.json)$/;
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
@@ -36,7 +36,7 @@ export function createGateway(client){
     if(b.op==='info')out=result(await files.info(video(b.id)));
     else if(b.op==='sign')out=result(await files.createSignedUrl(video(b.id),300)).signedUrl;
     else if(b.op==='magic'){
-     // The app caps shared videos at 50 MB. Only return the container header to Vercel.
+     // The app caps videos at 25 MiB. Only return the container header to Vercel.
      const blob=result(await files.download(video(b.id)));out=Array.from(new Uint8Array(await blob.slice(0,64).arrayBuffer()));
     }else if(b.op==='uploadPart'||b.op==='uploadSmall'){
      if(typeof b.bytes!=='string'||b.bytes.length>4194304)throw fail('Invalid upload part.');
@@ -59,7 +59,7 @@ export function createGateway(client){
      if(uploaded.error&&!/already exists|duplicate/i.test(uploaded.error.message))throw uploaded.error;
     }else if(b.op==='partsStatus'){
      if(!Number.isInteger(b.size)||b.size<1||b.size>MAX_BYTES)throw fail('Invalid video size.');
-     const items=result(await files.list(`screennote/${b.id}/parts`,{limit:Math.ceil(MAX_BYTES/CHUNK_BYTES)}));
+     const items=result(await files.list(`screennote/${b.id}/parts`,{limit:20}));
      out=items.filter(x=>/^(0|[1-9][0-9]*)$/.test(x.name)&&Number(x.name)<Math.ceil(b.size/CHUNK_BYTES)&&Number(x.metadata?.size)===Math.min(CHUNK_BYTES,b.size-Number(x.name)*CHUNK_BYTES)).map(x=>Number(x.name));
     }else if(b.op==='remove')result(await files.remove([video(b.id)]));
     else if(b.op==='clearParts'){

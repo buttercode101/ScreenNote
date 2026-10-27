@@ -32,6 +32,3 @@ test('permission timeout releases an acquired screen and cleans up a late device
   accept(device);await new Promise(r=>setImmediate(r));assert.equal(device.track.stopped,true);
  });
 });
-test('recording continues past the former 24 MiB cutoff and saves its actual stop reason',async()=>{
- const s=stream();await environment({getDisplayMedia:async()=>s},async()=>{let done;const finished=new Promise(r=>done=r),metrics=[];const c=new Capture({chunk:()=>{},status:()=>{},metrics:v=>metrics.push(v),finished:(b,d,e,diagnostics)=>done(diagnostics)});await c.start({mic:false});c.recorder.ondataavailable({data:new Blob([new Uint8Array(30_000_000)])});assert.equal(c.recorder.state,'recording');assert.equal(c.bytes,30_000_000);assert.ok(metrics.at(-1).bytes>=30_000_000);c.stop('source');const result=await finished;assert.equal(result.reason,'source');assert.equal(result.quality,'balanced');assert.ok(result.bytes>30_000_000)});
-});

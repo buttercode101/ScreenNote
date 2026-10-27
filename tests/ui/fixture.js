@@ -3,7 +3,7 @@ const mode=new URLSearchParams(location.search).get('case')||'empty';
 document.documentElement.dataset.qaCase=mode;
 const lag=Number(new URLSearchParams(location.search).get('lag'))||200;
 const run=new URLSearchParams(location.search).get('run')||'default';
-let healthCalls=0,reserveCalls=0,publishCalls=0;const uploadedParts=new Set();
+let healthCalls=0,reserveCalls=0,publishCalls=0;
 const realFetch=window.fetch.bind(window),realOpen=indexedDB.open.bind(indexedDB);
 const id='11111111-1111-4111-8111-111111111111',owner='a'.repeat(64);
 if(mode==='clipboard-failed')Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw Error('Clipboard unavailable (QA simulation).')}}});
@@ -19,7 +19,7 @@ if(mode==='viewer-discussion'){
 indexedDB.open=(name,version)=>realOpen('screennote-qa-'+mode+'-'+run+'-'+name,version);
 if(mode==='storage-unavailable')indexedDB.open=()=>{throw Error('Device storage is unavailable (QA simulation).')};
 if(!['empty','viewer','unavailable','storage-unavailable','recording','permission','quota','permission-pending','portrait-capture'].includes(mode)){
- let blob=await(await realFetch(mediaPath)).blob();if(mode==='large-local'){blob=new Blob([blob,new Uint8Array(51_000_000-blob.size)],{type:'video/webm'});Object.assign(record,{duration:15.008,end:15.008,size:blob.size,title:'Oversized local QA recording',captions:[],chapters:[],report:null})}
+ const blob=await(await realFetch(mediaPath)).blob();
  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('screennote',1);r.onupgradeneeded=()=>{r.result.createObjectStore('clips',{keyPath:'id'});r.result.createObjectStore('drafts',{keyPath:'id'})};r.onsuccess=()=>resolve(r.result);r.onerror=reject});
  await new Promise((resolve,reject)=>{const t=db.transaction('clips','readwrite'),store=t.objectStore('clips');const r=store.get(id);r.onsuccess=()=>{if(!r.result&&mode!=='interrupted')store.put({...record,revoked:mode==='protected',blob:mode==='recovered'?undefined:blob,managementOnly:mode==='recovered',shared:['shared','recovered','clipboard-failed'].includes(mode),uploadAttempted:['shared','recovered','clipboard-failed','protected'].includes(mode)})};t.oncomplete=resolve;t.onerror=reject});if(mode==='interrupted')await new Promise((resolve,reject)=>{const t=db.transaction('drafts','readwrite');t.objectStore('drafts').put({id,createdAt:Date.now(),seconds:7.008,chunks:[blob]});t.oncomplete=resolve;t.onerror=reject});db.close();
 }
@@ -43,15 +43,14 @@ window.fetch=async(url,options={})=>{
  const op=u.searchParams.get('op'),body=options.body?JSON.parse(options.body):{};
  const json=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json'}});
  if(op==='health'){if(mode==='storage-suspended')return json({error:'Online sharing is unavailable. Keep or download your local copy. The site owner needs to restore sharing access.',code:'STORAGE_ACCESS_UNAVAILABLE'},503);healthCalls++;if(mode==='health-retry'&&healthCalls<=4)return json({error:'Temporary health failure (QA)'},503);return json({configured:mode!=='offline'})}
- await new Promise((resolve,reject)=>{const signal=options.signal;if(signal?.aborted){reject(signal.reason);return}const abort=()=>{clearTimeout(timer);reject(signal.reason)};const timer=setTimeout(()=>{signal?.removeEventListener('abort',abort);resolve()},lag);signal?.addEventListener('abort',abort,{once:true})});
+ await new Promise(resolve=>setTimeout(resolve,lag));
  if(op==='view'){if(mode==='unavailable')return json({error:'This link has expired or is no longer shared.'},404);return json({...record,mediaUrl:mediaPath})}
- if(op==='review-status'){record.reviewStatus=body.reviewStatus;return json({reviewStatus:record.reviewStatus})}if(op==='restore-media')return json({mediaUrl:mediaPath});
  if(op==='title'){if(body.owner!==owner)return json({error:'Wrong owner'},403);record.title=body.title;return json({title:body.title})}
  if(op==='details'){Object.assign(record,{captions:body.captions,chapters:body.chapters,report:body.report});return json(body)}
- if(op==='upload-state')return json({parts:[...uploadedParts]});
+ if(op==='upload-state')return json({parts:[]});
  if(op==='manage')return body.owner===owner?json(record):json({error:'This browser does not have permission to manage the link.'},403);
  if(op==='reserve'){if(mode==='transfer-retry'&&++reserveCalls<3)return json({error:'Temporary setup failure (QA)'},503);record.passwordProtected=!!body.password;return json({id:body.id,status:'pending'},201)};
- if(op==='upload-chunk'){if(mode!=='upload-failed')uploadedParts.add(body.part);return mode==='upload-failed'?json({error:'Upload failed (QA simulation). Your local copy is safe.'},503):json({uploaded:true})};
+ if(op==='upload-chunk')return mode==='upload-failed'?json({error:'Upload failed (QA simulation). Your local copy is safe.'},503):json({uploaded:true});
  if(op==='publish'){if(mode==='transfer-retry'&&++publishCalls<3)return json({error:'Temporary finalization failure (QA)'},503);Object.assign(record,{...body,status:'published'});return json(record)}
  if(op==='revoke'){record.status='revoked';return json({revoked:true})}
  if(op==='delete'){record.status='deleted';record.cleanupComplete=true;return json({deleted:true})}
