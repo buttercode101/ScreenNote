@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Install the distribution media encoder
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Generate a real recording above the former sharing limit
         run: |
           ffmpeg -hide_banner -loglevel error -f lavfi -i testsrc2=size=1280x720:rate=24 -f lavfi -i sine=frequency=440:sample_rate=48000 -t 65 -c:v libvpx -b:v 4M -minrate 4M -maxrate 4M -bufsize 8M -deadline realtime -cpu-used 6 -c:a libopus -b:a 64k "$RUNNER_TEMP/65s-sharing.webm"
@@ -28,3 +30,4 @@ jobs:
         env:
           QA_CLEANUP_FILE: ${{ runner.temp }}/screennote-qa-cleanup-private.json
         run: node scripts/live-smoke.mjs https://screennote-woad.vercel.app "$RUNNER_TEMP/65s-sharing.webm" 65
+
