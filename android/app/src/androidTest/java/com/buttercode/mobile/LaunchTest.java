@@ -25,7 +25,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
  @androidx.test.filters.SdkSuppress(minSdkVersion=29) @Test public void integratedChromeTracksThemeAndDoesNotStealContentSpace()throws Exception{
   Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
   try(ActivityScenario<MainActivity> scenario=launch()){
-   ready(scenario);
+   ready(scenario);js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true})()");
    for(int n=0;n<60&&!"1".equals(js(scenario,"document.querySelectorAll('[data-android-menu]').length"));n++)Thread.sleep(100);
    assertEquals("1",js(scenario,"document.querySelectorAll('[data-android-menu]').length"));
    scenario.onActivity(a->{android.view.ViewGroup parent=(android.view.ViewGroup)a.web.getParent();assertSame("No native toolbar may sit below the product",a.web,parent.getChildAt(parent.getChildCount()-1));});
@@ -71,7 +71,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
   android.content.res.Configuration cfg=context.getResources().getConfiguration();
   org.junit.Assume.assumeTrue("Long native capture runs once, in phone portrait mode",cfg.smallestScreenWidthDp<600&&cfg.orientation==android.content.res.Configuration.ORIENTATION_PORTRAIT);
   try(ActivityScenario<MainActivity> scenario=launch()){
-   ready(scenario);js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true;document.querySelector('[data-android-action=recordScreen]').click()})()");
+   ready(scenario);context.getSharedPreferences("capture",Context.MODE_PRIVATE).edit().putBoolean("notificationsAsked",true).apply();js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true;document.querySelector('[data-android-action=recordScreen]').click()})()");
    nativeText("Recording quality",false);nativeText("Continue",true);nativeText("Screen only",true);
    // Read the actual system dialog. Android 15 offers a scope selector; choose the entire test screen.
    boolean consent=false;
