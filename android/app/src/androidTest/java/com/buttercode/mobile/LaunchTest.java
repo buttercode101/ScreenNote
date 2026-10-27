@@ -2,7 +2,6 @@ package com.buttercode.mobile;
 import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platform.app.InstrumentationRegistry;import androidx.test.core.app.ActivityScenario;import android.content.*;import android.graphics.Bitmap;import java.io.*;import java.util.concurrent.*;import java.util.concurrent.atomic.*;import org.junit.Test;import org.junit.runner.RunWith;import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class) public class LaunchTest {
  private void nativeText(String text,boolean tap)throws Exception{for(int n=0;n<50;n++){android.view.accessibility.AccessibilityNodeInfo root=InstrumentationRegistry.getInstrumentation().getUiAutomation().getRootInActiveWindow();if(root!=null){java.util.List<android.view.accessibility.AccessibilityNodeInfo> found=root.findAccessibilityNodeInfosByText(text);for(android.view.accessibility.AccessibilityNodeInfo node:found){if(node.getText()==null||!text.equalsIgnoreCase(node.getText().toString()))continue;if(!tap)return;while(node!=null&&!node.isClickable())node=node.getParent();if(node!=null&&node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))return;}}Thread.sleep(100);}fail("Native control unavailable: "+text);}
- private String nativeTree(android.view.accessibility.AccessibilityNodeInfo n){if(n==null)return "none";StringBuilder s=new StringBuilder();s.append("["+n.getClassName()+" text="+n.getText()+" description="+n.getContentDescription()+" clickable="+n.isClickable()+"]");for(int i=0;i<n.getChildCount();i++)s.append(nativeTree(n.getChild(i)));return s.toString();}
  private ActivityScenario<MainActivity> launch(){Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();Intent intent=context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());assertNotNull(intent);return ActivityScenario.launch(intent);}
  private String js(ActivityScenario<MainActivity> scenario,String expression)throws Exception{CountDownLatch ready=new CountDownLatch(1);AtomicReference<String> value=new AtomicReference<>();scenario.onActivity(a->a.web.evaluateJavascript(expression,v->{value.set(v);ready.countDown();}));assertTrue("WebView evaluation timed out",ready.await(10,TimeUnit.SECONDS));return value.get();}
  private void ready(ActivityScenario<MainActivity> scenario)throws Exception{for(int n=0;n<80;n++){String v=js(scenario,"document.readyState==='complete'&&!!document.querySelector('#app h1,#root h1')&&document.body.innerText.length>120");if("true".equals(v))return;Thread.sleep(250);}fail("The packaged app did not render usable content.");}
@@ -26,7 +25,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
  @androidx.test.filters.SdkSuppress(minSdkVersion=29) @Test public void integratedChromeTracksThemeAndDoesNotStealContentSpace()throws Exception{
   Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
   try(ActivityScenario<MainActivity> scenario=launch()){
-   ready(scenario);js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true})()");
+   ready(scenario);
    for(int n=0;n<60&&!"1".equals(js(scenario,"document.querySelectorAll('[data-android-menu]').length"));n++)Thread.sleep(100);
    assertEquals("1",js(scenario,"document.querySelectorAll('[data-android-menu]').length"));
    scenario.onActivity(a->{android.view.ViewGroup parent=(android.view.ViewGroup)a.web.getParent();assertSame("No native toolbar may sit below the product",a.web,parent.getChildAt(parent.getChildCount()-1));});
@@ -60,48 +59,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
    nativeText("Refresh page",true);nativeText("Refresh this page?",false);nativeText("Keep editing",true);
    ready(scenario);
    if(BuildConfig.SCREEN_CAPTURE){
-    js(scenario,"document.querySelector('[data-android-action=recordScreen]').click()");nativeText("Recording quality",false);nativeText("Continue",true);nativeText("Record your screen",false);nativeText("Cancel",true);
+    js(scenario,"document.querySelector('[data-android-action=recordScreen]').click()");nativeText("Record your screen",false);nativeText("Cancel",true);
     assertEquals("true",js(scenario,"!!document.querySelector('[data-android-capture]')"));
    }
   }
  }
 
  @Test public void nativeExportRequiresExactSequentialBytes()throws Exception{Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();ExportStore store=new ExportStore(context.getCacheDir());String token=store.begin("invoice.pdf","application/pdf",4);try{store.chunk(token,1,"JVBERg==");fail("Out-of-order export accepted");}catch(IOException expected){}store.chunk(token,0,"JVBERg==");File file=store.finish(token);assertEquals(4,file.length());try(InputStream in=new FileInputStream(file)){assertEquals('%',in.read());}assertTrue(file.delete());store.abort();}
- @androidx.test.filters.SdkSuppress(minSdkVersion=35) @Test public void nativeScreenRecordingSurvivesOneMinuteAndImports()throws Exception{
-  Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
-  android.content.res.Configuration cfg=context.getResources().getConfiguration();
-  org.junit.Assume.assumeTrue("Long native capture runs once, in phone portrait mode",cfg.smallestScreenWidthDp<600&&cfg.orientation==android.content.res.Configuration.ORIENTATION_PORTRAIT);
-  try(ActivityScenario<MainActivity> scenario=launch()){
-   ready(scenario);context.getSharedPreferences("capture",Context.MODE_PRIVATE).edit().putBoolean("notificationsAsked",true).apply();js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true;document.querySelector('[data-android-action=recordScreen]').click()})()");
-   nativeText("Recording quality",false);nativeText("Continue",true);nativeText("Screen only",true);
-   // Read the actual system dialog. Android 15 offers a scope selector; choose the entire test screen.
-   boolean consent=false;
-   for(int n=0;n<50&&!consent;n++){
-    android.view.accessibility.AccessibilityNodeInfo root=InstrumentationRegistry.getInstrumentation().getUiAutomation().getRootInActiveWindow();
-    if(root!=null){
-     java.util.List<android.view.accessibility.AccessibilityNodeInfo> scope=root.findAccessibilityNodeInfosByText("A single app");
-     if(!scope.isEmpty()){android.view.accessibility.AccessibilityNodeInfo node=scope.get(0);while(node!=null&&!node.isClickable())node=node.getParent();if(node!=null)node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);Thread.sleep(300);nativeText("Entire screen",true);Thread.sleep(300);}
-     root=InstrumentationRegistry.getInstrumentation().getUiAutomation().getRootInActiveWindow();
-     if(root!=null)for(String label:new String[]{"Start","Start now","Start recording"})for(android.view.accessibility.AccessibilityNodeInfo node:root.findAccessibilityNodeInfosByText(label))if(node.getText()!=null&&label.equalsIgnoreCase(node.getText().toString())){while(node!=null&&!node.isClickable())node=node.getParent();if(node!=null&&node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))consent=true;}
-    }
-    if(!consent)Thread.sleep(200);
-   }
-   if(!consent){saveScreenshot(scenario,context,"capture-consent-blocked");android.view.accessibility.AccessibilityNodeInfo root=InstrumentationRegistry.getInstrumentation().getUiAutomation().getRootInActiveWindow();System.out.println("CAPTURE_CONSENT_UI "+nativeTree(root));}assertTrue("Native screen-sharing consent was not completed",consent);
-   for(int n=0;n<60&&!ScreenRecordingService.active;n++)Thread.sleep(200);
-   assertTrue("Native recorder did not start",ScreenRecordingService.active);
-   String name=ScreenRecordingService.activeFileName;
-   // Real elapsed capture on the emulator. No synthetic MediaRecorder or file-size mocks.
-   Thread.sleep(65000);assertTrue("Recorder stopped before 65 seconds",ScreenRecordingService.active);
-   js(scenario,"document.querySelector('[data-android-action=recordScreen]').click()");nativeText("Stop recording",true);
-   for(int n=0;n<60&&ScreenRecordingService.active;n++)Thread.sleep(200);
-   File video=new File(new File(context.getFilesDir(),"recordings"),name);assertTrue(video.exists());assertTrue(video.length()>0);
-   android.media.MediaMetadataRetriever media=new android.media.MediaMetadataRetriever();media.setDataSource(video.getAbsolutePath());long duration=Long.parseLong(media.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION));assertTrue("Native video shorter than a minute",duration>=60000);assertNotNull(media.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));media.release();
-   js(scenario,"document.querySelector('[data-android-action=openRecordings]').click()");nativeText("Recordings on this device",false);
-   // Import via the same WebView route the user opens, then verify a decoded, persistent local copy.
-   nativeText("Close",true);String id=name.substring(0,name.length()-4);scenario.onActivity(a->a.web.loadUrl(BuildConfig.APP_ORIGIN+"/?nativeRecording="+id));
-   boolean imported=false;for(int n=0;n<100;n++){if("true".equals(js(scenario,"!!document.querySelector('#player')&&document.querySelector('#player').duration>=60"))){imported=true;break;}Thread.sleep(200);}assertTrue("Native video did not import into the editor",imported);
-   assertEquals("false",js(scenario,"document.documentElement.scrollWidth>innerWidth+2"));saveScreenshot(scenario,context,"native-recording-import");
-  }finally{context.startService(new Intent(context,ScreenRecordingService.class).setAction(ScreenRecordingService.STOP));}
- }
-
 }

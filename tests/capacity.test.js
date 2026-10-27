@@ -8,12 +8,12 @@ test('more than sixteen small recordings fit the storage budget',()=>{
  assert.equal(c.ids.length,200);assert.equal(capacityBytes(c),200*1024*1024);
 });
 test('maximum-sized sequential uploads use available quota while allowing assembly overlap',()=>{
- const c={ids:[]};for(let i=0;i<Math.floor(STORAGE_BUDGET_BYTES/MAX_BYTES)-1;i++){reserveCapacity(c,String(i),MAX_BYTES);finalizeCapacity(c,String(i),MAX_BYTES,Date.now()+86400000)}
- assert.equal(c.ids.length,Math.floor(STORAGE_BUDGET_BYTES/MAX_BYTES)-1);assert.throws(()=>reserveCapacity(c,'overflow',MAX_BYTES),{status:429});
+ const c={ids:[]};for(let i=0;i<37;i++){reserveCapacity(c,String(i),MAX_BYTES);finalizeCapacity(c,String(i),MAX_BYTES,Date.now()+86400000)}
+ assert.equal(c.ids.length,37);assert.throws(()=>reserveCapacity(c,'overflow',MAX_BYTES),{status:429});
  assert.ok(capacityBytes(c)+MAX_BYTES<=STORAGE_BUDGET_BYTES);
 });
 test('simultaneous pending reservations cannot overbook temporary assembly space',()=>{
- const c={ids:[]};for(let i=0;i<Math.floor(STORAGE_BUDGET_BYTES/(2*MAX_BYTES));i++)reserveCapacity(c,String(i),MAX_BYTES);
+ const c={ids:[]};for(let i=0;i<19;i++)reserveCapacity(c,String(i),MAX_BYTES);
  assert.throws(()=>reserveCapacity(c,'overflow',MAX_BYTES),{status:429});
  finalizeCapacity(c,'0',MAX_BYTES,Date.now()+86400000);releaseCapacity(c,'1');reserveCapacity(c,'next',MAX_BYTES);
  assert.ok(capacityBytes(c)<=STORAGE_BUDGET_BYTES);

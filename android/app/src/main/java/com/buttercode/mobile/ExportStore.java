@@ -6,7 +6,7 @@ final class ExportStore {
  String name,mime;
  ExportStore(File root){directory=new File(root,"exports");directory.mkdirs();}
  synchronized String begin(String fileName,String contentType,long size)throws IOException{
-  if(output!=null)throw new IOException("Finish the current export first.");if(size<1||size>OriginPolicy.exportLimit(contentType)||!OriginPolicy.exportMime(contentType)||!contentType.matches("[a-zA-Z0-9!#$&^_.+/-]+(?:;[a-zA-Z0-9=_.+ -]+)?"))throw new IOException("Unsupported export type or size.");
+  if(output!=null)throw new IOException("Finish the current export first.");if(size<1||size>OriginPolicy.MAX_EXPORT_BYTES||!OriginPolicy.exportMime(contentType)||!contentType.matches("[a-zA-Z0-9!#$&^_.+/-]+(?:;[a-zA-Z0-9=_.+ -]+)?"))throw new IOException("Unsupported export type or size.");
   long total=0;for(File f:directory.listFiles()==null?new File[0]:directory.listFiles()){if(System.currentTimeMillis()-f.lastModified()>7L*86400000)f.delete();else total+=f.length();}if(total+size>100L*1024*1024)throw new IOException("Export cache is full. Save your files and clear the export cache from Android settings.");
   token=UUID.randomUUID().toString();name=OriginPolicy.safeName(fileName);mime=contentType;active=new File(directory,token+"-"+name);expected=size;written=0;sequence=0;output=new FileOutputStream(active);return token;
  }

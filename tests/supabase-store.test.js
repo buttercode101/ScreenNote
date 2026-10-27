@@ -47,7 +47,7 @@ test('storage gateway validates JSON, record paths and metadata CAS conflicts',a
 test('storage gateway lists only complete resumable parts and rejects oversized assembly',async()=>{
  const a=gatewayFixture({files:{list:async()=>({data:[{name:'0',metadata:{size:2097152}},{name:'1',metadata:{size:10}},{name:'2',metadata:{size:12}},{name:'not-a-part'}],error:null})}});
  const r=await a.call({op:'partsStatus',id,size:2097162});assert.equal(r.status,200);assert.deepEqual((await r.json()).data,[0,1]);
- assert.equal((await a.call({op:'assemble',id,size:50000001,type:'video/webm'})).status,400);
+ assert.equal((await a.call({op:'assemble',id,size:26214401,type:'video/webm'})).status,400);
 });
 test('storage gateway refuses a public bucket during health and does not leak database errors',async()=>{
  const a=gatewayFixture({rpc:async()=>({data:null,error:{message:'sensitive internal connection'}})});

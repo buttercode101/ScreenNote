@@ -6,15 +6,14 @@ import {retryTransfer} from '../lib/transfer.js';
 import {readFile} from 'node:fs/promises';
 import {randomUUID,randomBytes,createHash} from 'node:crypto';
 const origin=new URL(process.argv[2]).origin,bytes=await readFile(process.argv[3]);
-assert.ok(bytes.length>0&&bytes.length<=50_000_000);
-const duration=Number(process.argv[4]||15.008);
+assert.ok(bytes.length>0&&bytes.length<=25*1024*1024);
 const records=[],results=[];
 async function request(url,body){return await new Promise((resolve,reject)=>{const args=['--silent','--show-error','--max-time','65','--write-out','\n%{http_code}',url];if(body)args.push('-H','content-type: application/json','-H','origin: '+origin,'--data-binary','@-');const p=spawn('curl',args),out=[],err=[];p.stdout.on('data',b=>out.push(b));p.stderr.on('data',b=>err.push(b));p.on('error',reject);p.on('close',code=>{if(code)return reject(Error(Buffer.concat(err).toString()));const raw=Buffer.concat(out),split=raw.lastIndexOf(10);resolve({status:Number(raw.subarray(split+1).toString()),bytes:raw.subarray(0,split)})});p.stdin.end(body?JSON.stringify(body):undefined)})}
 async function call(op,body){const r=await request(origin+'/api/clip?op='+op,body);return{status:r.status,data:JSON.parse(r.bytes.toString())}}
 async function ok(op,body){return retryTransfer(async()=>{const r=await call(op,body);if(r.status<200||r.status>=300)throw Object.assign(Error(op+': '+r.status+' '+r.data.error),{status:r.status});return r.data})}
 try{
  for(const protectedVideo of [false,true]){
- const c={id:randomUUID(),owner:randomBytes(32).toString('hex'),title:'Disposable ScreenNote production QA',type:'video/webm',size:bytes.length,duration,start:0,end:duration,linkDays:1,password:protectedVideo?'synthetic QA '+randomBytes(12).toString('hex'):'',captions:[{start:0,end:3,text:'QA literal <caption>'}],chapters:[{time:0,title:'Start'},{time:5,title:'Next'}],report:{actual:'Synthetic QA only'}};
+ const c={id:randomUUID(),owner:randomBytes(32).toString('hex'),title:'Disposable ScreenNote production QA',type:'video/webm',size:bytes.length,duration:15,start:0,end:15,linkDays:1,password:protectedVideo?'synthetic QA '+randomBytes(12).toString('hex'):'',captions:[{start:0,end:3,text:'QA literal <caption>'}],chapters:[{time:0,title:'Start'},{time:5,title:'Next'}],report:{actual:'Synthetic QA only'}};
  records.push(c);await ok('reserve',c);assert.equal((await call('manage',{id:c.id,owner:randomBytes(32).toString('hex')})).status,403);
  let parts=0;for(let offset=0;offset<bytes.length;offset+=2*1024*1024){await ok('upload-chunk',{id:c.id,owner:c.owner,part:parts++,data:bytes.subarray(offset,offset+2*1024*1024).toString('base64')})}
  await ok('publish',c);
