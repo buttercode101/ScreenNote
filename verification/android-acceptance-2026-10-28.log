@@ -1,0 +1,25 @@
+2026-10-27T23:39:26.3998364Z > Task :app:lintVitalReportRelease SKIPPED
+2026-10-27T23:39:26.4018217Z > Task :app:lintVitalRelease SKIPPED
+2026-10-27T23:39:30.3986898Z BUILD SUCCESSFUL in 49s
+2026-10-27T23:42:20.4629822Z > Task :app:preDebugAndroidTestBuild SKIPPED
+2026-10-27T23:43:00.0638674Z Starting 4 tests on emulator-5554 - 15
+2026-10-27T23:43:10.0524911Z emulator-5554 - 15 Tests 0/4 completed. (0 skipped) (0 failed)
+2026-10-27T23:43:30.0500874Z emulator-5554 - 15 Tests 1/4 completed. (0 skipped) (0 failed)
+2026-10-27T23:43:40.0505166Z emulator-5554 - 15 Tests 3/4 completed. (0 skipped) (0 failed)
+2026-10-27T23:45:00.0539635Z emulator-5554 - 15 Tests 4/4 completed. (0 skipped) (0 failed)
+2026-10-27T23:45:04.6661560Z BUILD SUCCESSFUL in 3m 13s
+2026-10-27T23:45:07.2841760Z /sdcard/Pictures/AndroidAcceptance/: 6 files pulled, 0 skipped. 7.6 MB/s (1117103 bytes in 0.140s)
+2026-10-27T23:45:30.8828595Z > Task :app:preDebugAndroidTestBuild SKIPPED
+2026-10-27T23:45:43.0917214Z Starting 4 tests on emulator-5554 - 15
+2026-10-27T23:45:53.0769747Z emulator-5554 - 15 Tests 0/4 completed. (0 skipped) (0 failed)
+2026-10-27T23:46:01.1907944Z com.buttercode.mobile.LaunchTest > nativeScreenRecordingSurvivesOneMinuteAndImports[emulator-5554 - 15] [33mSKIPPED [0m
+2026-10-27T23:46:03.0879233Z emulator-5554 - 15 Tests 5/4 completed. (1 skipped) (0 failed)
+2026-10-27T23:46:04.6114958Z BUILD SUCCESSFUL in 54s
+2026-10-27T23:46:07.4259020Z /sdcard/Pictures/AndroidAcceptance/: 11 files pulled, 0 skipped. 15.2 MB/s (2457127 bytes in 0.154s)
+2026-10-27T23:46:26.6562431Z > Task :app:preDebugAndroidTestBuild SKIPPED
+2026-10-27T23:46:36.1249591Z Starting 4 tests on emulator-5554 - 15
+2026-10-27T23:46:46.1214051Z emulator-5554 - 15 Tests 1/4 completed. (0 skipped) (0 failed)
+2026-10-27T23:46:49.3329437Z com.buttercode.mobile.LaunchTest > nativeScreenRecordingSurvivesOneMinuteAndImports[emulator-5554 - 15] [33mSKIPPED [0m
+2026-10-27T23:46:52.0468141Z BUILD SUCCESSFUL in 41s
+2026-10-27T23:46:54.7352527Z /sdcard/Pictures/AndroidAcceptance/: 16 files pulled, 0 skipped. 9.7 MB/s (2892125 bytes in 0.285s)
+2026-10-27T23:47:07.2680447Z BUILD SUCCESSFUL in 5s

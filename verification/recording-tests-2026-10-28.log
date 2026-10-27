@@ -1,0 +1,213 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> screennote@0.5.0 test
+> node --test tests/*.test.js
+
+ScreenNote request failed: Error This link has expired or is no longer shared.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote request failed: Error This link has expired or is no longer shared.
+ScreenNote request failed: Error This link has expired or is no longer shared.
+ScreenNote request failed: Error This link has expired or is no longer shared.
+ScreenNote request failed: Error Use the ScreenNote page to make this request.
+ScreenNote request failed: Error Method not allowed.
+ScreenNote request failed: Error Use a playable WebM or MP4, up to ten minutes and 50 MB.
+ScreenNote request failed: Error Shared storage is full. Download locally, delete an upload you own, or try again after expired uploads are reclaimed.
+ScreenNote request failed: Error Choose a listed reaction.
+ScreenNote request failed: Error Choose a timestamp inside this clip.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote request failed: Error The upload does not match the video.
+ScreenNote request failed: Error Invalid upload part.
+ScreenNote request failed: Error The upload part does not match this video.
+ScreenNote request failed: Error This link has expired or is no longer shared.
+ScreenNote request failed: Error This clip is no longer publishable. Create a new share link.
+ScreenNote request failed: Error This upload does not match its reservation.
+ScreenNote request failed: Error This upload reservation expired. Publish again to renew it.
+ScreenNote request failed: SyntaxError Expected property name or '}' in JSON at position 1 (line 1 column 2)
+ScreenNote request failed: Error Request is too large.
+ScreenNote request failed: Error Request is too large.
+ScreenNote request failed: Error Request is too large.
+ScreenNote request failed: Error Unknown action.
+ScreenNote request failed: Error Use a playable WebM or MP4, up to ten minutes and 50 MB.
+ScreenNote storage operation failed {"operation":"removeMedia","name":"Error","message":"Blob temporary failure","status":null}
+ScreenNote request failed: Error Sharing is temporarily unavailable. Keep your local copy and try again.
+ScreenNote request failed: Error This link has expired or is no longer shared.
+ScreenNote request failed: Error This clip is no longer publishable.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote storage operation failed {"operation":"removeMedia","name":"Error","message":"Blob unavailable","status":null}
+ScreenNote retention cleanup deferred: Error
+ScreenNote request failed: Error Shared storage is full. Download locally, delete an upload you own, or try again after expired uploads are reclaimed.
+ScreenNote storage operation failed {"operation":"write","name":"Error","message":"temporary write failure","status":null}
+ScreenNote request failed: Error Sharing is temporarily unavailable. Keep your local copy and try again.
+ScreenNote request failed: Error Shared storage is full. Download locally, delete an upload you own, or try again after expired uploads are reclaimed.
+✔ reserve, publish, view, react and comment form a complete API flow (8.242123ms)
+✔ a wrong owner cannot finalize, revoke or delete someone else’s clip (1.410948ms)
+✔ revoked and expired clips reject viewers and feedback (1.348955ms)
+✔ cross-origin writes, unexpected methods and unsupported media fail (0.57659ms)
+✔ shared capacity is bounded before allocating another video (4.683576ms)
+✔ comment/reaction payloads and duplicate events are validated (0.942291ms)
+✔ same-origin small upload checks owner, size and container before storage (0.708819ms)
+✔ chunk upload rejects invalid indexes and mismatched bytes (0.818925ms)
+✔ deleting media clears upload parts, releases capacity and remains safe to retry (2.396205ms)
+✔ resuming a pending upload updates its title but rejects a different file (1.070115ms)
+✔ expired upload reservations cannot publish until their owner renews them (0.773457ms)
+✔ malformed JSON, arrays and unsupported read operations fail safely (0.839547ms)
+✔ failed cloud cleanup retains capacity until an authorized retry succeeds (1.220561ms)
+✔ revoked uploads retain owner deletion permission and cannot be republished (0.884394ms)
+✔ recovery metadata requires the owner capability and exposes no owner hash (0.796893ms)
+✔ full capacity reclaims expired media but preserves active and recently expired records (4.891439ms)
+✔ failed expired cleanup cannot release its slot or erase another live reservation (3.343994ms)
+✔ failed reservation creation releases its slot and can be retried (0.664503ms)
+✔ capacity retains fresh orphan slots, then recovers them after the safety delay (1.919826ms)
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This link has expired or is no longer shared.
+✔ password protected videos expose no metadata or media without the password (191.445242ms)
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error Too many password attempts. Try again in one minute.
+ScreenNote request failed: Error Use a sharing password of 8–128 characters.
+ScreenNote request failed: Error Choose a link expiry of 1, 3 or 7 days.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote request failed: Error Caption times must be ordered and inside the video.
+✔ wrong password attempts are throttled and invalid password cannot consume a reservation (372.517747ms)
+✔ only owner can update bounded captions chapters and reports on a shared video (1.566133ms)
+ScreenNote request failed: Error Use the original sharing password for this upload. Delete the upload first to change its protection.
+ScreenNote request failed: Error Use the original sharing password for this upload. Delete the upload first to change its protection.
+ScreenNote storage operation failed {"operation":"uploadPart","name":"Error","message":"provider secret diagnostic","status":null}
+ScreenNote request failed: Error Sharing is temporarily unavailable. Keep your local copy and try again.
+ScreenNote storage operation failed {"operation":"read","name":"Error","message":"Provider offline","status":null}
+ScreenNote request failed: Error Sharing is temporarily unavailable. Keep your local copy and try again.
+ScreenNote storage operation failed {"operation":"read","name":"Error","message":"Vercel Blob: Failed to fetch blob: 403 Forbidden","status":null}
+ScreenNote request failed: Error Online sharing is unavailable. Keep or download your local copy. The site owner needs to restore sharing access.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote request failed: Error Add a video title of 1–100 characters.
+ScreenNote request failed: Error Add a video title of 1–100 characters.
+ScreenNote request failed: Error This upload does not contain a valid video. Re-export it as MP4 or WebM and try again. Your local copy is safe.
+ScreenNote request failed: Error This link has expired or is no longer shared.
+ScreenNote storage operation failed {"operation":"clearParts","name":"Error","message":"Temporary cleanup interruption","status":null}
+ScreenNote request failed: Error This browser cannot change this comment.
+✔ upload retries cannot misrepresent or silently change an existing sharing password (102.670226ms)
+✔ temporary storage failure is retryable and never exposes provider details (0.814729ms)
+✔ sharing health checks actual storage reads instead of credentials alone (0.25903ms)
+✔ storage access denial is distinguishable from a transient failure without exposing provider details (0.217899ms)
+✔ owner can correct a published title without changing its link or feedback (0.928731ms)
+✔ the publication boundary rejects signature-only media and leaves it pending (1.705803ms)
+✔ production byte policy accepts more than sixteen small API reservations (1.381845ms)
+✔ legacy capacity is upgraded without losing existing owners or recordings (0.395727ms)
+✔ publication retains its assembly reservation until chunk cleanup succeeds (0.536389ms)
+✔ real API operations persist replies and enforce comment capabilities (1.732223ms)
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This video needs its sharing password.
+ScreenNote request failed: Error This reply is no longer available. Refresh the conversation.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote request failed: Error Choose a valid review status.
+✔ protected discussions require password on every action and reject cross-clip parents (106.457569ms)
+✔ review status is owner-managed, validated and visible to recipients (0.906468ms)
+ScreenNote request failed: Error This link has expired or is no longer shared.
+ScreenNote request failed: Error This browser does not have permission to manage the link.
+ScreenNote request failed: Error This link has expired or is no longer shared.
+✔ device restore media requires owner capability and an active shared recording (37.220847ms)
+✔ more than sixteen small recordings fit the storage budget (3.354991ms)
+✔ maximum-sized sequential uploads use available quota while allowing assembly overlap (1.00787ms)
+✔ simultaneous pending reservations cannot overbook temporary assembly space (0.347484ms)
+✔ cleanup releases bytes, while late finalization cannot resurrect deleted reservations (0.548087ms)
+✔ screen permission is requested immediately and browser stop releases capture (3.197383ms)
+✔ camera or microphone denial cleans up an already acquired screen stream (0.917584ms)
+✔ unsupported browsers fail clearly and cleanup tolerates absent streams (0.341175ms)
+✔ a screen that ends during permission setup is rejected and released (0.535587ms)
+✔ stopped recording duration stays frozen and finishing runs exactly once (0.536219ms)
+✔ deferred setup records no frames until Begin and ends cleanly if source closes (0.365942ms)
+✔ prepared capture begins once and selected microphone constraints are passed through (5.038931ms)
+✔ cancelling a pending picker releases a late screen and never starts recording (0.760458ms)
+✔ cancelling while microphone permission is pending releases both streams (15.821376ms)
+✔ cancellation settles setup even when the native picker never responds (1.056764ms)
+✔ permission timeout releases an acquired screen and cleans up a late device grant (10.639089ms)
+✔ recording continues past the former 24 MiB cutoff and saves its actual stop reason (22.158325ms)
+✔ any participant can reply to any reply, keeping exact ancestry and root moment (3.396454ms)
+✔ invalid and deleted parents cannot receive replies; tombstones keep children (1.21944ms)
+✔ same visible name and viewer ID cannot grant editing, moderation or resolving rights (0.645293ms)
+✔ editing is author-only, concurrent versions conflict, and secrets never reach public output (0.652785ms)
+✔ root authors or creators resolve threads, a fresh reply reopens them (0.823943ms)
+✔ creator badge is server verified; creator can remove abusive guest comments (0.301475ms)
+✔ legacy flat comments work; duplicate event retries do not add or change posts (0.366884ms)
+✔ 100-comment bound, unavailable links and invalid timestamps remain enforced (5.299704ms)
+✔ bubbles seek deterministically and group dense timeline markers (1.902099ms)
+✔ slow refreshes cannot overwrite newly posted or edited conversations (0.564401ms)
+✔ comment actions advance a revision; duplicate retries remain idempotent (0.486364ms)
+✔ a quota failure warns once, abandons queued writes, and permits stop to flush (1.415596ms)
+✔ draft snapshots save in order and flush waits for pending work (1.162394ms)
+✔ recovery saved before a later disk failure remains intact without repeated warnings (0.406804ms)
+✔ SRT and exported VTT round trip with literal text and fractional times (7.722369ms)
+✔ caption import rejects malformed, oversized, unordered and out-of-range cues (0.649159ms)
+✔ chapters require ordered in-range timestamps and bounded text (0.587196ms)
+✔ report validation prevents credential URLs and bounds owner supplied data (2.026768ms)
+✔ trim rebases captions and chapters without sharing times outside the copy (0.676901ms)
+✔ bug report exports only explicitly supplied context (0.564842ms)
+✔ transfer retries transient failures but stops at a bound and rejects authorization immediately (1.891934ms)
+✔ storage access denial does not hammer a suspended service with retries (0.461246ms)
+✔ device files without MIME are normalized only after a matching supported container check (3.03623ms)
+✔ renaming arbitrary data or using unsupported file types cannot bypass import validation (0.938976ms)
+✔ real WebM, square MP4 and portrait MP4 retain tracks and measured dimensions (111.838717ms)
+✔ signature-only MP4, truncated MP4, missing video and dishonest duration cannot publish (3.766601ms)
+✔ trusted fetch is bounded, verifies downloaded bytes, and fails closed on unavailable media (8.886776ms)
+ScreenNote metadata contention {"attempt":1,"name":"Error"}
+ScreenNote metadata contention {"attempt":1,"name":"Error"}
+ScreenNote metadata contention {"attempt":2,"name":"Error"}
+ScreenNote metadata contention {"attempt":3,"name":"Error"}
+ScreenNote metadata contention {"attempt":4,"name":"Error"}
+ScreenNote metadata contention {"attempt":5,"name":"Error"}
+✔ existing metadata uses conditional overwrite while initial creation cannot overwrite (4.996617ms)
+✔ concurrent metadata mutations retry the latest record and retain both changes (2.836238ms)
+✔ metadata retry is bounded and does not retry ordinary provider errors (2.498469ms)
+✔ metadata requests identity encoding so a large JSON response supplies a strong revision (0.892827ms)
+✔ a weak response may use the canonical strong revision only after a matching head check (0.570881ms)
+✔ a newer canonical revision forces a fresh body read before mutation (0.681868ms)
+✔ unverifiable weak revisions fail closed rather than overwriting an unrelated generation (2.190074ms)
+✔ recording navigation can cancel an unsaved title without discarding its field (6.828952ms)
+✔ invalid publish settings cannot mark an unsaved title as saved (3.459949ms)
+✔ local persistence failure preserves the saved identity and edited title (1.896331ms)
+✔ local and sharing policies are separate, bounded and explicit (1.323847ms)
+✔ remaining time uses observed byte growth and never goes negative (0.347013ms)
+✔ library filtering and ordering preserve input and treat older clips as needing feedback (9.954096ms)
+✔ a deliberately paused upload is never retried (0.790924ms)
+✔ recovery exports capabilities without videos and validates them on import (2.594884ms)
+✔ recovery rejects foreign origins, duplicate IDs, malformed keys and oversized files (0.63646ms)
+✔ retention preserves fresh uploads and live links while reclaiming old data (0.273152ms)
+✔ video metadata enforces size, duration, type and trim boundaries (2.0354ms)
+✔ comments require valid timestamps and text, with bounded guest names (0.556309ms)
+✔ public clip never reveals owner capability or anonymous voter keys (2.262693ms)
+✔ container sniffing rejects mislabeled payloads (0.31124ms)
+✔ record IDs are valid and secure fallback works without randomUUID (2.303214ms)
+✔ protected pending and revoked videos cannot silently retry or republish without a password (1.568166ms)
+✔ new share settings remain available after revoke, deletion and expiry (0.317289ms)
+ScreenNote metadata contention {"attempt":1,"name":"Error"}
+✔ Supabase configuration fails closed and never falls back to another store (2.223655ms)
+✔ Supabase metadata revisions retry CAS conflicts without losing another reply (109.625999ms)
+✔ Supabase upload-state and binary transport preserve part indexes and bytes (1.503888ms)
+✔ storage gateway rejects missing, invalid and unregistered credentials before any operation (8.067279ms)
+✔ storage gateway validates JSON, record paths and metadata CAS conflicts (4.861438ms)
+✔ storage gateway lists only complete resumable parts and rejects oversized assembly (2.773213ms)
+ScreenNote gateway failure {"code":null}
+ScreenNote gateway failure {"name":"Error","code":null}
+✔ storage gateway refuses a public bucket during health and does not leak database errors (4.107336ms)
+✔ generated filenames get readable titles while original human titles survive (1.250025ms)
+✔ trim unlocks audio during the click before waiting for metadata and closes it on decode failure (2.218667ms)
+ℹ tests 111
+ℹ suites 0
+ℹ pass 111
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1173.566412
