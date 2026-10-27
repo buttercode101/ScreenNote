@@ -45,6 +45,7 @@ window.fetch=async(url,options={})=>{
  if(op==='health'){if(mode==='storage-suspended')return json({error:'Online sharing is unavailable. Keep or download your local copy. The site owner needs to restore sharing access.',code:'STORAGE_ACCESS_UNAVAILABLE'},503);healthCalls++;if(mode==='health-retry'&&healthCalls<=4)return json({error:'Temporary health failure (QA)'},503);return json({configured:mode!=='offline'})}
  await new Promise(resolve=>setTimeout(resolve,lag));
  if(op==='view'){if(mode==='unavailable')return json({error:'This link has expired or is no longer shared.'},404);return json({...record,mediaUrl:mediaPath})}
+ if(op==='review-status'){record.reviewStatus=body.reviewStatus;return json({reviewStatus:record.reviewStatus})}if(op==='restore-media')return json({mediaUrl:mediaPath});
  if(op==='title'){if(body.owner!==owner)return json({error:'Wrong owner'},403);record.title=body.title;return json({title:body.title})}
  if(op==='details'){Object.assign(record,{captions:body.captions,chapters:body.chapters,report:body.report});return json(body)}
  if(op==='upload-state')return json({parts:[]});

@@ -34,9 +34,9 @@ ScreenNote lets you record or import a short explanation, review it privately, a
 
 ## Limits that matter
 
-Clips are limited to five minutes and 25 MiB. Shared storage uses a 1,000,000,000-byte budget with temporary upload reservations; there is no fixed 16-slot cap. Available clip count depends on sizes, active reservations and provider quotas. Each clip allows up to 100 comments. Names are unverified; owner and author controls depend on private browser capabilities.
+Clips are limited to ten minutes and 50 MB. Shared storage uses a 1,000,000,000-byte budget with temporary upload reservations; there is no fixed 16-slot cap. Available clip count depends on sizes, active reservations and provider quotas. Each clip allows up to 100 comments. Names are unverified; owner and author controls depend on private browser capabilities.
 
-Local recordings are browser data, not a backup. Recovery-key files restore management capabilities, not video files. Issued media URLs may continue working for five minutes after sharing stops. Playback bubbles do not appear in native fullscreen or picture-in-picture. Phones without browser screen capture can import a device recording.
+Local recordings are browser data, not a backup. Recovery-key files restore management capabilities, not video files. Issued media URLs may continue working for ten minutes after sharing stops. Playback bubbles do not appear in native fullscreen or picture-in-picture. Phones without browser screen capture can import a device recording.
 
 ## Quick start
 

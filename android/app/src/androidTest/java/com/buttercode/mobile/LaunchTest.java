@@ -59,7 +59,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
    nativeText("Refresh page",true);nativeText("Refresh this page?",false);nativeText("Keep editing",true);
    ready(scenario);
    if(BuildConfig.SCREEN_CAPTURE){
-    js(scenario,"document.querySelector('[data-android-action=recordScreen]').click()");nativeText("Record your screen",false);nativeText("Cancel",true);
+    js(scenario,"document.querySelector('[data-android-action=recordScreen]').click()");nativeText("Recording quality",false);nativeText("Continue",true);nativeText("Record your screen",false);nativeText("Cancel",true);
     assertEquals("true",js(scenario,"!!document.querySelector('[data-android-capture]')"));
    }
   }
