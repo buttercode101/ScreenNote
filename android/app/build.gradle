@@ -2,7 +2,7 @@ plugins { id 'com.android.application' }
 android {
  namespace 'com.buttercode.mobile'
  compileSdk 36
- defaultConfig { applicationId 'za.co.buttercode.screennote'; minSdk 26; targetSdk 36; versionCode 2; versionName '0.1.1-internal'; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+ defaultConfig { applicationId 'za.co.buttercode.screennote'; minSdk 26; targetSdk 36; versionCode 4; versionName '0.5.0-internal'; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
   buildConfigField 'String','APP_ORIGIN','"https://screennote-woad.vercel.app"'
   buildConfigField 'boolean','SCREEN_CAPTURE','true'
   buildConfigField 'boolean','BUNDLED_OFFLINE','false'

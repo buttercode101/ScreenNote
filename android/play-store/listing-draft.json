@@ -2,7 +2,7 @@
   "status": "DRAFT — do not submit without release-gate review",
   "title": "ScreenNote",
   "shortDescription": "Record, review and share short videos with contextual conversations.",
-  "fullDescription": "ScreenNote\n\nRecord your Android screen with optional microphone audio.\nReview and trim videos before explicitly publishing a link.\nDiscuss specific moments using comments and threaded replies.\nKeep native recordings private on this device until you choose to share.\n\nThe first Android recorder supports screen-only and microphone capture, up to 5 minutes or 25 MB. System audio and camera overlays are not included. Online links use shared beta capacity and expire according to the selected period.",
+  "fullDescription": "ScreenNote\n\nRecord your Android screen with optional microphone audio.\nReview and trim videos before explicitly publishing a link.\nDiscuss specific moments using comments and threaded replies.\nKeep native recordings private on this device until you choose to share.\n\nThe first Android recorder supports screen-only and microphone capture, up to 30 minutes or 250 MB locally. Shared clips support up to 10 minutes and 50 MB. System audio and camera overlays are not included. Online links use shared beta capacity and expire according to the selected period.",
   "category": "Productivity",
   "supportEmail": "buttercode101@gmail.com",
   "privacyPolicyUrl": "https://screennote-woad.vercel.app/privacy.html",
