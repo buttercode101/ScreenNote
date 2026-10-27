@@ -82,7 +82,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
      java.util.List<android.view.accessibility.AccessibilityNodeInfo> scope=root.findAccessibilityNodeInfosByText("A single app");
      if(!scope.isEmpty()){android.view.accessibility.AccessibilityNodeInfo node=scope.get(0);while(node!=null&&!node.isClickable())node=node.getParent();if(node!=null)node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK);Thread.sleep(300);nativeText("Entire screen",true);Thread.sleep(300);}
      root=InstrumentationRegistry.getInstrumentation().getUiAutomation().getRootInActiveWindow();
-     if(root!=null)for(String label:new String[]{"Start now","Start recording"})for(android.view.accessibility.AccessibilityNodeInfo node:root.findAccessibilityNodeInfosByText(label))if(node.getText()!=null&&label.equalsIgnoreCase(node.getText().toString())){while(node!=null&&!node.isClickable())node=node.getParent();if(node!=null&&node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))consent=true;}
+     if(root!=null)for(String label:new String[]{"Start","Start now","Start recording"})for(android.view.accessibility.AccessibilityNodeInfo node:root.findAccessibilityNodeInfosByText(label))if(node.getText()!=null&&label.equalsIgnoreCase(node.getText().toString())){while(node!=null&&!node.isClickable())node=node.getParent();if(node!=null&&node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))consent=true;}
     }
     if(!consent)Thread.sleep(200);
    }
