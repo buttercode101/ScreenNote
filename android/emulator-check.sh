@@ -23,11 +23,23 @@ assert_no_system_dialog() {
 run_mode() {
   local mode="$1" result=0
   quieten_launcher
+  # Headless CI has no supported host video accelerator. Prefer Android's own
+  # software codecs; preserve real MediaRecorder, consent, 65s capture and import.
+  # AOSP Codec2InfoBuilder defines value 3 as c2.android.* ranked first.
+  adb shell setprop debug.stagefright.ccodec 3
+  test "$(adb shell getprop debug.stagefright.ccodec | tr -d '\r')" = 3
   adb logcat -c
   adb logcat -v threadtime > "android/emulator-evidence/${mode}-logcat.txt" 2>&1 &
   local log_pid=$!
   ./android/gradlew -p android --no-daemon connectedDebugAndroidTest || result=$?
   kill "$log_pid" 2>/dev/null || true
+  adb shell dumpsys media.codec > "android/emulator-evidence/${mode}-codecs.txt" 2>&1 || true
+  if [ "$result" = 0 ] && [ "$mode" = phone ]; then
+    if ! grep -q 'c2.android.avc.decoder' "android/emulator-evidence/${mode}-logcat.txt"; then
+      echo "::error::Software H.264 decoder selection was not observed; do not treat this run as deterministic software-codec acceptance."
+      result=1
+    fi
+  fi
   free -m > "android/emulator-evidence/${mode}-host-memory.txt"
   adb shell uiautomator dump /sdcard/window-dump.xml >/dev/null 2>&1 || true
   adb pull /sdcard/window-dump.xml "android/emulator-evidence/${mode}-window.xml" >/dev/null 2>&1 || true
