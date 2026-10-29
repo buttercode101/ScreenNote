@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'node:test';
+import { describe, it } from 'node:test';
+import assert from 'node:assert';
 
 describe('sanity', () => {
   it('always passes', () => {
-    expect(true).toBe(true);
+    assert.strictEqual(true, true);
   });
 });
