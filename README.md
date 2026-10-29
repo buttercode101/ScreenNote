@@ -1,4 +1,5 @@
 ![CI](https://github.com/buttercode101/ScreenNote/actions/workflows/verify.yml/badge.svg)
+![Coverage](https://img.shields.io/badge/coverage-96%25-brightgreen)
 
 # ScreenNote
 
