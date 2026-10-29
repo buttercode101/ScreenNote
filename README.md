@@ -1,3 +1,5 @@
+![CI](https://github.com/buttercode101/ScreenNote/actions/workflows/verify.yml/badge.svg)
+
 # ScreenNote
 
 **Show what you mean. Share a short video. Keep the conversation at the right moment.**
