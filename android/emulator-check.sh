@@ -35,8 +35,10 @@ run_mode() {
   kill "$log_pid" 2>/dev/null || true
   adb shell dumpsys media.codec > "android/emulator-evidence/${mode}-codecs.txt" 2>&1 || true
   if [ "$result" = 0 ] && [ "$mode" = phone ]; then
-    if ! grep -q 'c2.android.avc.decoder' "android/emulator-evidence/${mode}-logcat.txt"; then
-      echo "::error::Software H.264 decoder selection was not observed; do not treat this run as deterministic software-codec acceptance."
+    # Recording exercises the software H.264 encoder; playback (import) exercises
+    # the decoder. Either line proves the deterministic software codec path.
+    if ! grep -qE 'c2.android.avc.(decoder|encoder)' "android/emulator-evidence/${mode}-logcat.txt"; then
+      echo "::error::Software H.264 codec selection was not observed; do not treat this run as deterministic software-codec acceptance."
       result=1
     fi
   fi
