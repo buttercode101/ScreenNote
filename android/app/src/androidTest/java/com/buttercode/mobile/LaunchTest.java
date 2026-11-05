@@ -134,8 +134,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
    String fetchResult=js(scenario,"fetch('/__native_recordings/"+id+"').then(async r=>String(r.ok)+' '+r.headers.get('content-type')+' '+String((await r.blob()).size)).catch(e=>'fetch failed '+e)");
    System.out.println("NATIVE_IMPORT_FETCH "+fetchResult);
    String served=fetchResult.replace("\"","");
-   assertTrue("Native recording not served byte-identically: "+served, served.startsWith("true video/mp4 "));
-   assertTrue("Served recording is empty", !served.endsWith(" 0"));
+   File recorded=new File(new File(context.getFilesDir(),"recordings"),name);
+   assertTrue("Native recording not served byte-identically: "+served+" file="+recorded.length(), served.startsWith("true video/mp4 ")&&served.endsWith(" "+recorded.length()));
    assertEquals("false",js(scenario,"document.documentElement.scrollWidth>innerWidth+2"));saveScreenshot(scenario,context,"native-recording-import");
   }finally{context.startService(new Intent(context,ScreenRecordingService.class).setAction(ScreenRecordingService.STOP));}
  }
