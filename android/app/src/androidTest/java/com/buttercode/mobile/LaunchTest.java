@@ -131,9 +131,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
    // covered by tests/import-media.test.js. Decoding a 65s H.264 stream on the
    // swiftshader emulator kills the WebView renderer, so this test must not decode.
    nativeText("Close",true);String id=name.substring(0,name.length()-4);
-   String fetchResult=js(scenario,"fetch('/__native_recordings/"+id+"').then(async r=>String(r.ok)+' '+r.headers.get('content-type')+' '+String((await r.blob()).size)).catch(e=>'fetch failed '+e)");
-   System.out.println("NATIVE_IMPORT_FETCH "+fetchResult);
-   String served=fetchResult.replace("\"","");
+   // evaluateJavascript cannot await a Promise (it stringifies to "{}"), so park
+   // the result on window and poll it like the other async checks in this suite.
+   js(scenario,"window.__nf=null;fetch('/__native_recordings/"+id+"').then(async r=>{window.__nf=String(r.ok)+' '+r.headers.get('content-type')+' '+String((await r.blob()).size)}).catch(e=>{window.__nf='fetch failed '+e})");
+   String served="pending";for(int n=0;n<50;n++){served=js(scenario,"window.__nf||'pending'").replace("\"","");if(!"pending".equals(served))break;Thread.sleep(200);}
+   System.out.println("NATIVE_IMPORT_FETCH "+served);
    File recorded=new File(new File(context.getFilesDir(),"recordings"),name);
    assertTrue("Native recording not served byte-identically: "+served+" file="+recorded.length(), served.startsWith("true video/mp4 ")&&served.endsWith(" "+recorded.length()));
    assertEquals("false",js(scenario,"document.documentElement.scrollWidth>innerWidth+2"));saveScreenshot(scenario,context,"native-recording-import");
