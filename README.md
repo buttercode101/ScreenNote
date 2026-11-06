@@ -62,4 +62,4 @@ Open http://localhost:3000. This static preview supports local media workflows; 
 - [Architecture and historical releases](docs/TECHNICAL-NOTES.md)
 - [Contributing](CONTRIBUTING.md) · [Security reporting](SECURITY.md)
 
-Current source version: **0.4.0**. The old Blob suspension is historical; it does not mean historical media was migrated. Physical handsets and native capture permissions remain separate acceptance gates.
+Current source version: **0.5.0**. The old Blob suspension is historical; it does not mean historical media was migrated. Physical handsets and native capture permissions remain separate acceptance gates.

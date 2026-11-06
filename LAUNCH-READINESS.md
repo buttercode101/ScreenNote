@@ -42,7 +42,7 @@ Captions are owner-supplied and editable; no automatic transcription accuracy is
 
 ## Phase 4: constrained free beta
 
-No card, account, subscription or paid upgrade is enabled. Local recording/review/download does not use an AI API. Online sharing uses the connected Supabase private Storage, Postgres and Edge Function resources, plus Vercel Functions hosting. Limits: a 1 GB shared storage budget (including assembly reservations), five minutes, 25 MiB, 100 replies and 500 reaction identifiers per clip. Each owner can revoke or delete their upload; expired/reserved objects are reclaimed under capacity pressure after a grace period, not on a guaranteed deletion schedule. Back up recovery keys and videos separately.
+No card, account, subscription or paid upgrade is enabled. Local recording/review/download does not use an AI API. Online sharing uses the connected Supabase private Storage, Postgres and Edge Function resources, plus Vercel Functions hosting. Limits (verified 2026-11-06 against live `/api/clip?op=health`): a 1 GB shared storage budget (including assembly reservations), 600 seconds / 50 MB per clip, 100 replies and 500 reaction identifiers per clip. Earlier 5-minute / 25 MiB figures in this file are superseded. Each owner can revoke or delete their upload; expired/reserved objects are reclaimed under capacity pressure after a grace period, not on a guaranteed deletion schedule. Back up recovery keys and videos separately.
 
 ### Cost model, not a promise of free unlimited hosting
 
