@@ -2,25 +2,32 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {dirtyLabels,guardCopy} from '../lib/unsaved.js';
 
-test('recording navigation can cancel an unsaved title without discarding its field', () => {
+test('recording navigation can cancel an unsaved title without discarding its field', async () => {
   const source = fs.readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
-  const start = source.indexOf('function unsavedTitle()');
-  const end = source.indexOf('function home()', start);
+  // confirm() must be gone from the leave path
+  assert.ok(!source.includes("confirm('Leave this recording"));
+  assert.ok(source.includes('showUnsavedGuard'));
+  const start = source.indexOf('function unsavedChanges()');
+  const end = source.indexOf('function showUnsavedGuard', start);
   const field = { value: 'A title still being edited' };
-  let prompts = 0;
   const context = vm.createContext({
-    selected: { title: 'Saved title' }, $: () => field,
+    selected: { title: 'Saved title', duration: 10, reviewStatus: 'needs-feedback' },
+    $: s => s === '#recording-title-input' ? field : null,
     isGeneratedTitle: () => false,
-    confirm: () => { prompts++; return false; },
+    captionsVTT: () => '', formatTime: n => String(n),
+    editorMarks: null,
+    dirtyLabels, guardCopy,
   });
   vm.runInContext(source.slice(start, end), context);
-  assert.equal(vm.runInContext('confirmEditorLeave()', context), false);
+  // dirty title is named, field untouched
+  assert.deepEqual(vm.runInContext('unsavedChanges()', context), ['title']);
   assert.equal(field.value, 'A title still being edited');
-  assert.equal(prompts, 1);
-  context.confirm = () => true;
-  assert.equal(vm.runInContext('confirmEditorLeave()', context), true);
   field.value = 'Saved title';
-  context.confirm = () => { throw Error('Saved titles should not prompt'); };
-  assert.equal(vm.runInContext('confirmEditorLeave()', context), true);
+  assert.deepEqual(vm.runInContext('unsavedChanges()', context), []);
+  // password flag is named as not-saved and never persisted: guard copy/labels carry no secret
+  assert.deepEqual(dirtyLabels({password: true}), ['share password (not saved)']);
+  assert.ok(guardCopy(['title']).includes('title'));
+  assert.ok(!JSON.stringify(dirtyLabels({password: true})).includes('secret'));
 });
