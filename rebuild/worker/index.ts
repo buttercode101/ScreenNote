@@ -172,9 +172,9 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     if (action === "" && request.method === "GET") return json(publicShare(share));
     if (action === "comments" && request.method === "GET") {
       const { results } = await env.DB.prepare(
-        "SELECT id, parent_id AS parentId, viewer_label AS viewerLabel, body, time_seconds AS time, created_at AS createdAt, updated_at AS updatedAt, resolved, deleted_at AS deletedAt FROM comments WHERE share_id = ? ORDER BY created_at ASC LIMIT 200"
+        "SELECT id, parent_id AS parentId, author_hash AS authorHash, viewer_label AS viewerLabel, body, time_seconds AS time, created_at AS createdAt, updated_at AS updatedAt, resolved, deleted_at AS deletedAt FROM comments WHERE share_id = ? ORDER BY created_at ASC LIMIT 200"
       ).bind(share.id).all();
-      return json({ comments: results });
+      const authorKey = request.headers.get("x-sn-author-key");\n      const authorHash = authorKey && /^[A-Za-z0-9_-]{32,64}$/.test(authorKey) ? await digest(authorKey) : null;\n      return json({ comments: results.map((comment: any) => ({ ...comment, authorHash: undefined, isMine: !!authorHash && safeEqual(authorHash, comment.authorHash) })) });
     }
     if (action === "comments" && request.method === "POST") {
       const body = await request.json<{ authorKey?: string; text?: string; time?: number; parentId?: string | null; viewerLabel?: string }>().catch(() => null);
@@ -326,6 +326,11 @@ export default {
       const { results } = await env.DB.prepare("SELECT r.id, r.object_key FROM recordings r JOIN shares s ON s.recording_id = r.id WHERE s.expires_at <= ? OR s.revoked_at IS NOT NULL LIMIT 100")
         .bind(now).all<{ id: string; object_key: string }>();
       for (const row of results) {
+        await env.MEDIA.delete(row.object_key);
+        await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
+      }
+      const abandoned = await env.DB.prepare("SELECT id, object_key FROM recordings WHERE status = 'uploading' AND created_at <= ? LIMIT 100").bind(now - 600).all<{ id: string; object_key: string }>();
+      for (const row of abandoned.results) {
         await env.MEDIA.delete(row.object_key);
         await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
       }

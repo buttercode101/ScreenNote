@@ -5,7 +5,7 @@ import { findShareByToken } from "./library";
 import { shareRequest } from "./sharing";
 import "./styles.css";
 
-type Comment = { id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
+type Comment = { isMine?:boolean; id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
 type Share = { title:string; mimeType:string; size:number; duration:number; expiresAt:number; passwordRequired:boolean };
 function identity(token:string) {
   const key = "screennote-author-" + token;
@@ -24,7 +24,7 @@ function ShareViewer({token}:{token:string}) {
     setLoading(true);setError("");
     try {
       const data=await shareRequest<Share>(token);setShare(data);setLocked(false);
-      const discussion=await shareRequest<{comments:Comment[]}>(token,"/comments");setComments(discussion.comments);
+      const discussion=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(discussion.comments);
       const local=await findShareByToken(token);setOwnerKey(local?.share?.ownerKey??localStorage.getItem("screennote-recovery-"+token));
     } catch(e) {
       if ((e as {status?:number}).status===401) setLocked(true);
@@ -42,8 +42,24 @@ function ShareViewer({token}:{token:string}) {
     event.preventDefault();if(!text.trim())return;
     try {
       await shareRequest(token,"/comments",{method:"POST",body:JSON.stringify({authorKey,text:text.trim(),time:Math.floor(video.current?.currentTime??time),parentId:replyTo,viewerLabel:"Guest"})});
-      setText("");setReplyTo(null);const next=await shareRequest<{comments:Comment[]}>(token,"/comments");setComments(next.comments);
+      setText("");setReplyTo(null);const next=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(next.comments);
     } catch(e){setError(e instanceof Error?e.message:"Couldn't post your comment.");}
+  }
+  async function editComment(comment:Comment) {
+    const value=window.prompt("Edit your comment",comment.body);
+    if(value===null||!value.trim())return;
+    try { await shareRequest(token,"/comments/"+comment.id,{method:"PATCH",body:JSON.stringify({authorKey,text:value.trim()})}); const next=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(next.comments); }
+    catch(e){setError(e instanceof Error?e.message:"Couldn't edit this comment.");}
+  }
+  async function deleteComment(comment:Comment) {
+    if(!window.confirm("Delete this comment? Replies will remain in the thread."))return;
+    try { await shareRequest(token,"/comments/"+comment.id,{method:"DELETE",body:JSON.stringify({authorKey})}); const next=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(next.comments); }
+    catch(e){setError(e instanceof Error?e.message:"Couldn't delete this comment.");}
+  }
+  async function stopShare() {
+    if(!ownerKey||!window.confirm("Stop sharing now? The shared video and its entire conversation will be deleted."))return;
+    try { await shareRequest(token,"/manage",{method:"DELETE",body:JSON.stringify({ownerKey})}); setShare(null); setComments([]); setError("You stopped sharing. The shared video and conversation have ended."); }
+    catch(e){setError(e instanceof Error?e.message:"Couldn't stop sharing.");}
   }
   async function resolve(id:string,value:boolean) {
     if(!ownerKey)return;
@@ -54,7 +70,7 @@ function ShareViewer({token}:{token:string}) {
     return items.filter(c=>c.parentId===parent).map(c=><article className={"share-comment "+(depth?"reply":"")} key={c.id}>
       <div className="share-comment-meta"><strong>{c.viewerLabel||"Guest"}</strong><button className="timestamp-link" onClick={()=>seek(c.time)}>{timeLabel(c.time)}</button><span>{dateLabel(c.createdAt)}</span></div>
       <p>{c.deletedAt?"This comment was removed.":c.body}</p>
-      {!c.deletedAt&&<button className="text-action" onClick={()=>{setReplyTo(c.id);seek(c.time);}}>Reply</button>}
+      {!c.deletedAt&&<button className="text-action" onClick={()=>{setReplyTo(c.id);seek(c.time);}}>Reply</button>}{c.isMine&&!c.deletedAt&&<><button className="text-action" onClick={()=>editComment(c)}>Edit</button><button className="text-action" onClick={()=>deleteComment(c)}>Delete</button></>}
       {depth===0&&ownerKey&&!c.deletedAt&&<button className="text-action" onClick={()=>resolve(c.id,!c.resolved)}>{c.resolved?"Reopen":"Resolve"}</button>}
       {c.resolved===1&&<span className="resolved-tag"><Check size={12}/> Resolved</span>}
       {thread(items,c.id,depth+1)}
@@ -66,7 +82,7 @@ function ShareViewer({token}:{token:string}) {
   if(error&&!share)return <main className="share-page"><div className="share-ended"><ShieldCheck size={25}/><h1>This moment has ended.</h1><p>{error}</p><span>ScreenNote links are temporary by design.</span></div></main>;
   if(!share)return null;
   return <main className="share-page">
-    <header className="share-topbar"><div className="share-brand"><span className="brand-mark"><Video size={17}/></span> screen<span>note</span></div><span className="temporary-label"><Clock3 size={14}/> Temporary share</span></header>
+    <header className="share-topbar"><div className="share-brand"><span className="brand-mark"><Video size={17}/></span> screen<span>note</span></div><span className="temporary-label"><Clock3 size={14}/> Temporary share</span>{ownerKey&&<button className="text-action" onClick={stopShare}>Stop sharing</button>}</header>
     <div className="share-layout"><section className="share-main"><div className="share-heading"><span className="eyebrow">A MOMENT, SHARED</span><h1>{share.title}</h1><p>Watch the clip. Leave a note at the exact moment that matters.</p></div>
       <div className="share-video-wrap"><video ref={video} src={"/api/share/"+token+"/media"} controls playsInline preload="metadata" onTimeUpdate={e=>setTime(e.currentTarget.currentTime)}/>{activeBubbles.map((c,i)=><button key={c.id} className="playback-bubble" style={{bottom:(20+Math.min(3,i)*52)+"px"}} onClick={()=>seek(c.time)}><MessageCircle size={14}/>{c.body.slice(0,90)}</button>)}</div>
       <div className="share-video-meta"><span>{timeLabel(share.duration)} · {Math.ceil(share.size/1024/1024)} MB</span><span>Available until {new Date(share.expiresAt*1000).toLocaleString()}</span></div>
