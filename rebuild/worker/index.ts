@@ -121,7 +121,7 @@ async function serveStatic(request: Request, env: Bindings, ctx: ExecutionContex
     return new Response("Bad path", { status: 400 });
   }
   const cacheKey = new Request(url.toString(), { method: "GET" });
-  const isImmutable = /\.[a-f0-9]{8,}\.(?:js|css)$/.test(pathname) || /\/bundle-\d{2}\.gz$/.test(pathname);
+  const isImmutable = pathname.startsWith("/assets/");
   if (request.method === "GET" && isImmutable) {
     const cached = await caches.default.match(cacheKey);
     if (cached) return cached;
