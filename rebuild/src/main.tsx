@@ -153,8 +153,7 @@ function App() {
       setMessage("Choose an MP4, WebM or MOV video.");
       return;
     }
-    const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\.[^.]+$/, ""), createdAt: Date.now(), duration: 0, size: file.size, mimeType: file.type, blob: file };
-    try { await saveClip(clip); await refresh(); setMessage("Video added to your private library."); }
+    try { const duration = await readVideoDuration(file); const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\\.[^.]+$/, ""), createdAt: Date.now(), duration, size: file.size, mimeType: file.type, blob: file }; await saveClip(clip); await refresh(); setMessage("Video added to your private library."); }
     catch { setMessage("Could not save this file. Check available device storage."); }
     if (fileRef.current) fileRef.current.value = "";
   }

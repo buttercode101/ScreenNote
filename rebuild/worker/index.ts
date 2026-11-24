@@ -150,7 +150,8 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     if (action === "manage" && request.method === "DELETE") {
       const body = await request.json<{ ownerKey?: string }>().catch(() => null);
       if (typeof body?.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.ownerKey)) return fail("The private recovery key is required.", 403);
-      if (!safeEqual(await digest(body.ownerKey), await env.DB.prepare("SELECT owner_key_hash FROM shares WHERE id = ?").bind(share.id).then((row: any) => row?.owner_key_hash ?? ""))) return fail("This browser cannot stop sharing this recording.", 403);
+      const ownerRecord = await env.DB.prepare("SELECT owner_key_hash FROM shares WHERE id = ?").bind(share.id).first<{ owner_key_hash: string }>();
+      if (!ownerRecord || !safeEqual(await digest(body.ownerKey), ownerRecord.owner_key_hash)) return fail("This browser cannot stop sharing this recording.", 403);
       await env.MEDIA.delete(share.object_key);
       await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(share.recording_id).run();
       return json({ deleted: true });
