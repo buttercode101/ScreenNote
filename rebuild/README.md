@@ -48,6 +48,8 @@ npm test
 npm run build
 ```
 
+For GitHub Actions deployment, add a repository Actions secret named `CLOUDFLARE_API_TOKEN` with scoped Workers Scripts, D1 and R2 edit permissions. Then run the **ScreenNote Cloudflare rebuild** workflow manually on this branch. The target development URL is `https://screennote-dev.buttercoder-dev.workers.dev` once deployment succeeds.
+
 Deploy only to the dedicated development Worker after the D1 migration is applied:
 
 ```bash
