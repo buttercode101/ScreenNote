@@ -5,6 +5,7 @@ import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordin
 import { ScreenRecorder, supportedMimeType, type RecordingResult } from "./recorder";
 import { newOwnerKey, publishRecording } from "./sharing";
 import ShareViewer from "./ShareViewer";
+import PrivacyPage from "./PrivacyPage";
 import "./styles.css";
 
 const recorder = new ScreenRecorder();
@@ -319,4 +320,5 @@ function App() {
 const root = createRoot(document.getElementById("root")!);
 const shareToken = window.location.pathname.split("/")[2] ?? "";
 const isSharePath = window.location.pathname.startsWith("/s/") && /^[A-Za-z0-9_-]{32,64}$/.test(shareToken);
-root.render(<React.StrictMode>{isSharePath ? <ShareViewer token={shareToken} /> : <App />}</React.StrictMode>);
+const isPrivacyPath = window.location.pathname === "/privacy";
+root.render(<React.StrictMode>{isSharePath ? <ShareViewer token={shareToken} /> : isPrivacyPath ? <PrivacyPage /> : <App />}</React.StrictMode>);
