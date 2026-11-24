@@ -50,6 +50,8 @@ function App() {
   const [sharePassword, setSharePassword] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [shareLink, setShareLink] = useState("");
+  const [recoveryData, setRecoveryData] = useState("");
+  const recoveryFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = async () => {
@@ -204,11 +206,23 @@ function App() {
       await saveClip(next); await refresh();
       const fullUrl = new URL(result.url, location.origin).toString();
       setShareLink(fullUrl);
+      setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey, recordingId: result.id, expiresAt: result.expiresAt }, null, 2));
       await navigator.clipboard?.writeText(fullUrl).catch(() => undefined);
       setPublishId(null); setSharePassword("");
       setMessage("Your temporary link is ready. The link has been copied if clipboard access is available.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't publish this recording."); }
     finally { setPublishing(false); }
+  }
+
+  async function importRecovery(file?: File) {
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (data?.format !== "screennote-share-recovery" || data.version !== 1 || typeof data.shareToken !== "string" || !/^[A-Za-z0-9_-]{32,64}$/.test(data.shareToken) || typeof data.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(data.ownerKey)) throw new Error("This is not a valid ScreenNote recovery key.");
+      localStorage.setItem("screennote-recovery-" + data.shareToken, data.ownerKey);
+      setMessage("Private recovery key imported. You can now manage this share from its viewer link.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not read this recovery key."); }
+    finally { if (recoveryFileRef.current) recoveryFileRef.current.value = ""; }
   }
 
   async function stopSharing(id: string) {
@@ -240,7 +254,7 @@ function App() {
         <div className="privacy-card"><ShieldCheck size={18}/><div><strong>Your recordings stay yours.</strong><p>Saved privately on this device until you choose to share.</p></div></div>
         <button className="nav-item" onClick={() => setShowSettings(!showSettings)}><Settings2 size={17}/> Preferences</button>
         <button className="nav-item" onClick={() => setDark(!dark)}>{dark ? <Sun size={17}/> : <Moon size={17}/>} {dark ? "Light appearance" : "Dark appearance"}</button>
-        <a className="nav-item" href="mailto:hello@buttercode.systems"><CircleHelp size={17}/> Help & feedback</a>
+        <button className="nav-item" onClick={() => recoveryFileRef.current?.click()}><ShieldCheck size={17}/> Restore share key</button><a className="nav-item" href="mailto:hello@buttercode.systems"><CircleHelp size={17}/> Help & feedback</a>
         <div className="profile-row"><div className="avatar">S</div><div><strong>Personal space</strong><span>Guest workspace</span></div><MoreHorizontal size={18}/></div>
       </div>
     </aside>
@@ -285,8 +299,8 @@ function App() {
       <div className="privacy-explainer"><ShieldCheck size={17}/><span>Viewers don't need an account. Your shared copy and discussion are deleted when the link expires or you stop sharing.</span></div>
       <button className="button primary publish-submit" disabled={publishing || (sharePassword.length>0&&sharePassword.length<8)} onClick={publishSelected}>{publishing?"Uploading securely…":"Publish temporary link"} <ArrowUpRight size={16}/></button>
     </section></div>}
-    {shareLink && <div className="share-link-toast" role="status"><div><strong>Temporary link ready</strong><span>{shareLink}</span></div><button className="button secondary" onClick={()=>navigator.clipboard?.writeText(shareLink)}>Copy link</button><button className="icon-button" onClick={()=>setShareLink("")} aria-label="Dismiss"><X size={16}/></button></div>}
-    <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => importFile(e.target.files?.[0])}/>
+    {shareLink && <div className="share-link-toast" role="status"><div><strong>Temporary link ready</strong><span>{shareLink}</span></div><button className="button secondary" onClick={()=>navigator.clipboard?.writeText(shareLink)}>Copy link</button><button className="button secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([recoveryData],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="screennote-recovery.json";a.click();URL.revokeObjectURL(url);}}>Recovery key</button><button className="icon-button" onClick={()=>setShareLink("")} aria-label="Dismiss"><X size={16}/></button></div>}
+    <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => importFile(e.target.files?.[0])}/><input ref={recoveryFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => importRecovery(e.target.files?.[0])}/>
   </div>;
 }
 
