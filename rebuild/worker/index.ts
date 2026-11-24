@@ -156,7 +156,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     if (action === "comments" && request.method === "POST") {
       const body = await request.json<{ authorKey?: string; text?: string; time?: number; parentId?: string | null; viewerLabel?: string }>().catch(() => null);
       if (!body || typeof body.authorKey !== "string" || !/^[A-Za-z0-9_-]{32,64}$/.test(body.authorKey)) return fail("A valid comment identity is required.", 400);
-      if (typeof body.text !== "string' || !body.text.trim() || body.text.length > 2000) return fail("Comments must be between 1 and 2,000 characters.", 400);
+      if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 2000) return fail("Comments must be between 1 and 2,000 characters.", 400);
       if (!Number.isFinite(body.time) || body.time! < 0 || body.time! > share.duration_seconds) return fail("Choose a timestamp within this video.", 400);
       const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM comments WHERE share_id = ? AND deleted_at IS NULL").bind(share.id).first<{ total: number }>();
       if ((count?.total ?? 0) >= MAX_COMMENTS_PER_SHARE) return fail("This discussion has reached its comment limit.", 429);
@@ -210,7 +210,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
   }
   if (path === "/api/recordings" && request.method === "POST") {
     const body = await request.json<{ title?: string; mimeType?: string; size?: number; duration?: number }>().catch(() => null);
-    if (!body || typeof body.title !== "string' || !body.title.trim() || body.title.length > 120) return fail("A valid recording title is required.", 400);
+    if (!body || typeof body.title !== "string" || !body.title.trim() || body.title.length > 120) return fail("A valid recording title is required.", 400);
     if (!Number.isSafeInteger(body.size) || !body.size || body.size! < 1 || body.size! > MAX_UPLOAD_BYTES) return fail("This clip exceeds the 100 MB sharing limit.", 413);
     if (!Number.isFinite(body.duration) || body.duration! < 0 || body.duration! > MAX_DURATION_SECONDS) return fail("ScreenNote clips must be 10 minutes or shorter.", 413);
     const mime = body.mimeType?.split(";")[0] ?? "";
