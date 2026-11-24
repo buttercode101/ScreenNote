@@ -5,7 +5,7 @@ import { findShareByToken } from "./library";
 import { shareRequest } from "./sharing";
 import "./styles.css";
 
-type Comment = { isMine?:boolean; id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
+type Comment = { isMine?:boolean; anchorX:number|null; anchorY:number|null; id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
 type Share = { title:string; mimeType:string; size:number; duration:number; expiresAt:number; passwordRequired:boolean };
 function identity(token:string) {
   const key = "screennote-author-" + token;
@@ -17,7 +17,7 @@ const timeLabel=(n:number)=>{const m=Math.floor(n/60),s=Math.floor(n%60);return 
 const dateLabel=(n:number)=>new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).format(n*1000);
 function ShareViewer({token}:{token:string}) {
   const [share,setShare]=useState<Share|null>(null),[comments,setComments]=useState<Comment[]>([]),[password,setPassword]=useState(""),[locked,setLocked]=useState(false),[error,setError]=useState(""),[loading,setLoading]=useState(true);
-  const [text,setText]=useState(""),[replyTo,setReplyTo]=useState<string|null>(null),[time,setTime]=useState(0),[ownerKey,setOwnerKey]=useState<string|null>(null);
+  const [text,setText]=useState(""),[replyTo,setReplyTo]=useState<string|null>(null),[time,setTime]=useState(0),[ownerKey,setOwnerKey]=useState<string|null>(null),[annotateMode,setAnnotateMode]=useState(false),[annotation,setAnnotation]=useState<{x:number;y:number}|null>(null);
   const video=useRef<HTMLVideoElement>(null);
   const authorKey=useMemo(()=>identity(token),[token]);
   async function load() {
@@ -38,11 +38,16 @@ function ShareViewer({token}:{token:string}) {
     catch(e){setError(e instanceof Error?e.message:"That password didn't work.");}
   }
   function seek(seconds:number) { if(video.current){video.current.currentTime=seconds;void video.current.play();setTime(seconds);} }
+  function placeAnnotation(event:React.MouseEvent<HTMLDivElement>) {
+    if(!annotateMode)return;
+    const rect=event.currentTarget.getBoundingClientRect();
+    setAnnotation({x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height))});
+  }
   async function send(event:React.FormEvent) {
     event.preventDefault();if(!text.trim())return;
     try {
-      await shareRequest(token,"/comments",{method:"POST",body:JSON.stringify({authorKey,text:text.trim(),time:Math.floor(video.current?.currentTime??time),parentId:replyTo,viewerLabel:"Guest"})});
-      setText("");setReplyTo(null);const next=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(next.comments);
+      await shareRequest(token,"/comments",{method:"POST",body:JSON.stringify({authorKey,text:text.trim(),time:Math.floor(video.current?.currentTime??time),parentId:replyTo,viewerLabel:"Guest",anchorX:annotation?.x,anchorY:annotation?.y})});
+      setText("");setReplyTo(null);setAnnotation(null);setAnnotateMode(false);const next=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(next.comments);
     } catch(e){setError(e instanceof Error?e.message:"Couldn't post your comment.");}
   }
   async function editComment(comment:Comment) {
@@ -105,9 +110,9 @@ function ShareViewer({token}:{token:string}) {
   return <main className="share-page">
     <header className="share-topbar"><div className="share-brand"><span className="brand-mark"><Video size={17}/></span> screen<span>note</span></div><span className="temporary-label"><Clock3 size={14}/> Temporary share</span><div className="share-header-actions"><button className="text-action" onClick={exportHandoff}>Export handoff</button><button className="text-action" onClick={downloadVideo}>Download video</button>{ownerKey&&<button className="text-action" onClick={stopShare}>Stop sharing</button>}</div></header>
     <div className="share-layout"><section className="share-main"><div className="share-heading"><span className="eyebrow">A MOMENT, SHARED</span><h1>{share.title}</h1><p>Watch the clip. Leave a note at the exact moment that matters.</p></div>
-      <div className="share-video-wrap"><video ref={video} src={"/api/share/"+token+"/media"} controls playsInline preload="metadata" onTimeUpdate={e=>setTime(e.currentTarget.currentTime)}/>{activeBubbles.map((c,i)=><button key={c.id} className="playback-bubble" style={{bottom:(20+Math.min(3,i)*52)+"px"}} onClick={()=>seek(c.time)}><MessageCircle size={14}/>{c.body.slice(0,90)}</button>)}</div>
+      <div className={"share-video-wrap "+(annotateMode?"annotate-mode":"")} onClick={placeAnnotation}><video ref={video} src={"/api/share/"+token+"/media"} controls playsInline preload="metadata" onTimeUpdate={e=>setTime(e.currentTarget.currentTime)}/>{comments.filter(c=>c.anchorX!==null&&c.anchorX!==undefined&&c.anchorY!==null&&Math.abs(c.time-time)<1.5&&!c.deletedAt).map(c=><button key={"pin-"+c.id} className="frame-annotation-pin" style={{left:(c.anchorX!*100)+"%",top:(c.anchorY!*100)+"%"}} title={c.body} onClick={e=>{e.stopPropagation();seek(c.time);}}/>)}{annotation&&<span className="pending-annotation-pin" style={{left:(annotation.x*100)+"%",top:(annotation.y*100)+"%"}}/>}{annotateMode&&<button className="annotation-layer" aria-label="Choose a point on the video frame" onClick={e=>{e.preventDefault();placeAnnotation(e as unknown as React.MouseEvent<HTMLDivElement>);}}/>}{activeBubbles.map((c,i)=><button key={c.id} className="playback-bubble" style={{bottom:(20+Math.min(3,i)*52)+"px"}} onClick={()=>seek(c.time)}><MessageCircle size={14}/>{c.body.slice(0,90)}</button>)}</div>
       <div className="share-video-meta"><span>{timeLabel(share.duration)} · {Math.ceil(share.size/1024/1024)} MB</span><span>Available until {new Date(share.expiresAt*1000).toLocaleString()}</span></div>
-      <form className="share-comment-form" onSubmit={send}><div className="comment-composer-title">{replyTo?"Reply to this moment":"Add a timestamped note"} <span>at {timeLabel(Math.floor(video.current?.currentTime??time))}</span></div><textarea value={text} onChange={e=>setText(e.target.value)} placeholder="What should the team notice here?" rows={3}/><div className="comment-composer-actions">{replyTo&&<button type="button" className="text-action" onClick={()=>setReplyTo(null)}>Cancel reply</button>}<button className="button primary" type="submit" disabled={!text.trim()}><Send size={15}/> Post comment</button></div></form>
+      <form className="share-comment-form" onSubmit={send}><div className="comment-composer-title">{replyTo?"Reply to this moment":"Add a timestamped note"} <span>at {timeLabel(Math.floor(video.current?.currentTime??time))}</span></div><div className="annotation-controls"><button type="button" className={"text-action "+(annotateMode?"active":"")} onClick={()=>{setAnnotateMode(!annotateMode);setAnnotation(null);}}>{annotateMode?"Cancel frame point":"Pin a point on the frame"}</button>{annotation&&<span>Frame point attached</span>}</div><textarea value={text} onChange={e=>setText(e.target.value)} placeholder="What should the team notice here?" rows={3}/><div className="comment-composer-actions">{replyTo&&<button type="button" className="text-action" onClick={()=>setReplyTo(null)}>Cancel reply</button>}<button className="button primary" type="submit" disabled={!text.trim()}><Send size={15}/> Post comment</button></div></form>
       {error&&<p className="share-error">{error}</p>}
     </section><aside className="share-discussion"><div className="discussion-title"><div><span className="eyebrow">THE CONVERSATION</span><h2>{comments.filter(c=>!c.deletedAt).length} comments</h2></div><span className="discussion-mark"><MessageCircle size={17}/></span></div><div className="discussion-list">{comments.length?thread(comments):<div className="discussion-empty"><MessageCircle size={22}/><strong>No comments yet.</strong><p>Start the conversation at the moment that matters.</p></div>}</div></aside></div>
     <footer className="share-footer"><span><ShieldCheck size={14}/> No account required to watch.</span><span>This link ends automatically.</span></footer>

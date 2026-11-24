@@ -172,17 +172,19 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     if (action === "" && request.method === "GET") return json(publicShare(share));
     if (action === "comments" && request.method === "GET") {
       const { results } = await env.DB.prepare(
-        "SELECT id, parent_id AS parentId, author_hash AS authorHash, viewer_label AS viewerLabel, body, time_seconds AS time, created_at AS createdAt, updated_at AS updatedAt, resolved, deleted_at AS deletedAt FROM comments WHERE share_id = ? ORDER BY created_at ASC LIMIT 200"
+        "SELECT id, parent_id AS parentId, author_hash AS authorHash, viewer_label AS viewerLabel, body, time_seconds AS time, created_at AS createdAt, updated_at AS updatedAt, resolved, deleted_at AS deletedAt, anchor_x AS anchorX, anchor_y AS anchorY FROM comments WHERE share_id = ? ORDER BY created_at ASC LIMIT 200"
       ).bind(share.id).all();
       const authorKey = request.headers.get("x-sn-author-key");
       const authorHash = authorKey && /^[A-Za-z0-9_-]{32,64}$/.test(authorKey) ? await digest(authorKey) : null;
       return json({ comments: results.map((comment: any) => ({ ...comment, authorHash: undefined, isMine: !!authorHash && safeEqual(authorHash, comment.authorHash) })) });
     }
     if (action === "comments" && request.method === "POST") {
-      const body = await request.json<{ authorKey?: string; text?: string; time?: number; parentId?: string | null; viewerLabel?: string }>().catch(() => null);
+      const body = await request.json<{ authorKey?: string; text?: string; time?: number; parentId?: string | null; viewerLabel?: string; anchorX?: number; anchorY?: number }>().catch(() => null);
       if (!body || typeof body.authorKey !== "string" || !/^[A-Za-z0-9_-]{32,64}$/.test(body.authorKey)) return fail("A valid comment identity is required.", 400);
       if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 2000) return fail("Comments must be between 1 and 2,000 characters.", 400);
       if (!Number.isFinite(body.time) || body.time! < 0 || body.time! > share.duration_seconds) return fail("Choose a timestamp within this video.", 400);
+      const hasAnchor = body.anchorX !== undefined || body.anchorY !== undefined;
+      if (hasAnchor && (!Number.isFinite(body.anchorX) || !Number.isFinite(body.anchorY) || body.anchorX! < 0 || body.anchorX! > 1 || body.anchorY! < 0 || body.anchorY! > 1)) return fail("Choose a valid point inside the video frame.", 400);
       const count = await env.DB.prepare("SELECT COUNT(*) AS total FROM comments WHERE share_id = ? AND deleted_at IS NULL").bind(share.id).first<{ total: number }>();
       if ((count?.total ?? 0) >= MAX_COMMENTS_PER_SHARE) return fail("This discussion has reached its comment limit.", 429);
       if (body.parentId) {
@@ -190,8 +192,8 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
         if (!parent) return fail("The comment you're replying to is no longer available.", 404);
       }
       const id = crypto.randomUUID(), now = Math.floor(Date.now() / 1000);
-      await env.DB.prepare("INSERT INTO comments (id, share_id, parent_id, author_hash, viewer_label, body, time_seconds, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(id, share.id, body.parentId ?? null, await digest(body.authorKey), typeof body.viewerLabel === "string" ? body.viewerLabel.slice(0, 40) : "Guest", body.text.trim(), Math.floor(body.time!), now, now).run();
+      await env.DB.prepare("INSERT INTO comments (id, share_id, parent_id, author_hash, viewer_label, body, time_seconds, created_at, updated_at, anchor_x, anchor_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(id, share.id, body.parentId ?? null, await digest(body.authorKey), typeof body.viewerLabel === "string" ? body.viewerLabel.slice(0, 40) : "Guest", body.text.trim(), Number(body.time!.toFixed(3)), now, now, hasAnchor ? body.anchorX : null, hasAnchor ? body.anchorY : null).run();
       return json({ id, createdAt: now }, 201);
     }
     const commentId = shareMatch[3];

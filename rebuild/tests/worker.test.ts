@@ -35,7 +35,7 @@ class FakeD1 {
           if (sql.startsWith("UPDATE recordings SET status")) { const r=db.recordings.get(v[1]); if(r)r.status="ready"; }
           if (sql.startsWith("INSERT INTO shares")) db.shares.set(v[0], { id:v[0], recording_id:v[1], owner_token_hash:v[2], owner_key_hash:v[3], token_hash:v[4], expires_at:v[5], password_salt:v[6], password_hash:v[7], revoked_at:null });
           if (sql.startsWith("INSERT INTO share_access_sessions")) db.access.add(v[0]);
-          if (sql.startsWith("INSERT INTO comments")) db.comments.set(v[0], { id:v[0], share_id:v[1], parent_id:v[2], author_hash:v[3], viewer_label:v[4], body:v[5], time_seconds:v[6], created_at:v[7], updated_at:v[8], resolved:0, deleted_at:null });
+          if (sql.startsWith("INSERT INTO comments")) db.comments.set(v[0], { id:v[0], share_id:v[1], parent_id:v[2], author_hash:v[3], viewer_label:v[4], body:v[5], time_seconds:v[6], created_at:v[7], updated_at:v[8], resolved:0, deleted_at:null, anchor_x:v[9]??null, anchor_y:v[10]??null });
           if (sql.startsWith("DELETE FROM shares")) db.shares.delete(v[0]);
           if (sql.startsWith("DELETE FROM recordings")) db.recordings.delete(v[0]);
           if (sql.startsWith("UPDATE comments")) { const c=db.comments.get(v[2]??v[3]); if(c){ if(sql.includes("body = '[deleted]'"))c.deleted_at=v[0]; else if(sql.includes("SET body = ?"))c.body=v[0]; else c.resolved=v[0]; } }
@@ -100,7 +100,7 @@ describe("ScreenNote temporary sharing API",()=>{
     const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:3,ownerKey:key})}),state.env as any,{} as any);
     const share=await pub.json() as any, url=`https://screennote.test/api/share/${share.token}/comments`;
     const author="d".repeat(48);
-    const first=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({authorKey:author,text:"The menu jumps here",time:4})}),state.env as any,{} as any);
+    const first=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({authorKey:author,text:"The menu jumps here",time:4,anchorX:0.25,anchorY:0.5})}),state.env as any,{} as any);
     expect(first.status).toBe(201);const comment=await first.json() as any;
     const reply=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({authorKey:"e".repeat(48),parentId:comment.id,text:"I can reproduce it",time:4})}),state.env as any,{} as any);
     expect(reply.status).toBe(201);
