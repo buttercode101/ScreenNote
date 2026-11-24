@@ -6,7 +6,7 @@ export type Clip = {
   size: number;
   mimeType: string;
   blob: Blob;
-  share?: { token: string; url: string; ownerKey: string; expiresAt: number };
+  share?: { recordingId: string; token: string; url: string; ownerKey: string; expiresAt: number };
 };
 
 export type RecoverySession = {

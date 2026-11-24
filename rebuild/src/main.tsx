@@ -14,6 +14,18 @@ const formatTime = (seconds: number) => {
   return `${m}:${s}`;
 };
 const formatDate = (time: number) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(time);
+async function readVideoDuration(file: File): Promise<number> {
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => { const duration = video.duration; video.src = ""; resolve(Number.isFinite(duration) ? Math.ceil(duration) : 0); };
+      video.onerror = () => reject(new Error("The video duration couldn't be read. Try another MP4, WebM or MOV file."));
+      video.src = url;
+    });
+  } finally { URL.revokeObjectURL(url); }
+}
 const formatBytes = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 function App() {
@@ -185,7 +197,7 @@ function App() {
       if (!clip) throw new Error("This local recording is no longer available.");
       if (!clip.duration || clip.duration > 600) throw new Error("This clip needs a valid duration of 10 minutes or less before it can be shared.");
       if (clip.share) {
-        await fetch("/api/recordings/" + clip.share.recordingId, { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
+        await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
       }
       const ownerKey = newOwnerKey();
       const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey);
@@ -200,9 +212,20 @@ function App() {
     finally { setPublishing(false); }
   }
 
+  async function stopSharing(id: string) {
+    const clip = await getClip(id);
+    if (!clip?.share) return;
+    try {
+      const response = await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
+      if (!response.ok) throw new Error("The shared copy could not be removed. Try again.");
+      const next = { ...clip }; delete next.share; await saveClip(next); await refresh();
+      setMessage("Sharing stopped. The shared video and its discussion have been deleted. Your local original is still here.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't stop sharing."); }
+  }
+
   async function remove(id: string) {
     if (!window.confirm("Delete this recording from this device? This cannot be undone.")) return;
-    const clip = await getClip(id);\n    if (clip?.share) await fetch("/api/recordings/" + clip.share.recordingId, { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) }).catch(() => undefined);\n    await deleteClip(id); await refresh();
+    const clip = await getClip(id);\n    if (clip?.share) await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) }).catch(() => undefined);\n    await deleteClip(id); await refresh();
   }
 
   return <div className="app-shell">
@@ -242,7 +265,7 @@ function App() {
 
         <section className="library-section" id="library">
           <div className="section-heading"><div><div className="eyebrow">YOUR LIBRARY</div><h2>Recent recordings <span className="count-badge">{clips.length}</span></h2></div><div className="library-tools"><label className="search-box"><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a recording" aria-label="Search recordings"/></label><button className="button secondary import-button" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import</button></div></div>
-          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions"><button className="icon-button" onClick={() => setPublishId(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
+          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions">{clip.share && clip.share.expiresAt * 1000 > Date.now() && <button className="icon-button" onClick={() => stopSharing(clip.id)} aria-label={`Stop sharing ${clip.title}`} title="Stop sharing"><ShieldCheck size={16}/></button>}<button className="icon-button" onClick={() => setPublishId(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
         </section>
 
         <section className="bottom-note"><div className="note-icon"><Sparkles size={18}/></div><div><strong>A little more clarity goes a long way.</strong><p>Record locally. Share temporarily. Keep the conversation tied to the exact moment—and let it end when you do.</p></div><span className="build-label"><Activity size={13}/> EARLY BUILD</span></section>

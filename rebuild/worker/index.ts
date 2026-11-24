@@ -109,6 +109,20 @@ function parseRange(header: string | null, size: number): { offset: number; leng
   end = Math.min(end, size - 1);
   return { offset: start, length: end - start + 1, contentRange: `bytes ${start}-${end}/${size}` };
 }
+async function validMediaHeader(stream: ReadableStream<Uint8Array>, mime: string): Promise<boolean> {
+  const reader = stream.getReader();
+  const bytes: number[] = [];
+  try {
+    while (bytes.length < 12) {
+      const part = await reader.read();
+      if (part.done) break;
+      for (const value of part.value) { bytes.push(value); if (bytes.length >= 12) break; }
+    }
+  } finally { await reader.cancel().catch(() => undefined); }
+  if (mime === "video/webm") return bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
+  if (mime === "video/mp4" || mime === "video/quicktime") return bytes.length >= 8 && String.fromCharCode(...bytes.slice(4, 8)) === "ftyp";
+  return false;
+}
 async function serveMedia(request: Request, env: Bindings, share: NonNullable<Awaited<ReturnType<typeof getShare>>>) {
   const range = parseRange(request.headers.get("range"), share.byte_size);
   if (range === false) return new Response(null, { status: 416, headers: { "content-range": `bytes */${share.byte_size}` } });
@@ -133,6 +147,14 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     const token = shareMatch[1], action = shareMatch[2] ?? "";
     const share = await getShare(env, token);
     if (!share || !active(share)) return fail("This ScreenNote has ended or is no longer available.", 404);
+    if (action === "manage" && request.method === "DELETE") {
+      const body = await request.json<{ ownerKey?: string }>().catch(() => null);
+      if (typeof body?.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.ownerKey)) return fail("The private recovery key is required.", 403);
+      if (!safeEqual(await digest(body.ownerKey), await env.DB.prepare("SELECT owner_key_hash FROM shares WHERE id = ?").bind(share.id).then((row: any) => row?.owner_key_hash ?? ""))) return fail("This browser cannot stop sharing this recording.", 403);
+      await env.MEDIA.delete(share.object_key);
+      await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(share.recording_id).run();
+      return json({ deleted: true });
+    }
     if (action === "access" && request.method === "POST") {
       if (!share.password_hash) return json({ access: true });
       const body = await request.json<{ password?: string }>().catch(() => null);
@@ -228,7 +250,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     const length = Number(request.headers.get("content-length") ?? 0), type = request.headers.get("content-type")?.split(";")[0] ?? "";
     if (!request.body || length !== row.byte_size || length > MAX_UPLOAD_BYTES) return fail("The uploaded file size did not match the reservation.", 400);
     if (type !== row.mime_type) return fail("The uploaded file type did not match the reservation.", 415);
-    await env.MEDIA.put(row.object_key, request.body, { httpMetadata: { contentType: row.mime_type } });
+    const [uploadStream, inspectStream] = request.body.tee();\n    if (!(await validMediaHeader(inspectStream, row.mime_type))) return fail("The uploaded file does not match its declared video format.", 415);\n    await env.MEDIA.put(row.object_key, uploadStream, { httpMetadata: { contentType: row.mime_type } });
     await env.DB.prepare("UPDATE recordings SET status = 'ready', updated_at = ? WHERE id = ? AND owner_token_hash = ?")
       .bind(Math.floor(Date.now() / 1000), recordingMatch[1], owner).run();
     return json({ id: recordingMatch[1], status: "ready" });
