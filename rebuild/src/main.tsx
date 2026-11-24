@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Camera, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
 import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
 import { ScreenRecorder, supportedMimeType, type RecordingResult } from "./recorder";
+import { newOwnerKey, publishRecording } from "./sharing";
+import ShareViewer from "./ShareViewer";
 import "./styles.css";
 
 const recorder = new ScreenRecorder();
@@ -31,6 +33,11 @@ function App() {
   const [previewClip, setPreviewClip] = useState<Clip | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [publishId, setPublishId] = useState<string | null>(null);
+  const [expiryDays, setExpiryDays] = useState(3);
+  const [sharePassword, setSharePassword] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [shareLink, setShareLink] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = async () => {
@@ -170,9 +177,32 @@ function App() {
     a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
+  async function publishSelected() {
+    if (!publishId) return;
+    setPublishing(true); setMessage("");
+    try {
+      const clip = await getClip(publishId);
+      if (!clip) throw new Error("This local recording is no longer available.");
+      if (!clip.duration || clip.duration > 600) throw new Error("This clip needs a valid duration of 10 minutes or less before it can be shared.");
+      if (clip.share) {
+        await fetch("/api/recordings/" + clip.share.recordingId, { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
+      }
+      const ownerKey = newOwnerKey();
+      const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey);
+      const next = { ...clip, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey, expiresAt: result.expiresAt } };
+      await saveClip(next); await refresh();
+      const fullUrl = new URL(result.url, location.origin).toString();
+      setShareLink(fullUrl);
+      await navigator.clipboard?.writeText(fullUrl).catch(() => undefined);
+      setPublishId(null); setSharePassword("");
+      setMessage("Your temporary link is ready. The link has been copied if clipboard access is available.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't publish this recording."); }
+    finally { setPublishing(false); }
+  }
+
   async function remove(id: string) {
     if (!window.confirm("Delete this recording from this device? This cannot be undone.")) return;
-    await deleteClip(id); await refresh();
+    const clip = await getClip(id);\n    if (clip?.share) await fetch("/api/recordings/" + clip.share.recordingId, { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) }).catch(() => undefined);\n    await deleteClip(id); await refresh();
   }
 
   return <div className="app-shell">
@@ -212,10 +242,10 @@ function App() {
 
         <section className="library-section" id="library">
           <div className="section-heading"><div><div className="eyebrow">YOUR LIBRARY</div><h2>Recent recordings <span className="count-badge">{clips.length}</span></h2></div><div className="library-tools"><label className="search-box"><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a recording" aria-label="Search recordings"/></label><button className="button secondary import-button" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import</button></div></div>
-          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
+          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions"><button className="icon-button" onClick={() => setPublishId(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
         </section>
 
-        <section className="bottom-note"><div className="note-icon"><Sparkles size={18}/></div><div><strong>A little more clarity goes a long way.</strong><p>ScreenNote is being rebuilt. Local recording and your private library are the first foundation; secure sharing and AI-powered knowledge tools are coming next.</p></div><span className="build-label"><Activity size={13}/> EARLY BUILD</span></section>
+        <section className="bottom-note"><div className="note-icon"><Sparkles size={18}/></div><div><strong>A little more clarity goes a long way.</strong><p>Record locally. Share temporarily. Keep the conversation tied to the exact moment—and let it end when you do.</p></div><span className="build-label"><Activity size={13}/> EARLY BUILD</span></section>
         <footer><span>© {new Date().getFullYear()} ScreenNote</span><span>Made for clear communication.</span><a href="/privacy">Privacy</a></footer>
       </div>
     </main>
@@ -223,11 +253,19 @@ function App() {
       <section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(event) => event.stopPropagation()}>
         <header className="preview-header"><div><h2 id="preview-title">{previewClip.title}</h2><p>{formatDate(previewClip.createdAt)} · {formatBytes(previewClip.size)}</p></div><button className="icon-button" aria-label="Close preview" onClick={closePreview}><X size={19}/></button></header>
         <video className="preview-video" src={previewUrl} controls playsInline preload="metadata"/>
-        <div className="preview-actions"><button className="button secondary" onClick={() => download(previewClip.id)}><Download size={16}/> Download</button><button className="button danger" onClick={async () => { await remove(previewClip.id); closePreview(); }}><Trash2 size={16}/> Delete</button></div>
+        <div className="preview-actions"><button className="button secondary" onClick={() => setPublishId(previewClip.id)}><Share2 size={16}/> Share temporarily</button><button className="button secondary" onClick={() => download(previewClip.id)}><Download size={16}/> Download</button><button className="button danger" onClick={async () => { await remove(previewClip.id); closePreview(); }}><Trash2 size={16}/> Delete</button></div>
       </section>
     </div>}
+    {publishId && <div className="modal-backdrop" role="presentation" onClick={() => !publishing && setPublishId(null)}><section className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
+      <div className="publish-modal-head"><div><span className="eyebrow">SHARE A MOMENT</span><h2 id="publish-title">Make a temporary link</h2><p>Your original stays on this device. Only this shared copy is uploaded.</p></div><button className="icon-button" onClick={()=>setPublishId(null)} aria-label="Close share settings"><X size={18}/></button></div>
+      <label className="field-label">Link expires after<select value={expiryDays} onChange={e=>setExpiryDays(Number(e.target.value))}><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option></select></label>
+      <label className="field-label">Password protection <span className="optional-label">Optional</span><input type="password" minLength={8} maxLength={128} value={sharePassword} onChange={e=>setSharePassword(e.target.value)} placeholder="Add a password (8+ characters)"/></label>
+      <div className="privacy-explainer"><ShieldCheck size={17}/><span>Viewers don't need an account. Your shared copy and discussion are deleted when the link expires or you stop sharing.</span></div>
+      <button className="button primary publish-submit" disabled={publishing || (sharePassword.length>0&&sharePassword.length<8)} onClick={publishSelected}>{publishing?"Uploading securely…":"Publish temporary link"} <ArrowUpRight size={16}/></button>
+    </section></div>}
+    {shareLink && <div className="share-link-toast" role="status"><div><strong>Temporary link ready</strong><span>{shareLink}</span></div><button className="button secondary" onClick={()=>navigator.clipboard?.writeText(shareLink)}>Copy link</button><button className="icon-button" onClick={()=>setShareLink("")} aria-label="Dismiss"><X size={16}/></button></div>}
     <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => importFile(e.target.files?.[0])}/>
   </div>;
 }
 
-createRoot(document.getElementById("root")!).render(<React.StrictMode><App/></React.StrictMode>);
+const root = createRoot(document.getElementById("root")!);\nconst shareMatch = window.location.pathname.match(/^\\/s\\/([A-Za-z0-9_-]{32,64})\\/?$/);\nroot.render(<React.StrictMode>{shareMatch ? <ShareViewer token={shareMatch[1]} /> : <App />}</React.StrictMode>);
