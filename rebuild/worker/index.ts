@@ -120,10 +120,11 @@ async function serveStatic(request: Request, env: Bindings, ctx: ExecutionContex
   if (pathname.split("/").some((part) => part === "." || part === "..") || !/^\/[a-zA-Z0-9_./-]+$/.test(pathname)) {
     return new Response("Bad path", { status: 400 });
   }
+  const edgeCache = (caches as unknown as { default: Cache }).default;
   const cacheKey = new Request(url.toString(), { method: "GET" });
   const isImmutable = pathname.startsWith("/assets/");
   if (request.method === "GET" && isImmutable) {
-    const cached = await caches.default.match(cacheKey);
+    const cached = await edgeCache.match(cacheKey);
     if (cached) return cached;
   }
   let object = await env.STATIC.get("site" + pathname);
@@ -138,7 +139,7 @@ async function serveStatic(request: Request, env: Bindings, ctx: ExecutionContex
   headers.set("referrer-policy", "strict-origin-when-cross-origin");
   headers.set("cache-control", isImmutable ? "public, max-age=31536000, immutable" : "no-cache");
   const response = new Response(request.method === "HEAD" ? null : object.body, { headers });
-  if (request.method === "GET" && isImmutable) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  if (request.method === "GET" && isImmutable) ctx.waitUntil(edgeCache.put(cacheKey, response.clone()));
   return response;
 }
 
