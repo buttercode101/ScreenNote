@@ -1,6 +1,6 @@
 # ScreenNote rebuild
 
-This is the new Cloudflare-first implementation. The legacy application remains at the repository root during the migration and is not modified by this first foundation commit.
+This is the new Cloudflare-first implementation. The legacy application remains at the repository root during the migration and is not modified by this foundation slice.
 
 ## Product principles
 
@@ -19,23 +19,40 @@ This is the new Cloudflare-first implementation. The legacy application remains 
 - Local IndexedDB library and MP4/WebM/MOV import.
 - Cloudflare Worker API foundation for guest sessions and private R2 uploads.
 - D1 schema for guest sessions and recording metadata.
+- Typed Cloudflare project configuration, Vite integration and observability settings.
 
-## Cloudflare development resources
+## Isolated Cloudflare development resources
 
-The initial isolated development resources have been provisioned:
+- D1: `screennote-dev` (ENAM primary region)
+- R2: `screennote-media-dev` (ENAM bucket location)
 
-- D1: `screennote-dev`
-- R2: `screennote-media-dev`
-
-No existing Cloudflare application resources were reused or modified.
+These resources were created specifically for this rebuild. Existing Cloudflare projects and buckets were not reused or modified.
 
 ## Important current limitations
 
 This is a foundation slice, not a launch-ready release. The UI currently stores recordings locally. The upload API exists as a backend foundation but is not yet wired into the UI. Shared playback, public share tokens, comments, transcription, AI summaries, camera composition, desktop recording and production billing are not implemented in this slice.
 
+## Development
+
+Requires Node.js 22.18+ and the Cloudflare CLI `cf`.
+
+```bash
+npm install
+npm run dev
+npm run typecheck
+npm test
+npm run build
+```
+
+Deploy only to the dedicated development Worker after the D1 migration is applied:
+
+```bash
+npm run deploy
+```
+
 ## Next engineering gates
 
-1. Add Cloudflare project configuration and migration execution.
+1. Apply and verify the D1 migration in the development database.
 2. Run typecheck, build, unit tests and Worker-runtime tests.
 3. Connect local library upload and cloud playback.
 4. Implement share-link lifecycle, revocation, expiry and access controls.
