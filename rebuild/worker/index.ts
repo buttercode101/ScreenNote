@@ -302,11 +302,13 @@ async function serveStatic(request: Request, env: Bindings, ctx: ExecutionContex
   const url = new URL(request.url), pathname = url.pathname === "/" || /^\/s\/[A-Za-z0-9_-]{32,64}\/?$/.test(url.pathname) ? "/index.html" : url.pathname;
   if (pathname.split("/").some((part) => part === "." || part === "..") || !/^\/[a-zA-Z0-9_./-]+$/.test(pathname)) return new Response("Bad path", { status: 400 });
   if (env.ASSETS) return env.ASSETS.fetch(new Request(new URL(pathname, url), request));
-  const object = await env.STATIC.get("site" + pathname);
+  const compressedObject = /\\.(?:js|css)$/.test(pathname) ? await env.STATIC.get("site" + pathname + ".br") : null;
+  const object = compressedObject ?? await env.STATIC.get("site" + pathname);
   if (!object) return new Response("Not found", { status: 404 });
   const types: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json" };
   const ext = pathname.slice(pathname.lastIndexOf("."));
   const headers = new Headers({ "content-type": types[ext] ?? "application/octet-stream", "cache-control": pathname.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache", "x-content-type-options": "nosniff", "referrer-policy": "strict-origin-when-cross-origin" });
+  if (compressedObject) headers.set("content-encoding", "br");
   if (object.httpEtag) headers.set("etag", object.httpEtag);
   return new Response(request.method === "HEAD" ? null : object.body, { headers });
 }
