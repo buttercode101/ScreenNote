@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
+import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Camera, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
 import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
 import { ScreenRecorder, supportedMimeType, type RecordingResult } from "./recorder";
 import "./styles.css";
@@ -22,6 +22,7 @@ function App() {
   const [paused, setPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [mic, setMic] = useState(true);
+  const [camera, setCamera] = useState(false);
   const [systemAudio, setSystemAudio] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -57,7 +58,7 @@ function App() {
       await beginRecordingSession({ id, title, createdAt, mimeType: supportedMimeType() || "video/webm", chunkCount: 0, totalBytes: 0, updatedAt: createdAt });
       activeSessionId.current = id;
       await recorder.start(
-        { microphone: mic, systemAudio },
+        { microphone: mic, systemAudio, camera },
         setSeconds,
         (chunk, index) => appendRecordingChunk(id, chunk, index)
       );
@@ -204,7 +205,7 @@ function App() {
 
         <section className="capture-panel">
           <div className="capture-copy"><div className="capture-icon"><Video size={21}/></div><div><h2>{recording ? "You're recording" : "Start with a recording"}</h2><p>{recording ? "Take your time. Your recording is being captured in this tab." : "Record your screen or bring in a video you already have."}</p></div></div>
-          {recording ? <div className="record-controls"><div className="recording-indicator"><span/>{formatTime(seconds)} {paused ? "PAUSED" : "RECORDING"}</div><button className="button secondary" onClick={() => { if (paused) recorder.resume(); else recorder.pause(); setPaused(!paused); }}>{paused ? <Play size={16}/> : <Pause size={16}/>} {paused ? "Resume" : "Pause"}</button><button className="button danger" disabled={busy} onClick={finish}><Check size={16}/> Finish</button></div> : <div className="capture-actions"><label className="toggle-option"><input type="checkbox" checked={mic} onChange={(e) => setMic(e.target.checked)}/><Mic size={15}/> Microphone</label><label className="toggle-option"><input type="checkbox" checked={systemAudio} onChange={(e) => setSystemAudio(e.target.checked)}/> System audio</label><button className="button primary" disabled={busy} onClick={start}><span className="record-dot"/>{busy ? "Preparing…" : "Record screen"} <ArrowUpRight size={16}/></button></div>}
+          {recording ? <div className="record-controls"><div className="recording-indicator"><span/>{formatTime(seconds)} {paused ? "PAUSED" : "RECORDING"}</div><button className="button secondary" onClick={() => { if (paused) recorder.resume(); else recorder.pause(); setPaused(!paused); }}>{paused ? <Play size={16}/> : <Pause size={16}/>} {paused ? "Resume" : "Pause"}</button><button className="button danger" disabled={busy} onClick={finish}><Check size={16}/> Finish</button></div> : <div className="capture-actions"><label className="toggle-option"><input type="checkbox" checked={mic} onChange={(e) => setMic(e.target.checked)}/><Mic size={15}/> Microphone</label><label className="toggle-option"><input type="checkbox" checked={systemAudio} onChange={(e) => setSystemAudio(e.target.checked)}/> System audio</label><label className="toggle-option"><input type="checkbox" checked={camera} onChange={(e) => setCamera(e.target.checked)}/><Camera size={15}/> Camera bubble</label><button className="button primary" disabled={busy} onClick={start}><span className="record-dot"/>{busy ? "Preparing…" : "Record screen"} <ArrowUpRight size={16}/></button></div>}
         </section>
 
         {message && <div className="notice" role="status"><Check size={16}/>{message}<button onClick={() => setMessage("")} aria-label="Dismiss"><X size={15}/></button></div>}

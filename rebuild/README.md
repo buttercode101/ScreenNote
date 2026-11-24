@@ -15,6 +15,7 @@ This is the new Cloudflare-first implementation. The legacy application remains 
 - Responsive React application shell with light and dark themes.
 - Screen capture using the browser's native source picker.
 - Optional microphone and system audio when the browser exposes them.
+- Optional circular camera bubble composited into the recorded screen video, with mixed microphone/system audio.
 - Pause, resume and finish controls.
 - Local IndexedDB library and MP4/WebM/MOV import.
 - Chunk-by-chunk recording persistence with interrupted-session recovery.
