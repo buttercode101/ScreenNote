@@ -238,7 +238,9 @@ function App() {
 
   async function remove(id: string) {
     if (!window.confirm("Delete this recording from this device? This cannot be undone.")) return;
-    const clip = await getClip(id);\n    if (clip?.share) await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) }).catch(() => undefined);\n    await deleteClip(id); await refresh();
+    const clip = await getClip(id);
+    if (clip?.share) await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) }).catch(() => undefined);
+    await deleteClip(id); await refresh();
   }
 
   return <div className="app-shell">
@@ -304,4 +306,7 @@ function App() {
   </div>;
 }
 
-const root = createRoot(document.getElementById("root")!);\nconst shareMatch = window.location.pathname.match(/^\\/s\\/([A-Za-z0-9_-]{32,64})\\/?$/);\nroot.render(<React.StrictMode>{shareMatch ? <ShareViewer token={shareMatch[1]} /> : <App />}</React.StrictMode>);
+const root = createRoot(document.getElementById("root")!);
+const shareToken = window.location.pathname.split("/")[2] ?? "";
+const isSharePath = window.location.pathname.startsWith("/s/") && /^[A-Za-z0-9_-]{32,64}$/.test(shareToken);
+root.render(<React.StrictMode>{isSharePath ? <ShareViewer token={shareToken} /> : <App />}</React.StrictMode>);
