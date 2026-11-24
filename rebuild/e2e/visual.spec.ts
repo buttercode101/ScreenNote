@@ -59,3 +59,32 @@ test("recording search reports an empty result clearly", async ({ page }) => {
   await page.getByRole("textbox", { name: "Search recordings" }).fill("nothing-matches-this");
   await expect(page.getByRole("heading", { name: "No matching recordings" })).toBeVisible();
 });
+test("temporary viewer is guest-accessible and accepts timestamped discussion", async ({ page }) => {
+  const token = "AbCdEf0123456789_-AbCdEf0123456789_-AbCdEf0";
+  const base = "**/api/share/" + token;
+  const comments: Array<{id:string;parentId:string|null;viewerLabel:string;body:string;time:number;createdAt:number;updatedAt:number;resolved:number;deletedAt:null}> = [];
+  await page.route(base, route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ title: "Checkout bug", mimeType: "video/webm", size: 4096, duration: 42, expiresAt: Math.floor(Date.now()/1000)+86400, passwordRequired: false }) }));
+  await page.route(base + "/media", route => route.fulfill({ status: 200, contentType: "video/webm", body: Buffer.from([0x1a,0x45,0xdf,0xa3]) }));
+  await page.route(base + "/comments", async route => {
+    if (route.request().method() === "POST") {
+      const body = route.request().postDataJSON();
+      comments.push({ id: "comment-1", parentId: body.parentId ?? null, viewerLabel: "Guest", body: body.text, time: body.time, createdAt: Math.floor(Date.now()/1000), updatedAt: Math.floor(Date.now()/1000), resolved: 0, deletedAt: null });
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ id: "comment-1", createdAt: Math.floor(Date.now()/1000) }) });
+    } else {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ comments }) });
+    }
+  });
+  await page.goto("/s/" + token);
+  await expect(page.getByRole("heading", { name: "Checkout bug" })).toBeVisible();
+  await expect(page.getByText("No comments yet.")).toBeVisible();
+  await page.locator(".share-comment-form textarea").fill("The checkout button disappears here.");
+  await page.getByRole("button", { name: "Post comment" }).click();
+  await expect(page.getByText("The checkout button disappears here.")).toBeVisible();
+});
+
+test("privacy route explains local originals and temporary retention", async ({ page }) => {
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Your original stays with you." })).toBeVisible();
+  await expect(page.getByText(/Stopping a share deletes its R2 video object/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Back to ScreenNote" })).toBeVisible();
+});
