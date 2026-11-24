@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
-import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, listClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
+import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
+import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
 import { ScreenRecorder, supportedMimeType, type RecordingResult } from "./recorder";
 import "./styles.css";
 
@@ -27,6 +27,8 @@ function App() {
   const [message, setMessage] = useState("");
   const [dark, setDark] = useState(false);
   const [query, setQuery] = useState("");
+  const [previewClip, setPreviewClip] = useState<Clip | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -137,13 +139,34 @@ function App() {
     if (fileRef.current) fileRef.current.value = "";
   }
 
+  async function openPreview(id: string) {
+    const clip = await getClip(id);
+    if (!clip) { setMessage("This recording is no longer available on this device."); return; }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewClip(clip);
+    setPreviewUrl(URL.createObjectURL(clip.blob));
+  }
+
+  function closePreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewClip(null);
+  }
+
+  useEffect(() => {
+    if (!previewClip) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closePreview(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewClip, previewUrl]);
+
   async function download(id: string) {
     const clip = await (await import("./library")).getClip(id);
     if (!clip) return;
     const url = URL.createObjectURL(clip.blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `${clip.title.replace(/[^a-z0-9-_ ]/gi, "").trim() || "screennote"}.webm`;
-    a.click(); URL.revokeObjectURL(url);
+    a.href = url; const extension = clip.mimeType === "video/mp4" ? "mp4" : clip.mimeType === "video/quicktime" ? "mov" : "webm"; a.download = `${clip.title.replace(/[^a-z0-9-_ ]/gi, "").trim() || "screennote"}.${extension}`;
+    a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
   async function remove(id: string) {
@@ -188,13 +211,20 @@ function App() {
 
         <section className="library-section" id="library">
           <div className="section-heading"><div><div className="eyebrow">YOUR LIBRARY</div><h2>Recent recordings <span className="count-badge">{clips.length}</span></h2></div><div className="library-tools"><label className="search-box"><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a recording" aria-label="Search recordings"/></label><button className="button secondary import-button" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import</button></div></div>
-          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => download(clip.id)} aria-label={`Download ${clip.title}`}><ArrowDownToLine size={18}/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
+          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
         </section>
 
         <section className="bottom-note"><div className="note-icon"><Sparkles size={18}/></div><div><strong>A little more clarity goes a long way.</strong><p>ScreenNote is being rebuilt. Local recording and your private library are the first foundation; secure sharing and AI-powered knowledge tools are coming next.</p></div><span className="build-label"><Activity size={13}/> EARLY BUILD</span></section>
         <footer><span>© {new Date().getFullYear()} ScreenNote</span><span>Made for clear communication.</span><a href="/privacy">Privacy</a></footer>
       </div>
     </main>
+    {previewClip && previewUrl && <div className="modal-backdrop" role="presentation" onClick={closePreview}>
+      <section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(event) => event.stopPropagation()}>
+        <header className="preview-header"><div><h2 id="preview-title">{previewClip.title}</h2><p>{formatDate(previewClip.createdAt)} · {formatBytes(previewClip.size)}</p></div><button className="icon-button" aria-label="Close preview" onClick={closePreview}><X size={19}/></button></header>
+        <video className="preview-video" src={previewUrl} controls playsInline preload="metadata"/>
+        <div className="preview-actions"><button className="button secondary" onClick={() => download(previewClip.id)}><Download size={16}/> Download</button><button className="button danger" onClick={async () => { await remove(previewClip.id); closePreview(); }}><Trash2 size={16}/> Delete</button></div>
+      </section>
+    </div>}
     <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => importFile(e.target.files?.[0])}/>
   </div>;
 }
