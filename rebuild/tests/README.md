@@ -1,5 +1,3 @@
 # ScreenNote rebuild tests
 
-The first unit tests validate browser recording format negotiation. They do not certify real screen-capture permissions, media encoding, storage persistence, upload recovery, Worker bindings, or cross-browser playback.
-
-Those behaviors require Worker-runtime integration tests and browser/device acceptance. Never mark those gates passed from unit tests alone.
+Worker API tests cover guest sessions, cross-origin rejection, owned R2 uploads, expiring links, password gates, timestamped nested discussion, creator resolution, byte-range playback and deletion. Browser acceptance covers responsive light/dark layouts and local import/playback. Real capture permissions, production bindings and physical devices remain separate acceptance gates.
