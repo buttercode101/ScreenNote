@@ -1,0 +1,44 @@
+name: ScreenNote Cloudflare rebuild
+
+on:
+  push:
+    branches:
+      - rebuild/cloudflare-web-first
+    paths:
+      - "rebuild/**"
+      - ".github/workflows/screennote-rebuild.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "rebuild/**"
+      - ".github/workflows/screennote-rebuild.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    name: test-and-build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rebuild
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: rebuild/package-lock.json
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    steps:
+      - run: echo "ScreenNote rebuild build gate passed."

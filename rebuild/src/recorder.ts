@@ -57,7 +57,11 @@ export class ScreenRecorder {
       }, 500);
       this.recorder.addEventListener("stop", () => window.clearInterval(timer), { once: true });
       display.getVideoTracks()[0]?.addEventListener("ended", () => {
-        if (this.recorder?.state !== "inactive") this.stop();
+        if (this.recorder?.state !== "inactive") {
+          this.stop().then((result) => {
+            window.dispatchEvent(new CustomEvent<RecordingResult>("screennote:recording-finished", { detail: result }));
+          }).catch(() => undefined);
+        }
       }, { once: true });
     } catch (error) {
       display.getTracks().forEach((track) => track.stop());
@@ -87,7 +91,8 @@ export class ScreenRecorder {
       recorder.onerror = () => reject(new Error("The browser could not finish this recording."));
       recorder.onstop = () => {
         const blob = new Blob(this.chunks, { type: recorder.mimeType || "video/webm" });
-        const duration = Math.max(0, Math.floor((Date.now() - this.startedAt - this.pausedDuration) / 1000));
+        const activePause = recorder.state === "paused" ? Date.now() - this.pausedAt : 0;
+        const duration = Math.max(0, Math.floor((Date.now() - this.startedAt - this.pausedDuration - activePause) / 1000));
         this.stream?.getTracks().forEach((track) => track.stop());
         this.stream = undefined;
         this.recorder = undefined;
@@ -96,6 +101,7 @@ export class ScreenRecorder {
         else resolve({ blob, duration, mimeType: blob.type });
       };
       if (recorder.state !== "inactive") recorder.stop();
+      else reject(new Error("The recording has already stopped."));
     });
   }
 }
