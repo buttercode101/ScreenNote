@@ -21,7 +21,7 @@ async function readVideoDuration(file: File): Promise<number> {
       const video = document.createElement("video");
       video.preload = "metadata";
       video.onloadedmetadata = () => { const duration = video.duration; video.src = ""; resolve(Number.isFinite(duration) ? Math.ceil(duration) : 0); };
-      video.onerror = () => reject(new Error("The video duration couldn't be read. Try another MP4, WebM or MOV file."));
+      video.onerror = () => resolve(0);
       video.src = url;
     });
   } finally { URL.revokeObjectURL(url); }
