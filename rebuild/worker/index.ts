@@ -352,6 +352,11 @@ export default {
         await env.MEDIA.delete(row.object_key);
         await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
       }
+      const abandoned = await env.DB.prepare("SELECT id, object_key FROM recordings WHERE status = 'uploading' AND created_at <= ? LIMIT 100").bind(now - 600).all<{ id: string; object_key: string }>();
+      for (const row of abandoned.results) {
+        await env.MEDIA.delete(row.object_key);
+        await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
+      }
       await env.DB.prepare("DELETE FROM guest_sessions WHERE expires_at <= ?").bind(now).run();
       await env.DB.prepare("DELETE FROM share_access_sessions WHERE expires_at <= ?").bind(now).run();
     })());
