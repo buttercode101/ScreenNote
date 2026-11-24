@@ -21,11 +21,12 @@ ScreenNote is a short-form async collaboration tool. Record or import a video, r
 - Responsive React workspace with light/dark appearance.
 - Browser screen capture, optional microphone/system audio and camera bubble composition.
 - Pause/resume, finish, local chunk persistence and interrupted-recording recovery.
-- MP4/WebM/MOV local import, metadata inspection, playback and download.
+- MP4/WebM/MOV local import, metadata inspection, playback, local trimming to a new WebM copy and download.
 - IndexedDB local library; no cloud upload until explicit publication.
 - Guest sessions, D1 metadata, R2 private media upload and deletion.
 - Expiring share links, optional password gate and anonymous viewer.
-- Timestamped comments, nested replies, comment editing/deletion, creator resolve/reopen.
+- Timestamped comments, nested replies, frame-point annotations, comment editing/deletion, creator resolve/reopen and in-player playback bubbles.
+- Structured recursive discussion export for coding-agent handoff, plus separate video download and private recovery-key export/import.
 - Playback bubbles that surface active comment threads at their timestamps.
 - Portable private recovery-key export/import.
 - Worker health, observability and scheduled retention cleanup.
