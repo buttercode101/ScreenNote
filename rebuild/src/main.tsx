@@ -190,6 +190,16 @@ function App() {
     a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
+  async function shareClip(id: string) {
+    const clip = await getClip(id);
+    if (clip?.share && clip.share.expiresAt * 1000 > Date.now()) {
+      const url = new URL(clip.share.url, location.origin).toString();
+      setShareLink(url); await navigator.clipboard?.writeText(url).catch(() => undefined);
+      return;
+    }
+    setPublishId(id);
+  }
+
   async function publishSelected() {
     if (!publishId) return;
     setPublishing(true); setMessage("");
@@ -280,7 +290,7 @@ function App() {
 
         <section className="library-section" id="library">
           <div className="section-heading"><div><div className="eyebrow">YOUR LIBRARY</div><h2>Recent recordings <span className="count-badge">{clips.length}</span></h2></div><div className="library-tools"><label className="search-box"><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a recording" aria-label="Search recordings"/></label><button className="button secondary import-button" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import</button></div></div>
-          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions">{clip.share && clip.share.expiresAt * 1000 > Date.now() && <button className="icon-button" onClick={() => stopSharing(clip.id)} aria-label={`Stop sharing ${clip.title}`} title="Stop sharing"><ShieldCheck size={16}/></button>}<button className="icon-button" onClick={() => setPublishId(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
+          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions">{clip.share && clip.share.expiresAt * 1000 > Date.now() && <button className="icon-button" onClick={() => stopSharing(clip.id)} aria-label={`Stop sharing ${clip.title}`} title="Stop sharing"><ShieldCheck size={16}/></button>}<button className="icon-button" onClick={() => shareClip(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
         </section>
 
         <section className="bottom-note"><div className="note-icon"><Sparkles size={18}/></div><div><strong>A little more clarity goes a long way.</strong><p>Record locally. Share temporarily. Keep the conversation tied to the exact moment—and let it end when you do.</p></div><span className="build-label"><Activity size={13}/> EARLY BUILD</span></section>
@@ -291,7 +301,7 @@ function App() {
       <section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(event) => event.stopPropagation()}>
         <header className="preview-header"><div><h2 id="preview-title">{previewClip.title}</h2><p>{formatDate(previewClip.createdAt)} · {formatBytes(previewClip.size)}</p></div><button className="icon-button" aria-label="Close preview" onClick={closePreview}><X size={19}/></button></header>
         <video className="preview-video" src={previewUrl} controls playsInline preload="metadata"/>
-        <div className="preview-actions"><button className="button secondary" onClick={() => setPublishId(previewClip.id)}><Share2 size={16}/> Share temporarily</button><button className="button secondary" onClick={() => download(previewClip.id)}><Download size={16}/> Download</button><button className="button danger" onClick={async () => { await remove(previewClip.id); closePreview(); }}><Trash2 size={16}/> Delete</button></div>
+        <div className="preview-actions"><button className="button secondary" onClick={() => shareClip(previewClip.id)}><Share2 size={16}/> Share temporarily</button><button className="button secondary" onClick={() => download(previewClip.id)}><Download size={16}/> Download</button><button className="button danger" onClick={async () => { await remove(previewClip.id); closePreview(); }}><Trash2 size={16}/> Delete</button></div>
       </section>
     </div>}
     {publishId && <div className="modal-backdrop" role="presentation" onClick={() => !publishing && setPublishId(null)}><section className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
