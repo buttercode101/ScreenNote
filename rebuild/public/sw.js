@@ -33,13 +33,13 @@ self.addEventListener("fetch", (event) => {
 
   if (url.pathname.startsWith("/assets/") || APP_SHELL.includes(url.pathname)) {
     event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
-        }
+      (async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        const response = await fetch(request);
+        if (response.ok) await caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
         return response;
-      }))
+      })()
     );
   }
 });
