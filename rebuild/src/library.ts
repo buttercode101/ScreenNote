@@ -6,6 +6,7 @@ export type Clip = {
   size: number;
   mimeType: string;
   blob: Blob;
+  share?: { token: string; url: string; ownerKey: string; expiresAt: number };
 };
 
 export type RecoverySession = {
@@ -196,5 +197,13 @@ export async function restoreRecordingSession(sessionId: string): Promise<void> 
     size: blob.size,
     mimeType: session.mimeType,
     blob
+  });
+}
+export async function findShareByToken(token: string): Promise<Clip | undefined> {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(CLIPS, "readonly").objectStore(CLIPS).getAll();
+    request.onsuccess = () => resolve((request.result as Clip[]).find((clip) => clip.share?.token === token));
+    request.onerror = () => reject(request.error);
   });
 }
