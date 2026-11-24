@@ -79,7 +79,7 @@ test("temporary viewer is guest-accessible and accepts timestamped discussion", 
   await expect(page.getByText("No comments yet.")).toBeVisible();
   await page.locator(".share-comment-form textarea").fill("The checkout button disappears here.");
   await page.getByRole("button", { name: "Post comment" }).click();
-  await expect(page.getByText("The checkout button disappears here.")).toBeVisible();
+  await expect(page.locator(".share-comment").getByText("The checkout button disappears here.")).toBeVisible();
 });
 
 test("privacy route explains local originals and temporary retention", async ({ page }) => {
