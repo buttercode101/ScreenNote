@@ -66,7 +66,7 @@ async function session(env:any) {
 async function upload(env:any,cookie:string) {
   const created=await worker.fetch(new Request("https://screennote.test/api/recordings",{method:"POST",headers:{origin:"https://screennote.test",cookie,"content-type":"application/json"},body:JSON.stringify({title:"Bug walkthrough",mimeType:"video/webm",size:4,duration:12})}),env,{} as any);
   const body=await created.json() as any;
-  const uploaded=await worker.fetch(new Request(`https://screennote.test/api/recordings/${body.id}/media`,{method:"PUT",headers:{origin:"https://screennote.test",cookie,"content-type":"video/webm","content-length":"4"},body:new Uint8Array([1,2,3,4])}),env,{} as any);
+  const uploaded=await worker.fetch(new Request(`https://screennote.test/api/recordings/${body.id}/media`,{method:"PUT",headers:{origin:"https://screennote.test",cookie,"content-type":"video/webm","content-length":"4"},body:new Uint8Array([0x1a,0x45,0xdf,0xa3])}),env,{} as any);
   return {id:body.id,uploaded};
 }
 describe("ScreenNote temporary sharing API",()=>{
