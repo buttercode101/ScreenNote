@@ -1,6 +1,7 @@
 name: ScreenNote Cloudflare rebuild
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - rebuild/cloudflare-web-first
