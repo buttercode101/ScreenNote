@@ -17,7 +17,7 @@ class FakeD1 {
             for (const s of db.shares.values()) if (s.token_hash === v[0]) return { ...db.recordings.get(s.recording_id), ...s };
           }
           if (sql.includes("FROM shares") && sql.includes("JOIN recordings")) {
-            for (const s of db.shares.values()) if (s.token_hash === v[0]) return { ...s, ...db.recordings.get(s.recording_id) };
+            for (const s of db.shares.values()) if (s.token_hash === v[0]) return { ...db.recordings.get(s.recording_id), ...s };
           }
           if (sql.includes("FROM shares") && sql.includes("recording_id = ?")) return [...db.shares.values()].find(s => s.recording_id === v[0]) ?? null;
           if (sql.includes("FROM shares") && sql.includes("id = ?")) return db.shares.get(v[0]) ?? null;
