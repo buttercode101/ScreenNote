@@ -17,6 +17,8 @@ This is the new Cloudflare-first implementation. The legacy application remains 
 - Optional microphone and system audio when the browser exposes them.
 - Pause, resume and finish controls.
 - Local IndexedDB library and MP4/WebM/MOV import.
+- Chunk-by-chunk recording persistence with interrupted-session recovery.
+- PWA service worker with offline shell and static asset caching.
 - Cloudflare Worker API foundation for guest sessions, private media uploads and cached static asset delivery from R2 when no native Assets binding is present.
 - D1 schema for guest sessions and recording metadata.
 - Typed Cloudflare project configuration, Vite integration and observability settings.

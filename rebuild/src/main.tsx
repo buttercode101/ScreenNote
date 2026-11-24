@@ -37,6 +37,11 @@ function App() {
   };
   useEffect(() => { refresh().catch(() => setMessage("Your browser's local storage is unavailable.")); }, []);
   useEffect(() => { document.documentElement.dataset.theme = dark ? "dark" : "light"; }, [dark]);
+  useEffect(() => {
+    if ("serviceWorker" in navigator && window.isSecureContext) {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => setMessage("Offline support could not be enabled in this browser."));
+    }
+  }, []);
 
   const visibleClips = useMemo(() => clips.filter((clip) => clip.title.toLowerCase().includes(query.toLowerCase())), [clips, query]);
 
