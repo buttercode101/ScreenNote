@@ -1,5 +1,6 @@
 export type CaptureOptions = { microphone: boolean; systemAudio: boolean };
 export type RecordingResult = { blob: Blob; duration: number; mimeType: string };
+export type ChunkWriter = (blob: Blob, index: number) => Promise<void>;
 
 const MIME_TYPES = [
   "video/webm;codecs=vp9,opus",
@@ -16,6 +17,8 @@ export class ScreenRecorder {
   private recorder?: MediaRecorder;
   private stream?: MediaStream;
   private chunks: Blob[] = [];
+  private pendingWrites: Promise<void>[] = [];
+  private chunkIndex = 0;
   private startedAt = 0;
   private pausedAt = 0;
   private pausedDuration = 0;
@@ -24,7 +27,7 @@ export class ScreenRecorder {
     return this.recorder?.state ?? "inactive";
   }
 
-  async start(options: CaptureOptions, onTick: (seconds: number) => void): Promise<void> {
+  async start(options: CaptureOptions, onTick: (seconds: number) => void, writeChunk: ChunkWriter): Promise<void> {
     if (!navigator.mediaDevices?.getDisplayMedia) {
       throw new Error("Screen recording is not supported in this browser. Try a desktop version of Chrome or Edge, or import a recording.");
     }
@@ -42,10 +45,15 @@ export class ScreenRecorder {
       const mimeType = supportedMimeType();
       this.recorder = new MediaRecorder(this.stream, mimeType ? { mimeType } : undefined);
       this.chunks = [];
+      this.pendingWrites = [];
+      this.chunkIndex = 0;
       this.startedAt = Date.now();
       this.pausedDuration = 0;
       this.recorder.ondataavailable = (event) => {
-        if (event.data.size) this.chunks.push(event.data);
+        if (event.data.size) {
+          this.chunks.push(event.data);
+          this.pendingWrites.push(writeChunk(event.data, this.chunkIndex++));
+        }
       };
       this.recorder.start(1000);
       const timer = window.setInterval(() => {
@@ -91,7 +99,8 @@ export class ScreenRecorder {
     const pausedAt = this.pausedAt;
     return new Promise((resolve, reject) => {
       recorder.onerror = () => reject(new Error("The browser could not finish this recording."));
-      recorder.onstop = () => {
+      recorder.onstop = async () => {
+        await Promise.allSettled(this.pendingWrites);
         const blob = new Blob(this.chunks, { type: recorder.mimeType || "video/webm" });
         const activePause = wasPaused ? Date.now() - pausedAt : 0;
         const duration = Math.max(0, Math.floor((Date.now() - this.startedAt - this.pausedDuration - activePause) / 1000));
@@ -99,6 +108,7 @@ export class ScreenRecorder {
         this.stream = undefined;
         this.recorder = undefined;
         this.chunks = [];
+        this.pendingWrites = [];
         if (!blob.size) reject(new Error("The recording was empty. Please try again."));
         else resolve({ blob, duration, mimeType: blob.type });
       };
