@@ -35,7 +35,7 @@ test("light and dark layouts remain contained from 320px through desktop", async
 
 test("imported videos can be previewed and dismissed with Escape", async ({ page }) => {
   await page.goto("/");
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('input[type="file"][accept*="video"]').setInputFiles({
     name: "walkthrough.webm",
     mimeType: "video/webm",
     buffer: Buffer.from("screen-note-test-video")
@@ -50,7 +50,7 @@ test("imported videos can be previewed and dismissed with Escape", async ({ page
 
 test("recording search reports an empty result clearly", async ({ page }) => {
   await page.goto("/");
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('input[type="file"][accept*="video"]').setInputFiles({
     name: "release-notes.webm",
     mimeType: "video/webm",
     buffer: Buffer.from("test-video")
