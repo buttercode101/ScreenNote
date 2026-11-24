@@ -54,7 +54,7 @@ const makeEnv = () => {
   const DB=new FakeD1(), objects=new Map<string, {bytes:Uint8Array;type:string}>(), deleted:string[]=[];
   const MEDIA={
     async put(key:string, body:ReadableStream<Uint8Array>, options:any){const bytes=new Uint8Array(await new Response(body).arrayBuffer());objects.set(key,{bytes,type:options.httpMetadata.contentType});},
-    async get(key:string, options?:any){const o=objects.get(key);if(!o)return null;const bytes=options?.range?o.bytes.slice(options.range.offset,options.range.offset+options.range.length):o.bytes;return {body:new Blob([bytes]).stream(),httpEtag:'etag'};},
+    async get(key:string, options?:any){const o=objects.get(key);if(!o)return null;const bytes=options?.range?o.bytes.slice(options.range.offset,options.range.offset+options.range.length):o.bytes;return {body:new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer]).stream(),httpEtag:'etag'};},
     async delete(key:string){objects.delete(key);deleted.push(key);}
   };
   return {env:{DB,MEDIA,STATIC:{get:async()=>null}},DB,objects,deleted};
