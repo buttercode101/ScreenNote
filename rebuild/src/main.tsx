@@ -4,6 +4,7 @@ import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp
 import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
 import { ScreenRecorder, supportedMimeType, type RecordingResult } from "./recorder";
 import { newOwnerKey, publishRecording } from "./sharing";
+import { clampTrimRange, trimVideoElement } from "./trim";
 import ShareViewer from "./ShareViewer";
 import PrivacyPage from "./PrivacyPage";
 import "./styles.css";
@@ -45,6 +46,10 @@ function App() {
   const [query, setQuery] = useState("");
   const [previewClip, setPreviewClip] = useState<Clip | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(0);
+  const [trimming, setTrimming] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [publishId, setPublishId] = useState<string | null>(null);
   const [expiryDays, setExpiryDays] = useState(3);
@@ -166,7 +171,21 @@ function App() {
     if (!clip) { setMessage("This recording is no longer available on this device."); return; }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewClip(clip);
+    setTrimStart(0); setTrimEnd(clip.duration);
     setPreviewUrl(URL.createObjectURL(clip.blob));
+  }
+
+  async function saveTrimmedCopy() {
+    if (!previewClip || !previewVideoRef.current) return;
+    setTrimming(true);
+    try {
+      const range = clampTrimRange(trimStart, trimEnd, previewClip.duration);
+      const blob = await trimVideoElement(previewVideoRef.current, range);
+      const trimmed: Clip = { id: crypto.randomUUID(), title: previewClip.title + " — trimmed", createdAt: Date.now(), duration: Math.round(range.duration), size: blob.size, mimeType: blob.type, blob };
+      await saveClip(trimmed); await refresh();
+      setMessage("Trimmed copy saved locally. Your original is unchanged.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't trim this video."); }
+    finally { setTrimming(false); }
   }
 
   function closePreview() {
@@ -301,8 +320,8 @@ function App() {
     {previewClip && previewUrl && <div className="modal-backdrop" role="presentation" onClick={closePreview}>
       <section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(event) => event.stopPropagation()}>
         <header className="preview-header"><div><h2 id="preview-title">{previewClip.title}</h2><p>{formatDate(previewClip.createdAt)} · {formatBytes(previewClip.size)}</p></div><button className="icon-button" aria-label="Close preview" onClick={closePreview}><X size={19}/></button></header>
-        <video className="preview-video" src={previewUrl} controls playsInline preload="metadata"/>
-        <div className="preview-actions"><button className="button secondary" onClick={() => shareClip(previewClip.id)}><Share2 size={16}/> Share temporarily</button><button className="button secondary" onClick={() => download(previewClip.id)}><Download size={16}/> Download</button><button className="button danger" onClick={async () => { await remove(previewClip.id); closePreview(); }}><Trash2 size={16}/> Delete</button></div>
+        <video ref={previewVideoRef} className="preview-video" src={previewUrl} controls playsInline preload="metadata"/>
+        <div className="trim-tools"><label>From (seconds)<input type="number" min="0" max={previewClip.duration} step="0.1" value={trimStart} onChange={e=>setTrimStart(Number(e.target.value))}/></label><label>To (seconds)<input type="number" min="0" max={previewClip.duration} step="0.1" value={trimEnd} onChange={e=>setTrimEnd(Number(e.target.value))}/></label><button className="button secondary" disabled={trimming || !previewClip.duration} onClick={saveTrimmedCopy}>{trimming?"Trimming locally…":"Save trimmed copy"}</button></div><div className="preview-actions"><button className="button secondary" onClick={() => shareClip(previewClip.id)}><Share2 size={16}/> Share temporarily</button><button className="button secondary" onClick={() => download(previewClip.id)}><Download size={16}/> Download</button><button className="button danger" onClick={async () => { await remove(previewClip.id); closePreview(); }}><Trash2 size={16}/> Delete</button></div>
       </section>
     </div>}
     {publishId && <div className="modal-backdrop" role="presentation" onClick={() => !publishing && setPublishId(null)}><section className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
