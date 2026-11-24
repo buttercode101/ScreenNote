@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
-import { deleteClip, listClips, saveClip, type Clip } from "./library";
+import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, listClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
 import { ScreenRecorder, type RecordingResult } from "./recorder";
 import "./styles.css";
 
@@ -16,6 +16,8 @@ const formatBytes = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math
 
 function App() {
   const [clips, setClips] = useState<Omit<Clip, "blob">[]>([]);
+  const [recoverable, setRecoverable] = useState<RecoverySession[]>([]);
+  const activeSessionId = useRef<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -28,7 +30,11 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const refresh = async () => setClips(await listClips());
+  const refresh = async () => {
+    const [nextClips, nextRecoverable] = await Promise.all([listClips(), listRecoverableSessions()]);
+    setClips(nextClips);
+    setRecoverable(nextRecoverable);
+  };
   useEffect(() => { refresh().catch(() => setMessage("Your browser's local storage is unavailable.")); }, []);
   useEffect(() => { document.documentElement.dataset.theme = dark ? "dark" : "light"; }, [dark]);
 
@@ -37,28 +43,43 @@ function App() {
   async function start() {
     setMessage("");
     setBusy(true);
+    const id = crypto.randomUUID();
+    const createdAt = Date.now();
+    const title = `Screen recording — ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(createdAt)}`;
     try {
-      await recorder.start({ microphone: mic, systemAudio }, setSeconds);
+      await beginRecordingSession({ id, title, createdAt, mimeType: "video/webm", chunkCount: 0, totalBytes: 0, updatedAt: createdAt });
+      activeSessionId.current = id;
+      await recorder.start(
+        { microphone: mic, systemAudio },
+        setSeconds,
+        (chunk, index) => appendRecordingChunk(id, chunk, index)
+      );
       setRecording(true);
       setPaused(false);
     } catch (error) {
+      await deleteRecordingSession(id).catch(() => undefined);
+      activeSessionId.current = null;
       setMessage(error instanceof Error ? error.message : "Could not start recording.");
     } finally { setBusy(false); }
   }
 
   async function persistResult(result: RecordingResult) {
-      const clip: Clip = {
-        id: crypto.randomUUID(),
-        title: `Screen recording — ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(Date.now())}`,
-        createdAt: Date.now(),
-        duration: result.duration,
-        size: result.blob.size,
-        mimeType: result.mimeType,
-        blob: result.blob
-      };
-      await saveClip(clip);
-      await refresh();
-      setMessage("Recording saved privately on this device.");
+    const id = activeSessionId.current ?? crypto.randomUUID();
+    const createdAt = Date.now();
+    const clip: Clip = {
+      id,
+      title: `Screen recording — ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(createdAt)}`,
+      createdAt,
+      duration: result.duration,
+      size: result.blob.size,
+      mimeType: result.mimeType,
+      blob: result.blob
+    };
+    if (activeSessionId.current) await finalizeRecordingSession(id, clip);
+    else await saveClip(clip);
+    activeSessionId.current = null;
+    await refresh();
+    setMessage("Recording saved privately on this device.");
   }
 
   useEffect(() => {
@@ -81,6 +102,22 @@ function App() {
     } finally {
       setRecording(false); setPaused(false); setSeconds(0); setBusy(false);
     }
+  }
+
+  async function recoverSession(id: string) {
+    try {
+      await restoreRecordingSession(id);
+      await refresh();
+      setMessage("Your interrupted recording was recovered.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not recover this recording.");
+    }
+  }
+
+  async function discardSession(id: string) {
+    if (!window.confirm("Discard this unfinished recording and its saved chunks?")) return;
+    try { await deleteRecordingSession(id); await refresh(); }
+    catch { setMessage("Could not discard the unfinished recording."); }
   }
 
   async function importFile(file?: File) {
@@ -131,6 +168,11 @@ function App() {
       <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> Overview</div><div className="top-actions"><span className="secure-label"><ShieldCheck size={14}/> Private by default</span><button className="icon-button" aria-label="Toggle appearance" onClick={() => setDark(!dark)}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><button className="avatar small" aria-label="Guest workspace">S</button></div></header>
       <div className="page-wrap">
         <section className="welcome-row"><div><div className="eyebrow">YOUR CREATIVE WORKSPACE</div><h1>Make it clear.<br/><span>Show what you mean.</span></h1><p className="intro">Capture a moment, explain an idea, and bring everyone onto the same page.</p></div><div className="welcome-art" aria-hidden="true"><div className="art-window"><div className="art-bar"><i/><i/><i/></div><div className="art-screen"><div className="art-sidebar"/><div className="art-content"><div/><div/><div/><div/></div><div className="art-cursor"/></div><div className="art-play"><Play size={15} fill="currentColor"/></div></div><div className="art-caption">A clearer way to communicate</div></div></section>
+
+        {recoverable.map((session) => <div className="notice recovery-notice" role="status" key={session.id}>
+          <div className="recovery-copy"><strong>An unfinished recording was found.</strong><span>{session.title} · {formatBytes(session.totalBytes)} saved locally</span></div>
+          <div className="recovery-actions"><button className="button secondary" onClick={() => recoverSession(session.id)}>Recover</button><button className="button secondary" onClick={() => discardSession(session.id)}>Discard</button></div>
+        </div>)}
 
         <section className="capture-panel">
           <div className="capture-copy"><div className="capture-icon"><Video size={21}/></div><div><h2>{recording ? "You're recording" : "Start with a recording"}</h2><p>{recording ? "Take your time. Your recording is being captured in this tab." : "Record your screen or bring in a video you already have."}</p></div></div>
