@@ -17,7 +17,7 @@ This is the new Cloudflare-first implementation. The legacy application remains 
 - Optional microphone and system audio when the browser exposes them.
 - Pause, resume and finish controls.
 - Local IndexedDB library and MP4/WebM/MOV import.
-- Cloudflare Worker API foundation for guest sessions and private R2 uploads.
+- Cloudflare Worker API foundation for guest sessions, private media uploads and cached static asset delivery from R2 when no native Assets binding is present.
 - D1 schema for guest sessions and recording metadata.
 - Typed Cloudflare project configuration, Vite integration and observability settings.
 
@@ -25,6 +25,7 @@ This is the new Cloudflare-first implementation. The legacy application remains 
 
 - D1: `screennote-dev` (ENAM primary region)
 - R2: `screennote-media-dev` (ENAM bucket location)
+- R2: `screennote-static-dev` (ENAM bucket location, versioned static build assets)
 
 These resources were created specifically for this rebuild. Existing Cloudflare projects and buckets were not reused or modified.
 

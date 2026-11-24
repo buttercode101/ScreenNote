@@ -14,6 +14,7 @@ export default defineConfig({
     env: {
       DB: bindings.d1({ name: "screennote-dev", id: "44a5859b-6411-4513-bd17-3302fbbc0575" }),
       MEDIA: bindings.r2({ name: "screennote-media-dev" }),
+      STATIC: bindings.r2({ name: "screennote-static-dev" }),
       ASSETS: bindings.assets()
     },
     observability: {

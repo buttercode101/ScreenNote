@@ -1,4 +1,4 @@
-type Bindings = { DB: D1Database; MEDIA: R2Bucket; ASSETS: Fetcher };
+type Bindings = { DB: D1Database; MEDIA: R2Bucket; STATIC: R2Bucket; ASSETS?: Fetcher };
 const SESSION_COOKIE = "sn_guest";
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
@@ -103,12 +103,52 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
   return json({ error: "Not found" }, 404);
 }
 
+
+const CONTENT_TYPES: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".webmanifest": "application/manifest+json",
+  ".gz": "application/octet-stream"
+};
+
+async function serveStatic(request: Request, env: Bindings, ctx: ExecutionContext): Promise<Response> {
+  if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
+  const url = new URL(request.url);
+  const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
+  if (pathname.split("/").some((part) => part === "." || part === "..") || !/^\/[a-zA-Z0-9_./-]+$/.test(pathname)) {
+    return new Response("Bad path", { status: 400 });
+  }
+  const cacheKey = new Request(url.toString(), { method: "GET" });
+  const isImmutable = /\.[a-f0-9]{8,}\.(?:js|css)$/.test(pathname) || /\/bundle-\d{2}\.gz$/.test(pathname);
+  if (request.method === "GET" && isImmutable) {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) return cached;
+  }
+  let object = await env.STATIC.get("site" + pathname);
+  if (!object && !pathname.split("/").pop()?.includes(".")) object = await env.STATIC.get("site/index.html");
+  if (!object) return new Response("Not found", { status: 404 });
+  const extension = pathname.slice(pathname.lastIndexOf("."));
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("content-type", CONTENT_TYPES[extension] ?? "application/octet-stream");
+  headers.set("etag", object.httpEtag);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  headers.set("cache-control", isImmutable ? "public, max-age=31536000, immutable" : "no-cache");
+  const response = new Response(request.method === "HEAD" ? null : object.body, { headers });
+  if (request.method === "GET" && isImmutable) ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+  return response;
+}
+
 export default {
-  async fetch(request: Request, env: Bindings): Promise<Response> {
+  async fetch(request: Request, env: Bindings, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     try {
       if (url.pathname.startsWith("/api/")) return await handleApi(request, env);
-      return env.ASSETS.fetch(request);
+      if (env.ASSETS) return env.ASSETS.fetch(request);
+      return await serveStatic(request, env, ctx);
     } catch (error) {
       console.error(JSON.stringify({ message: "ScreenNote request failed", path: url.pathname, error: error instanceof Error ? error.message : String(error) }));
       return json({ error: "The request could not be completed" }, 500);
