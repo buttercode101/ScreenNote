@@ -43,7 +43,7 @@ test("imported videos can be previewed and dismissed with Escape", async ({ page
   await expect(page.getByRole("heading", { name: "walkthrough" })).toBeVisible();
   await page.getByRole("button", { name: "Play walkthrough" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "walkthrough" })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("heading", { name: "walkthrough" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
