@@ -257,7 +257,19 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     if (type !== row.mime_type) return fail("The uploaded file type did not match the reservation.", 415);
     const [uploadStream, inspectStream] = request.body.tee();
     if (!(await validMediaHeader(inspectStream, row.mime_type))) return fail("The uploaded file does not match its declared video format.", 415);
-    await env.MEDIA.put(row.object_key, uploadStream, { httpMetadata: { contentType: row.mime_type } });
+    let receivedBytes = 0;
+    const countedStream = uploadStream.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        receivedBytes += chunk.byteLength;
+        if (receivedBytes > row.byte_size) throw new Error("The uploaded video exceeded its reserved size.");
+        controller.enqueue(chunk);
+      }
+    }));
+    await env.MEDIA.put(row.object_key, countedStream, { httpMetadata: { contentType: row.mime_type } });
+    if (receivedBytes !== row.byte_size) {
+      await env.MEDIA.delete(row.object_key);
+      return fail("The uploaded video was incomplete. Your local original is still safe.", 400);
+    }
     await env.DB.prepare("UPDATE recordings SET status = 'ready', updated_at = ? WHERE id = ? AND owner_token_hash = ?")
       .bind(Math.floor(Date.now() / 1000), recordingMatch[1], owner).run();
     return json({ id: recordingMatch[1], status: "ready" });
