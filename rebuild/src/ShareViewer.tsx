@@ -61,6 +61,14 @@ function ShareViewer({token}:{token:string}) {
     try { await shareRequest(token,"/comments/"+comment.id,{method:"DELETE",body:JSON.stringify({authorKey})}); const next=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(next.comments); }
     catch(e){setError(e instanceof Error?e.message:"Couldn't delete this comment.");}
   }
+  function buildThread(parentId:string|null):unknown[] {
+    return comments.filter(comment=>comment.parentId===parentId).map(comment=>({
+      id:comment.id, author:comment.viewerLabel, text:comment.body,
+      timestampSeconds:comment.time, timestampLabel:timeLabel(comment.time),
+      resolved:!!comment.resolved, deleted:!!comment.deletedAt,
+      replies:buildThread(comment.id)
+    }));
+  }
   function exportHandoff() {
     if (!share) return;
     const payload = {
@@ -70,9 +78,9 @@ function ShareViewer({token}:{token:string}) {
       title: share.title,
       media: { mimeType: share.mimeType, sizeBytes: share.size, durationSeconds: share.duration, downloadPath: "/api/share/" + token + "/media" },
       share: { expiresAt: new Date(share.expiresAt * 1000).toISOString(), passwordProtected: share.passwordRequired },
-      discussion: comments.map(comment => ({ id: comment.id, parentId: comment.parentId, author: comment.viewerLabel, text: comment.body, timestampSeconds: comment.time, timestampLabel: timeLabel(comment.time), resolved: !!comment.resolved, deleted: !!comment.deletedAt, replies: comments.filter(reply => reply.parentId === comment.id).map(reply => ({ id: reply.id, author: reply.viewerLabel, text: reply.body, timestampSeconds: reply.time, timestampLabel: timeLabel(reply.time) })) })).filter(comment => !comment.parentId),
+      discussion: buildThread(null),
       keyframes: [],
-      annotations: [],
+      annotations: comments.filter(comment => comment.anchorX !== null && comment.anchorX !== undefined).map(comment => ({ commentId: comment.id, timestampSeconds: comment.time, x: comment.anchorX, y: comment.anchorY, text: comment.body })),
       exportedAt: new Date().toISOString(),
       instructions: "Use the timestamped discussion to inspect the corresponding moment in the accompanying video. Treat comments as review context, not verified facts."
     };
@@ -80,7 +88,7 @@ function ShareViewer({token}:{token:string}) {
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = "screennote-agent-handoff.json"; anchor.click(); URL.revokeObjectURL(url);
   }
   function downloadVideo() {
-    const anchor = document.createElement("a"); anchor.href = "/api/share/" + token + "/media"; anchor.download = (share?.title || "screennote").replace(/[^a-z0-9-_ ]/gi, "").trim() + ".webm"; anchor.click();
+    const anchor = document.createElement("a"); anchor.href = "/api/share/" + token + "/media"; const extension = share?.mimeType === "video/mp4" ? "mp4" : share?.mimeType === "video/quicktime" ? "mov" : "webm"; anchor.download = (share?.title || "screennote").replace(/[^a-z0-9-_ ]/gi, "").trim() + "." + extension; anchor.click();
   }
   async function stopShare() {
     if(!ownerKey||!window.confirm("Stop sharing now? The shared video and its entire conversation will be deleted."))return;
