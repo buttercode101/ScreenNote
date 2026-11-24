@@ -174,7 +174,9 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       const { results } = await env.DB.prepare(
         "SELECT id, parent_id AS parentId, author_hash AS authorHash, viewer_label AS viewerLabel, body, time_seconds AS time, created_at AS createdAt, updated_at AS updatedAt, resolved, deleted_at AS deletedAt FROM comments WHERE share_id = ? ORDER BY created_at ASC LIMIT 200"
       ).bind(share.id).all();
-      const authorKey = request.headers.get("x-sn-author-key");\n      const authorHash = authorKey && /^[A-Za-z0-9_-]{32,64}$/.test(authorKey) ? await digest(authorKey) : null;\n      return json({ comments: results.map((comment: any) => ({ ...comment, authorHash: undefined, isMine: !!authorHash && safeEqual(authorHash, comment.authorHash) })) });
+      const authorKey = request.headers.get("x-sn-author-key");
+      const authorHash = authorKey && /^[A-Za-z0-9_-]{32,64}$/.test(authorKey) ? await digest(authorKey) : null;
+      return json({ comments: results.map((comment: any) => ({ ...comment, authorHash: undefined, isMine: !!authorHash && safeEqual(authorHash, comment.authorHash) })) });
     }
     if (action === "comments" && request.method === "POST") {
       const body = await request.json<{ authorKey?: string; text?: string; time?: number; parentId?: string | null; viewerLabel?: string }>().catch(() => null);
