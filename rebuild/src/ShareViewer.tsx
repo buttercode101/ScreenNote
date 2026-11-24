@@ -25,7 +25,7 @@ function ShareViewer({token}:{token:string}) {
     try {
       const data=await shareRequest<Share>(token);setShare(data);setLocked(false);
       const discussion=await shareRequest<{comments:Comment[]}>(token,"/comments");setComments(discussion.comments);
-      const local=await findShareByToken(token);setOwnerKey(local?.share?.ownerKey??null);
+      const local=await findShareByToken(token);setOwnerKey(local?.share?.ownerKey??localStorage.getItem("screennote-recovery-"+token));
     } catch(e) {
       if ((e as {status?:number}).status===401) setLocked(true);
       else setError(e instanceof Error?e.message:"This ScreenNote is unavailable.");

@@ -1,4 +1,4 @@
-import { bindings, defineConfig } from "cf/config";
+import { bindings, defineConfig, triggers } from "cf/config";
 import * as entrypoint from "./worker/index.ts" with { type: "cf-worker" };
 
 export default defineConfig({
@@ -17,6 +17,7 @@ export default defineConfig({
       STATIC: bindings.r2({ name: "screennote-static-dev" }),
       ASSETS: bindings.assets()
     },
+    triggers: [triggers.scheduled({ schedule: "*/15 * * * *" })],
     observability: {
       enabled: true,
       logs: { enabled: true, invocationLogs: true, headSamplingRate: 1 },
