@@ -54,6 +54,10 @@ Deploy only to the dedicated development Worker after the D1 migration is applie
 npm run deploy
 ```
 
+## Desktop companion direction
+
+The desktop application will reuse the web UI through a proposed Tauri 2 shell and platform-native capture adapters. See `desktop/README.md` for the OS-specific capture architecture and release gates. The desktop client is not implemented in this web-first slice.
+
 ## Next engineering gates
 
 1. Apply and verify the D1 migration in the development database.
