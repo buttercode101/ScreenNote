@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   appendRecordingChunk,
   beginRecordingSession,
@@ -8,15 +8,6 @@ import {
   listRecoverableSessions,
   restoreRecordingSession
 } from "../src/library";
-
-const reset = () => new Promise<void>((resolve) => {
-  const request = indexedDB.deleteDatabase("screennote-local");
-  request.onsuccess = () => resolve();
-  request.onerror = () => resolve();
-  request.onblocked = () => resolve();
-});
-
-afterEach(async () => { await reset(); });
 
 describe("local recording recovery", () => {
   it("persists chunks and restores an interrupted recording", async () => {

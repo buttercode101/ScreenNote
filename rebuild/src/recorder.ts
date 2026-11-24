@@ -52,7 +52,7 @@ export class ScreenRecorder {
       this.recorder.ondataavailable = (event) => {
         if (event.data.size) {
           this.chunks.push(event.data);
-          this.pendingWrites.push(writeChunk(event.data, this.chunkIndex++));
+          this.pendingWrites.push(writeChunk(event.data, this.chunkIndex++).catch(() => undefined));
         }
       };
       this.recorder.start(1000);

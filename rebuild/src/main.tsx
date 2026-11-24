@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
 import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, listClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
-import { ScreenRecorder, type RecordingResult } from "./recorder";
+import { ScreenRecorder, supportedMimeType, type RecordingResult } from "./recorder";
 import "./styles.css";
 
 const recorder = new ScreenRecorder();
@@ -47,7 +47,7 @@ function App() {
     const createdAt = Date.now();
     const title = `Screen recording — ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(createdAt)}`;
     try {
-      await beginRecordingSession({ id, title, createdAt, mimeType: "video/webm", chunkCount: 0, totalBytes: 0, updatedAt: createdAt });
+      await beginRecordingSession({ id, title, createdAt, mimeType: supportedMimeType() || "video/webm", chunkCount: 0, totalBytes: 0, updatedAt: createdAt });
       activeSessionId.current = id;
       await recorder.start(
         { microphone: mic, systemAudio },
