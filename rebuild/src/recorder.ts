@@ -87,11 +87,13 @@ export class ScreenRecorder {
   stop(): Promise<RecordingResult> {
     const recorder = this.recorder;
     if (!recorder) return Promise.reject(new Error("No recording is active"));
+    const wasPaused = recorder.state === "paused";
+    const pausedAt = this.pausedAt;
     return new Promise((resolve, reject) => {
       recorder.onerror = () => reject(new Error("The browser could not finish this recording."));
       recorder.onstop = () => {
         const blob = new Blob(this.chunks, { type: recorder.mimeType || "video/webm" });
-        const activePause = recorder.state === "paused" ? Date.now() - this.pausedAt : 0;
+        const activePause = wasPaused ? Date.now() - pausedAt : 0;
         const duration = Math.max(0, Math.floor((Date.now() - this.startedAt - this.pausedDuration - activePause) / 1000));
         this.stream?.getTracks().forEach((track) => track.stop());
         this.stream = undefined;

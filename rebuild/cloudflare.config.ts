@@ -5,7 +5,7 @@ export default defineConfig({
   worker: {
     name: "screennote-dev",
     entrypoint,
-    compatibilityDate: "2026-11-25",
+    compatibilityDate: "2026-11-24",
     compatibilityFlags: ["nodejs_compat"],
     assets: {
       notFoundHandling: "single-page-application",

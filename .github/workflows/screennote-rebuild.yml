@@ -33,6 +33,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screennote-build-output
+          path: rebuild/.cloudflare/output/v1/**
+          if-no-files-found: error
 
   build:
     name: build

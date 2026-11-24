@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
 import { deleteClip, listClips, saveClip, type Clip } from "./library";
-import { ScreenRecorder } from "./recorder";
+import { ScreenRecorder, type RecordingResult } from "./recorder";
 import "./styles.css";
 
 const recorder = new ScreenRecorder();
@@ -46,10 +46,7 @@ function App() {
     } finally { setBusy(false); }
   }
 
-  async function finish() {
-    setBusy(true);
-    try {
-      const result = await recorder.stop();
+  async function persistResult(result: RecordingResult) {
       const clip: Clip = {
         id: crypto.randomUUID(),
         title: `Screen recording — ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(Date.now())}`,
@@ -62,6 +59,23 @@ function App() {
       await saveClip(clip);
       await refresh();
       setMessage("Recording saved privately on this device.");
+  }
+
+  useEffect(() => {
+    const handleExternalStop = (event: Event) => {
+      const result = (event as CustomEvent<RecordingResult>).detail;
+      setRecording(false); setPaused(false); setSeconds(0);
+      void persistResult(result).catch(() => setMessage("The recording could not be saved locally."));
+    };
+    window.addEventListener("screennote:recording-finished", handleExternalStop);
+    return () => window.removeEventListener("screennote:recording-finished", handleExternalStop);
+  }, []);
+
+  async function finish() {
+    setBusy(true);
+    try {
+      const result = await recorder.stop();
+      await persistResult(result);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not save this recording.");
     } finally {
