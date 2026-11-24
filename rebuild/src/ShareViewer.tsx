@@ -56,6 +56,27 @@ function ShareViewer({token}:{token:string}) {
     try { await shareRequest(token,"/comments/"+comment.id,{method:"DELETE",body:JSON.stringify({authorKey})}); const next=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(next.comments); }
     catch(e){setError(e instanceof Error?e.message:"Couldn't delete this comment.");}
   }
+  function exportHandoff() {
+    if (!share) return;
+    const payload = {
+      schema: "screennote.agent-handoff",
+      version: 1,
+      product: "ScreenNote",
+      title: share.title,
+      media: { mimeType: share.mimeType, sizeBytes: share.size, durationSeconds: share.duration, downloadPath: "/api/share/" + token + "/media" },
+      share: { expiresAt: new Date(share.expiresAt * 1000).toISOString(), passwordProtected: share.passwordRequired },
+      discussion: comments.map(comment => ({ id: comment.id, parentId: comment.parentId, author: comment.viewerLabel, text: comment.body, timestampSeconds: comment.time, timestampLabel: timeLabel(comment.time), resolved: !!comment.resolved, deleted: !!comment.deletedAt, replies: comments.filter(reply => reply.parentId === comment.id).map(reply => ({ id: reply.id, author: reply.viewerLabel, text: reply.body, timestampSeconds: reply.time, timestampLabel: timeLabel(reply.time) })) })).filter(comment => !comment.parentId),
+      keyframes: [],
+      annotations: [],
+      exportedAt: new Date().toISOString(),
+      instructions: "Use the timestamped discussion to inspect the corresponding moment in the accompanying video. Treat comments as review context, not verified facts."
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = "screennote-agent-handoff.json"; anchor.click(); URL.revokeObjectURL(url);
+  }
+  function downloadVideo() {
+    const anchor = document.createElement("a"); anchor.href = "/api/share/" + token + "/media"; anchor.download = (share?.title || "screennote").replace(/[^a-z0-9-_ ]/gi, "").trim() + ".webm"; anchor.click();
+  }
   async function stopShare() {
     if(!ownerKey||!window.confirm("Stop sharing now? The shared video and its entire conversation will be deleted."))return;
     try { await shareRequest(token,"/manage",{method:"DELETE",body:JSON.stringify({ownerKey})}); setShare(null); setComments([]); setError("You stopped sharing. The shared video and conversation have ended."); }
@@ -82,7 +103,7 @@ function ShareViewer({token}:{token:string}) {
   if(error&&!share)return <main className="share-page"><div className="share-ended"><ShieldCheck size={25}/><h1>This moment has ended.</h1><p>{error}</p><span>ScreenNote links are temporary by design.</span></div></main>;
   if(!share)return null;
   return <main className="share-page">
-    <header className="share-topbar"><div className="share-brand"><span className="brand-mark"><Video size={17}/></span> screen<span>note</span></div><span className="temporary-label"><Clock3 size={14}/> Temporary share</span>{ownerKey&&<button className="text-action" onClick={stopShare}>Stop sharing</button>}</header>
+    <header className="share-topbar"><div className="share-brand"><span className="brand-mark"><Video size={17}/></span> screen<span>note</span></div><span className="temporary-label"><Clock3 size={14}/> Temporary share</span><div className="share-header-actions"><button className="text-action" onClick={exportHandoff}>Export handoff</button><button className="text-action" onClick={downloadVideo}>Download video</button>{ownerKey&&<button className="text-action" onClick={stopShare}>Stop sharing</button>}</div></header>
     <div className="share-layout"><section className="share-main"><div className="share-heading"><span className="eyebrow">A MOMENT, SHARED</span><h1>{share.title}</h1><p>Watch the clip. Leave a note at the exact moment that matters.</p></div>
       <div className="share-video-wrap"><video ref={video} src={"/api/share/"+token+"/media"} controls playsInline preload="metadata" onTimeUpdate={e=>setTime(e.currentTarget.currentTime)}/>{activeBubbles.map((c,i)=><button key={c.id} className="playback-bubble" style={{bottom:(20+Math.min(3,i)*52)+"px"}} onClick={()=>seek(c.time)}><MessageCircle size={14}/>{c.body.slice(0,90)}</button>)}</div>
       <div className="share-video-meta"><span>{timeLabel(share.duration)} · {Math.ceil(share.size/1024/1024)} MB</span><span>Available until {new Date(share.expiresAt*1000).toLocaleString()}</span></div>
