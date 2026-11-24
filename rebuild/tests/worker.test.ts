@@ -14,7 +14,7 @@ class FakeD1 {
         async first() {
           if (sql.includes("FROM guest_sessions")) return db.sessions.has(v[0]) ? { token_hash: v[0] } : null;
           if (sql.includes("FROM recordings") && sql.includes("JOIN shares")) {
-            for (const s of db.shares.values()) if (s.token_hash === v[0]) return { ...s, ...db.recordings.get(s.recording_id) };
+            for (const s of db.shares.values()) if (s.token_hash === v[0]) return { ...db.recordings.get(s.recording_id), ...s };
           }
           if (sql.includes("FROM shares") && sql.includes("JOIN recordings")) {
             for (const s of db.shares.values()) if (s.token_hash === v[0]) return { ...s, ...db.recordings.get(s.recording_id) };
