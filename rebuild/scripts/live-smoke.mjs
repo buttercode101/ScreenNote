@@ -89,6 +89,7 @@ const sharedDetails = {
   captions: [{ start: 1, end: 2, text: "Owner-supplied live caption" }],
   chapters: [{ time: 1, title: "Live chapter" }],
   report: { url: "https://example.com/checkout", steps: "Open checkout", expected: "Payment appears", actual: "Payment is missing", environment: "GitHub Actions" },
+  reviewBrief: { purpose: "Review the checkout", focus: "Payment confirmation", expectedOutcome: "Receipt is shown", requestedAction: "approve" },
   reviewStatus: "changes-requested"
 };
 const detailsSaved = await request(sharePath + "/details", {
@@ -121,11 +122,11 @@ const contextResponse = await json(await request(sharePath + "/details", { heade
 assert.deepEqual(contextResponse.details, sharedDetails, "authorized viewers receive the saved shared context");
 const voterKey = randomBytes(32).toString("hex");
 const reaction = await json(await request(sharePath + "/reactions", {
-  method: "POST", headers: { origin, "content-type": "application/json" },
+  method: "POST", headers: { origin, cookie: accessCookie, "content-type": "application/json" },
   body: JSON.stringify({ voterKey, reaction: "thanks" })
 }));
 assert.equal(reaction.counts.thanks, 1, "anonymous viewer reaction is stored");
-const ownReaction = await json(await request(sharePath + "/reactions", { headers: { "x-voter-key": voterKey } }));
+const ownReaction = await json(await request(sharePath + "/reactions", { headers: { cookie: accessCookie, "x-voter-key": voterKey } }));
 assert.equal(ownReaction.myReaction, "thanks", "the same browser can retrieve its reaction");
 assert.equal(share.title, "Live acceptance check");
 assert.equal(share.passwordRequired, true);
