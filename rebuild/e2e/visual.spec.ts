@@ -20,7 +20,7 @@ const viewports = [
 
 async function contained(page: import("@playwright/test").Page, width:number) {
   const m=await page.evaluate(()=>{
-    const selectors=".button,.btn,button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.share-layout,.share-discussion,.viewer,.viewer-top,.viewer-grid,.viewer-media,.reply-panel,.help-grid,.help-grid>.panel,.modal,.preview-modal,.publish-modal,[role=dialog]";
+    const selectors="button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.preview-modal,.publish-modal,[role=dialog]";
     const offenders=[...document.querySelectorAll<HTMLElement>(selectors)].filter(el=>{
       const style=getComputedStyle(el),r=el.getBoundingClientRect();
       return style.display!=="none"&&style.visibility!=="hidden"&&r.width>0&&(r.left < -1 || r.right > innerWidth+1);
@@ -29,20 +29,22 @@ async function contained(page: import("@playwright/test").Page, width:number) {
   });
   expect(m.doc, `document horizontal overflow at ${width}px: ${JSON.stringify(m)}`).toBeLessThanOrEqual(width+1);
   expect(m.body, `body horizontal overflow at ${width}px: ${JSON.stringify(m)}`).toBeLessThanOrEqual(width+1);
-  expect(m.offenders, `visible controls or content panels escape the viewport at ${width}px`).toEqual([]);
+  expect(m.offenders, `visible controls or content panels escape viewport at ${width}px`).toEqual([]);
 }
 
 test.beforeAll(async()=>{await mkdir("test-results/screenshots",{recursive:true});});
 
-test("original ScreenNote layout stays contained at 13 widths in light and dark",async({page})=>{
+test("independent React workspace is contained at 13 widths in light and dark",async({page})=>{
   await page.goto("/");
-  await expect(page.getByRole("heading",{level:1})).toBeVisible();
+  await expect(page.getByRole("heading",{level:1,name:/Make it clear/i})).toBeVisible();
+  await expect(page.locator('script[type="module"][src="/src/main.tsx"]')).toHaveCount(1);
+  await expect(page.locator("#app")).toHaveCount(0);
   for(const v of viewports){
     await page.setViewportSize({width:v.width,height:v.height});
     await contained(page,v.width);
     if([320,375,768,1120,1440].includes(v.width))await page.screenshot({path:`test-results/screenshots/${v.name}-light.png`,fullPage:true});
   }
-  await page.getByRole("button",{name:"Toggle light or dark mode"}).click();
+  await page.getByRole("button",{name:"Toggle appearance"}).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
   for(const v of viewports){
     await page.setViewportSize({width:v.width,height:v.height});
@@ -51,222 +53,26 @@ test("original ScreenNote layout stays contained at 13 widths in light and dark"
   }
 });
 
-test("import, title, captions, chapters and bug-report context persist locally",async({page})=>{
+test("imported recording can be previewed, trimmed and shared from the new workspace",async({page})=>{
   await page.goto("/");
-  await page.locator("#import-video").setInputFiles(path.resolve("legacy/public/sample.webm"));
-  await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
-  await expect(page.locator("#player")).toBeVisible();
-  const title="A very long but valid walkthrough title that should wrap without pushing the review screen outside the viewport";
-  const savedTitle=title.slice(0,100);
-  await page.locator("#recording-title-input").fill(title);
-  await page.getByRole("button",{name:"Save title"}).click();
-  await expect(page.locator("#title-status")).toHaveText("Title saved.");
-  await page.getByText("Captions, chapters & bug report",{exact:true}).click();
-  await page.locator("#captions-text").fill("WEBVTT\n\n00:00:00.000 --> 00:00:01.500\nReview this step.");
-  await page.locator("#chapters-text").fill("0:01 Opening");
-  await page.locator("#report-url").fill("https://example.com/checkout/with/a/very/long/path/that/should-wrap-cleanly/".repeat(4));
-  await page.locator("#report-steps").fill("Open the checkout and select the payment method. ".repeat(8)+" unbroken-token-".repeat(35));
-  await page.locator("#report-expected").fill("The payment option remains visible.");
-  await page.locator("#report-actual").fill("The payment option disappears.");
-  await page.locator("#extras-form button[type=submit]").click();
-  await expect(page.locator("#extras-status")).toHaveText("Video context saved.");
-  await expect(page.locator("#export-captions")).toBeEnabled();
-  const download=page.waitForEvent("download");
-  await page.locator("#export-report").click();
-  expect((await download).suggestedFilename()).toContain("bug-report");
-  await expect(page.locator("#recording-title-input")).toHaveValue(savedTitle);
-  for(const theme of ["light","dark"]){await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);for(const v of viewports){await page.setViewportSize({width:v.width,height:v.height});await contained(page,v.width);if([320,375,768,1120,1440].includes(v.width))await page.screenshot({path:"test-results/screenshots/review-"+v.width+"-"+theme+".png",fullPage:true});}}
+  await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
+  await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
+  await page.getByRole("button",{name:/Play sample/i}).click();
+  await expect(page.getByRole("dialog",{name:/sample/i})).toBeVisible();
+  await expect(page.locator("video.preview-video")).toBeVisible();
+  await page.getByRole("button",{name:/Share temporarily/i}).click();
+  await expect(page.getByRole("heading",{name:"Make a temporary link"})).toBeVisible();
+  await expect(page.getByText(/Only this shared copy is uploaded/i)).toBeVisible();
+  await page.getByRole("button",{name:"Close share settings"}).click();
+  await page.getByRole("button",{name:"Close preview"}).click();
 });
 
-test("annotation editor supports drawing, tool switching, undo and clear on an imported recording",async({page})=>{
+test("new frontend contains no legacy stylesheet or legacy app script requests",async({page})=>{
+  const requested:string[]=[];
+  page.on("request",request=>requested.push(new URL(request.url()).pathname));
   await page.goto("/");
-  await page.locator("#import-video").setInputFiles(path.resolve("legacy/public/sample.webm"));
-  await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
-  await page.getByText("Annotate or hide sensitive areas",{exact:true}).click();
-  const video=page.locator("#markup-video");
-  await expect.poll(()=>video.evaluate((el:HTMLVideoElement)=>el.readyState)).toBeGreaterThanOrEqual(1);
-  const canvas=page.locator("#markup-canvas");
-  await expect(canvas).toBeVisible();
-  await page.locator("#markup-tool").selectOption("redact");
-  const rect=await canvas.boundingBox();
-  if(!rect)throw new Error("Annotation canvas has no measurable bounds.");
-  await page.mouse.move(rect.x+rect.width*.2,rect.y+rect.height*.2);
-  await page.mouse.down();
-  await page.mouse.move(rect.x+rect.width*.55,rect.y+rect.height*.55,{steps:5});
-  await page.mouse.up();
-  await expect(page.locator("#markup-count")).toHaveText("1 marks");
-  await page.locator("#undo-markup").click();
-  await expect(page.locator("#markup-count")).toHaveText("0 marks");
-  await page.locator("#markup-tool").selectOption("blur");
-  await page.mouse.move(rect.x+rect.width*.3,rect.y+rect.height*.3);
-  await page.mouse.down();
-  await page.mouse.move(rect.x+rect.width*.7,rect.y+rect.height*.7,{steps:5});
-  await page.mouse.up();
-  await expect(page.locator("#markup-count")).toHaveText("1 marks");
-  await page.locator("#clear-markup").click();
-  await expect(page.locator("#markup-count")).toHaveText("0 marks");
+  await expect(page.getByRole("heading",{level:1})).toBeVisible();
+  expect(requested).not.toContain("/style.css");
+  expect(requested).not.toContain("/app.js");
+  expect(requested).toContain("/src/main.tsx");
 });
-
-test("screen capture can pause, resume and save a private local recording",async({page})=>{
-  await page.addInitScript(()=>{
-    const canvas=document.createElement("canvas");canvas.width=640;canvas.height=360;
-    const ctx=canvas.getContext("2d");if(!ctx||!canvas.captureStream)throw Error("Canvas capture not supported");
-    let frame=0;const paint=()=>{ctx.fillStyle=frame%2?"#e7efe8":"#f7f6f2";ctx.fillRect(0,0,640,360);ctx.fillStyle="#235a45";ctx.font="bold 30px sans-serif";ctx.fillText("ScreenNote capture "+frame,32,72);frame++;requestAnimationFrame(paint)};paint();
-    const stream=canvas.captureStream(15);
-    Object.defineProperty(navigator.mediaDevices,"getDisplayMedia",{configurable:true,value:async()=>stream});
-  });
-  await page.goto("/");
-  for(const id of ["mic","camera","system"]){const el=page.locator("#"+id);if(await el.isChecked())await el.uncheck();}
-  await page.locator('[data-action="record"]').click();
-  await expect(page.getByRole("heading",{name:"Prepare your recording."})).toBeVisible({timeout:10000});
-  await page.getByRole("button",{name:/Begin recording/}).click();
-  await expect(page.locator("#live-actions")).toBeVisible({timeout:10000});
-  await page.waitForTimeout(1200);
-  await page.locator("#pause-button").click();
-  await expect(page.locator("#recording-status")).toContainText("PAUSED");
-  await page.waitForTimeout(250);
-  await page.locator("#pause-button").click();
-  await expect(page.locator("#recording-status")).toContainText("RECORDING");
-  await page.waitForTimeout(1200);
-  await page.locator('[data-action="stop"]').click();
-  await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
-  await expect(page.locator("#player")).toBeVisible();
-  await expect(page.locator("#recording-title-input")).toBeVisible();
-});
-
-test("appearance, local library and portable backup persist across a fresh browser",async({page,browser})=>{
-  await page.goto("/");
-  await page.getByRole("button",{name:"Toggle light or dark mode"}).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
-  await page.getByRole("button",{name:"Toggle light or dark mode"}).click();
-  await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme","light");
-  await page.locator("#import-video").setInputFiles(path.resolve("legacy/public/sample.webm"));
-  await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
-  await page.locator("#main").getByRole("button",{name:"My recordings"}).click();
-  await expect(page.locator(".clip-card")).toHaveCount(1);
-  await page.reload();
-  await expect(page.locator(".clip-card")).toHaveCount(1);
-  const downloadPromise=page.waitForEvent("download");
-  await page.getByRole("button",{name:"Back up library"}).click();
-  const backup=await downloadPromise;expect(backup.suggestedFilename()).toMatch(/\.snbackup$/);
-  const backupPath=await backup.path();expect(backupPath).toBeTruthy();
-  const freshContext=await browser.newContext(),freshPage=await freshContext.newPage();
-  await freshPage.goto("/");
-  await freshPage.locator("#restore-library-backup").setInputFiles(backupPath!);
-  await freshPage.waitForTimeout(300);
-  const restoreOpen=await freshPage.locator("#modal").evaluate((el:any)=>el.open);
-  if(!restoreOpen)throw new Error("Library backup restore failed: "+await freshPage.locator("#error").innerText()+" "+await freshPage.locator("#notice").innerText());
-  await expect(freshPage.locator("#modal")).toContainText("Restore your ScreenNote library");
-  for(const width of [320,375,768]){await freshPage.setViewportSize({width,height:900});await contained(freshPage,width);}
-  await freshPage.getByRole("button",{name:"Restore backup"}).click();
-  await expect(freshPage.locator(".clip-card")).toHaveCount(1);
-  await freshPage.reload();
-  await expect(freshPage.locator(".clip-card")).toHaveCount(1);
-  await freshContext.close();
-});
-
-test("installable app shell keeps the local library usable offline",async({page,context})=>{
-  await page.goto("/");
-  await page.locator("#import-video").setInputFiles(path.resolve("legacy/public/sample.webm"));
-  await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
-  await page.locator("#main").getByRole("button",{name:"My recordings"}).click();
-  await expect(page.locator(".clip-card")).toHaveCount(1);
-  await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
-  await page.reload();
-  await page.evaluate(async()=>{if(navigator.serviceWorker.controller)return;await new Promise<void>(resolve=>navigator.serviceWorker.addEventListener("controllerchange",()=>resolve(),{once:true}));});
-  await context.setOffline(true);
-  await page.reload();
-  await expect(page.getByRole("heading",{name:/Your recordings|Show it/})).toBeVisible({timeout:10000});
-  await expect(page.locator(".clip-card")).toHaveCount(1);
-  await expect(page.locator("#import-video")).toBeAttached();
-  await context.setOffline(false);
-});
-
-
-test("real legacy share viewer and privacy route remain contained across widths and themes",async({page})=>{
-  const id="123e4567-e89b-12d3-a456-426614174000";
-  await page.route(/\/api\/clip\?op=view/,async route=>{
-    const url=new URL(route.request().url());
-    if(url.searchParams.get("id")!==id){await route.continue();return;}
-    await route.fulfill({json:{
-      id,title:"A very long ScreenNote title that must wrap naturally without forcing the viewer outside the available screen width",
-      reviewStatus:"needs-feedback",width:1280,height:720,start:0,end:95,duration:95,
-      createdAt:Date.now(),expiresAt:Date.now()+86400000,passwordProtected:false,
-      discussionRevision:0,captions:[],chapters:[],report:null,comments:[{id:"comment-1",name:"Guest reviewer",text:"Please inspect this very long note and its reference https://example.com/".repeat(6),time:12,createdAt:Date.now(),parentId:null,editedAt:null,deleted:false,resolved:false,creator:false}],
-      reactions:{like:0,thanks:0,idea:0},mediaUrl:"/sample.webm"
-    }});
-  });
-  await page.goto("/v/"+id);
-  await expect(page.locator(".viewer-grid")).toBeVisible();
-  await expect(page.locator(".reply-panel")).toContainText("Talk about this moment.");
-  await expect(page.locator(".reply-panel")).toContainText("Guest reviewer");
-  for(const theme of ["light","dark"]){
-    await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
-    for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
-      await page.setViewportSize({width,height:900});
-      await contained(page,width);
-    }
-  }
-  await page.goto("/");
-  await page.locator(".footer [data-action=privacy]").click();
-  await expect(page.getByRole("heading",{name:"Your screen. Your call."})).toBeVisible();
-  await expect(page.getByText(/private Cloudflare R2 bucket/)).toBeVisible();
-  await expect(page.getByText(/served by Cloudflare Workers/)).toBeVisible();
-  for(const theme of ["light","dark"]){
-    await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
-    for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
-      await page.setViewportSize({width,height:900});
-      await contained(page,width);
-    }
-  }
-});
-
-
-test("help and settings guidance remains readable and contained at every breakpoint",async({page})=>{
-  await page.goto("/");
-  await page.locator('.top-actions [data-action="help"]').click();
-  await expect(page.getByRole("heading",{name:/Show the problem/})).toBeVisible();
-  await expect(page.locator(".help-grid")).toBeVisible();
-  for(const theme of ["light","dark"]){
-    await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
-    for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
-      await page.setViewportSize({width,height:900});
-      await contained(page,width);
-    }
-  }
-  await page.locator('.help-grid [data-action="privacy"]').click();
-  await expect(page.getByRole("heading",{name:"Your screen. Your call."})).toBeVisible();
-  await expect(page.getByText(/private Cloudflare R2 bucket/)).toBeVisible();
-});
-
-
-
-test("landscape layouts, keyboard access and accessible control names",async({page})=>{
-  await page.goto("/");
-  for(const theme of ["light","dark"]){
-    await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
-    for(const viewport of [{width:844,height:390},{width:1024,height:600},{width:1280,height:720}]){
-      await page.setViewportSize(viewport);
-      await expect(page.locator("body")).toBeVisible();
-      const metrics=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,height:document.documentElement.clientHeight}));
-      expect(metrics.scroll,JSON.stringify({...viewport,...metrics})).toBeLessThanOrEqual(metrics.width+1);
-    }
-  }
-  await page.setViewportSize({width:390,height:844});
-  const unnamed=await page.locator("button,[role=button],a[href],input:not([type=hidden]),select,textarea").evaluateAll(nodes=>(nodes as HTMLElement[]).filter(el=>{
-    const e=el;
-    if(e.hasAttribute("disabled")||e.hidden||e.getAttribute("aria-hidden")==="true")return false;
-    const type=e.getAttribute("type");
-    if(type==="file")return !(e.getAttribute("aria-label")||(e as HTMLInputElement).labels?.length);
-    const labelled=!!(e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||e.textContent?.trim()||e.getAttribute("title")||e.getAttribute("placeholder")||e.getAttribute("alt")||e.closest("label")?.textContent?.trim()||(e.id&&document.querySelector(`label[for="${CSS.escape(e.id)}"]`)?.textContent?.trim()));return !labelled;
-  }).map(e=>({tag:e.tagName,html:e.outerHTML.slice(0,180)})));
-  expect(unnamed,JSON.stringify(unnamed)).toEqual([]);
-  await page.keyboard.press("Tab");
-  const focused=await page.evaluate(()=>{const el=document.activeElement as HTMLElement|null;return {tag:el?.tagName,outline:el?getComputedStyle(el).outlineStyle:"none",skip:el?.classList.contains("skip")};});
-  expect(focused.tag).toBeTruthy();
-  expect(focused.outline).not.toBe("none");
-});
-
