@@ -36,6 +36,14 @@ describe("local recording recovery", () => {
     expect(await listRecoverableSessions()).toHaveLength(0);
   });
 
+  it("does not restore a recovery session when a chunk is missing", async () => {
+    await beginRecordingSession({id:"session-gap",title:"Partial",createdAt:1000,mimeType:"video/webm",chunkCount:0,totalBytes:0,updatedAt:1000});
+    await appendRecordingChunk("session-gap",new Blob(["first"]),0);
+    await appendRecordingChunk("session-gap",new Blob(["third"]),2);
+    await expect(restoreRecordingSession("session-gap")).rejects.toThrow(/incomplete/i);
+    expect(await listRecoverableSessions()).toHaveLength(1);
+  });
+
   it("can discard a recovery session and its chunks", async () => {
     await beginRecordingSession({
       id: "session-2", title: "Untitled", createdAt: 1000, mimeType: "video/webm",
