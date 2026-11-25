@@ -228,6 +228,38 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     }
     if (!(await shareAccess(request, env, share))) return fail("Enter the sharing password to continue.", 401);
     if (action === "media" && (request.method === "GET" || request.method === "HEAD")) return serveMedia(request, env, share);
+    if (action === "reactions" && request.method === "GET") {
+      const { results } = await env.DB.prepare("SELECT reaction, COUNT(*) AS count FROM share_reactions WHERE share_id = ? GROUP BY reaction").bind(share.id).all<{reaction:string;count:number}>();
+      const counts = { like: 0, thanks: 0, idea: 0 };
+      for (const item of results) if (item.reaction in counts) counts[item.reaction as keyof typeof counts] = item.count;
+      const voterKey = request.headers.get("x-voter-key") || "";
+      let myReaction = "";
+      if (/^[a-f0-9]{64}$/.test(voterKey)) {
+        const own = await env.DB.prepare("SELECT reaction FROM share_reactions WHERE share_id = ? AND voter_hash = ?").bind(share.id, await digest(voterKey)).first<{reaction:string}>();
+        myReaction = own?.reaction || "";
+      }
+      return json({ counts, myReaction });
+    }
+    if (action === "reactions" && request.method === "POST") {
+      const body = await request.json<{voterKey?:string;reaction?:string}>().catch(() => null);
+      if (typeof body?.voterKey !== "string" || !/^[a-f0-9]{64}$/.test(body.voterKey)) return fail("A private browser reaction key is required.", 400);
+      if (!["like","thanks","idea",""].includes(body.reaction || "")) return fail("Choose a listed reaction.", 400);
+      const voterHash = await digest(body.voterKey);
+      const existing = await env.DB.prepare("SELECT reaction FROM share_reactions WHERE share_id = ? AND voter_hash = ?").bind(share.id, voterHash).first<{reaction:string}>();
+      if (!body.reaction) await env.DB.prepare("DELETE FROM share_reactions WHERE share_id = ? AND voter_hash = ?").bind(share.id, voterHash).run();
+      else {
+        if (!existing) {
+          const total = await env.DB.prepare("SELECT COUNT(*) AS total FROM share_reactions WHERE share_id = ?").bind(share.id).first<{total:number}>();
+          if ((total?.total || 0) >= 500) return fail("This video has reached its reaction limit.", 429);
+        }
+        await env.DB.prepare("INSERT OR REPLACE INTO share_reactions (share_id, voter_hash, reaction, created_at) VALUES (?, ?, ?, ?)")
+          .bind(share.id, voterHash, body.reaction, Math.floor(Date.now()/1000)).run();
+      }
+      const { results } = await env.DB.prepare("SELECT reaction, COUNT(*) AS count FROM share_reactions WHERE share_id = ? GROUP BY reaction").bind(share.id).all<{reaction:string;count:number}>();
+      const counts = { like: 0, thanks: 0, idea: 0 };
+      for (const item of results) if (item.reaction in counts) counts[item.reaction as keyof typeof counts] = item.count;
+      return json({ counts, myReaction: body.reaction || "" });
+    }
     if (action === "details" && request.method === "GET") {
       const row = await env.DB.prepare("SELECT payload FROM share_details WHERE share_id = ?").bind(share.id).first<{ payload: string }>();
       let details = {};
