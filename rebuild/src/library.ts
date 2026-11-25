@@ -11,6 +11,7 @@ export type Clip = {
   captions?: CaptionCue[];
   chapters?: Chapter[];
   report?: BugReport | null;
+  reviewStatus?: "needs-feedback" | "changes-requested" | "approved";
 };
 
 export type Annotation = { kind: "rectangle" | "arrow" | "highlight" | "blur" | "redact"; x: number; y: number; w: number; h: number };
