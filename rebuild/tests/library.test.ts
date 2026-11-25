@@ -42,6 +42,7 @@ describe("local recording recovery", () => {
     await appendRecordingChunk("session-gap",new Blob(["third"]),2);
     await expect(restoreRecordingSession("session-gap")).rejects.toThrow(/incomplete/i);
     expect(await listRecoverableSessions()).toHaveLength(1);
+    await deleteRecordingSession("session-gap");
   });
 
   it("can discard a recovery session and its chunks", async () => {
