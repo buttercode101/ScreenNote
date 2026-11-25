@@ -158,7 +158,7 @@ test("installable app shell keeps the local library usable offline",async({page,
 
 test("temporary share viewer remains contained with long discussion content on mobile and desktop",async({page})=>{
   const token="layout-acceptance-token-12345678901234567890";
-  await page.route("**/api/share/"+token+"**",async route=>{
+  await page.route("**/api/share/**",async route=>{
     const url=new URL(route.request().url());
     if(url.pathname.endsWith("/comments")){
       await route.fulfill({json:{comments:[{
