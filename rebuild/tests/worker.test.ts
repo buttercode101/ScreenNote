@@ -31,6 +31,7 @@ class FakeD1 {
   comments = new Map<string, any>();
   access = new Set<string>();
   passwordAttempts = new Map<string, any>();
+  details = new Map<string, string>();
   prepare(sql: string) {
     const db = this;
     return { bind(...v: any[]) {
@@ -50,6 +51,7 @@ class FakeD1 {
           }
           if (sql.includes("FROM comments") && sql.includes("COUNT(*)")) return { total: db.comments.size };
           if (sql.includes("FROM comments")) return db.comments.get(v[0]) ?? null;
+          if (sql.includes("FROM share_details")) return db.details.has(v[0]) ? { payload: db.details.get(v[0]) } : null;
           if (sql.includes("FROM share_password_attempts")) return db.passwordAttempts.get(`${v[0]}:${v[1]}`) ?? null;
           if (sql.includes("FROM share_access_sessions")) return db.access.has(v[0]) ? { token_hash: v[0] } : null;
           return null;
@@ -59,6 +61,7 @@ class FakeD1 {
           if (sql.startsWith("INSERT INTO recordings")) db.recordings.set(v[0], { id:v[0], owner_token_hash:v[1], title:v[2], object_key:v[3], mime_type:v[4], byte_size:v[5], duration_seconds:v[6], status:"uploading" });
           if (sql.startsWith("UPDATE recordings SET status")) { const r=db.recordings.get(v[1]); if(r)r.status="ready"; }
           if (sql.startsWith("INSERT INTO shares")) db.shares.set(v[0], { id:v[0], recording_id:v[1], owner_token_hash:v[2], owner_key_hash:v[3], token_hash:v[4], expires_at:v[5], password_salt:v[6], password_hash:v[7], revoked_at:null });
+          if (sql.startsWith("INSERT OR REPLACE INTO share_details")) db.details.set(v[0], v[1]);
           if (sql.startsWith("INSERT OR REPLACE INTO share_password_attempts")) db.passwordAttempts.set(`${v[0]}:${v[1]}`, { share_id:v[0], ip_hash:v[1], window_started:v[2], attempts:v[3], locked_until:v[4] });
           if (sql.startsWith("DELETE FROM share_password_attempts")) {
             if (sql.includes("window_started")) { for (const [key,row] of db.passwordAttempts) if (row.window_started <= v[0]) db.passwordAttempts.delete(key); }
@@ -119,6 +122,18 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(share.url).toMatch(/^\/s\//);
     const view=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}`),state.env as any,{} as any);
     expect(view.status).toBe(200);expect(await view.json()).toMatchObject({title:"Bug walkthrough",passwordRequired:false});
+  });
+  it("persists share context behind the owner key and exposes it to viewers",async()=>{
+    const s=await session(state.env),u=await upload(state.env,s.cookie),key="c".repeat(64);
+    const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:1,ownerKey:key})}),state.env as any,{} as any);
+    const share=await pub.json() as any;
+    const details={captions:[{start:1,end:2,text:"Opening"}],chapters:[{time:1,title:"Intro"}],annotations:[{kind:"redact",x:.1,y:.1,w:.2,h:.2}],report:{steps:"Reproduce"}};
+    const denied=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`,{method:"PUT",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({ownerKey:"d".repeat(64),details})}),state.env as any,{} as any);
+    expect(denied.status).toBe(403);
+    const saved=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`,{method:"PUT",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({ownerKey:key,details})}),state.env as any,{} as any);
+    expect(saved.status).toBe(200);
+    const read=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`),state.env as any,{} as any);
+    expect(read.status).toBe(200);expect(await read.json()).toMatchObject({details});
   });
   it("requires a password before serving protected media",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie),key="b".repeat(64);
