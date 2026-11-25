@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { annotationIsVisible, visibleAnnotations } from "../src/annotationTiming";
+import { annotationIsVisible, trimAnnotations, visibleAnnotations } from "../src/annotationTiming";
 import type { Annotation } from "../src/library";
 
 const mark: Annotation = { kind: "rectangle", x: .1, y: .1, w: .2, h: .2, time: 12, duration: 4 };

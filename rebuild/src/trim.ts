@@ -38,17 +38,18 @@ export async function trimVideoElement(video: HTMLVideoElement, requestedRange: 
     const types = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
     const mimeType = types.find(type => MediaRecorder.isTypeSupported(type));
     recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    const activeRecorder = recorder;
     const chunks: Blob[] = [];
     const result = new Promise<Blob>((resolve, reject) => {
-      recorder!.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
-      recorder!.onerror = () => reject(new Error("The trimmed recording could not be encoded."));
-      recorder!.onstop = () => resolve(new Blob(chunks, { type: recorder!.mimeType || "video/webm" }));
+      activeRecorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+      activeRecorder.onerror = () => reject(new Error("The trimmed recording could not be encoded."));
+      activeRecorder.onstop = () => resolve(new Blob(chunks, { type: activeRecorder.mimeType || "video/webm" }));
     });
-    stopAtEnd = () => { if (video.currentTime >= range.end && recorder!.state !== "inactive") recorder!.stop(); };
+    stopAtEnd = () => { if (video.currentTime >= range.end && activeRecorder.state !== "inactive") activeRecorder.stop(); };
     stopAtMediaEnd = () => { if (recorder!.state !== "inactive") recorder!.stop(); };
     video.addEventListener("timeupdate", stopAtEnd);
     video.addEventListener("ended", stopAtMediaEnd);
-    recorder.start(200);
+    activeRecorder.start(200);
     await video.play();
     // A hard ceiling protects against stalled media or a missing timeupdate event.
     stopTimer = window.setTimeout(() => { if (recorder?.state !== "inactive") recorder.stop(); }, Math.min(660_000, Math.ceil(range.duration * 1000) + 15_000));
