@@ -154,3 +154,32 @@ test("installable app shell keeps the local library usable offline",async({page,
   await expect(page.locator("#import-video")).toBeAttached();
   await context.setOffline(false);
 });
+
+
+test("temporary share viewer remains contained with long discussion content on mobile and desktop",async({page})=>{
+  const token="layout-acceptance-token";
+  await page.route("**/api/share/"+token+"**",async route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith("/comments")){
+      await route.fulfill({json:{comments:[{
+        id:"comment-1",parentId:null,viewerLabel:"Guest reviewer",
+        body:"Please inspect this very long review note and its unbroken reference https://example.com/".repeat(8),
+        time:12,createdAt:1795600000,resolved:0,deletedAt:null,isMine:false,anchorX:0.82,anchorY:0.36
+      }]}});
+      return;
+    }
+    if(url.pathname.endsWith("/media")){await route.fulfill({status:200,contentType:"video/webm",body:""});return;}
+    await route.fulfill({json:{title:"A very long ScreenNote title that must wrap naturally without forcing the viewer outside the available screen width",mimeType:"video/webm",size:2048,duration:95,expiresAt:1796200000,passwordRequired:false}});
+  });
+  await page.goto("/s/"+token);
+  await expect(page.locator(".share-layout")).toBeVisible();
+  await expect(page.locator(".share-discussion")).toContainText("Guest reviewer");
+  for(const theme of ["light","dark"]){
+    await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
+    for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
+      await page.setViewportSize({width,height:900});
+      await contained(page,width);
+    }
+  }
+});
+
