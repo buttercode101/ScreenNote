@@ -229,9 +229,9 @@ test("landscape layouts, keyboard access and accessible control names",async({pa
   await page.setViewportSize({width:390,height:844});
   const unnamed=await page.locator("button,[role=button],a[href],input:not([type=hidden]),select,textarea").evaluateAll(nodes=>(nodes as HTMLElement[]).filter(el=>{
     const e=el;
-    if(e.hasAttribute("disabled")||e.getAttribute("aria-hidden")==="true")return false;
+    if(e.hasAttribute("disabled")||e.hidden||e.getAttribute("aria-hidden")==="true")return false;
     const type=e.getAttribute("type");
-    if(type==="file")return !!(e.getAttribute("aria-label")||(e as HTMLInputElement).labels?.length);
+    if(type==="file")return !(e.getAttribute("aria-label")||(e as HTMLInputElement).labels?.length);
     const labelled=!!(e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||e.textContent?.trim()||e.getAttribute("title")||e.getAttribute("placeholder")||e.getAttribute("alt")||e.closest("label")?.textContent?.trim()||(e.id&&document.querySelector(`label[for="${CSS.escape(e.id)}"]`)?.textContent?.trim()));return !labelled;
   }).map(e=>({tag:e.tagName,html:e.outerHTML.slice(0,180)})));
   expect(unnamed,JSON.stringify(unnamed)).toEqual([]);
