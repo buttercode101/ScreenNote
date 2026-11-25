@@ -158,13 +158,13 @@ describe("ScreenNote temporary sharing API",()=>{
     const created=await worker.fetch(new Request("https://screennote.test/api/recordings",{method:"POST",headers,body:JSON.stringify({title:"Resumable upload",mimeType:"video/webm",size,duration:12})}),state.env as any,{} as any);
     expect(created.status).toBe(201);const reservation=await created.json() as any;
     const first=new Uint8Array(2*1024*1024);first.set([0x1a,0x45,0xdf,0xa3]);
-    const part0=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/parts/0",{method:"PUT",headers:{origin,cookie:s.cookie,"content-type":"application/octet-stream"},body:first}),state.env as any,{} as any);
+    const part0=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/parts/0",{method:"PUT",headers:{origin:"https://screennote.test",origin,cookie:s.cookie,"content-type":"application/octet-stream"},body:first}),state.env as any,{} as any);
     expect(part0.status).toBe(200);
     const stateAfterPart=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/upload-state",{headers:{origin,cookie:s.cookie}}),state.env as any,{} as any);
     expect(await stateAfterPart.json()).toMatchObject({status:"uploading",parts:[{part:0,size:2*1024*1024}]});
     const incomplete=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/complete",{method:"POST",headers,body:"{}"}),state.env as any,{} as any);
     expect(incomplete.status).toBe(409);expect(await incomplete.json()).toMatchObject({missingParts:[1]});
-    const part1=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/parts/1",{method:"PUT",headers:{origin,cookie:s.cookie,"content-type":"application/octet-stream"},body:new Uint8Array([1,2,3,4])}),state.env as any,{} as any);
+    const part1=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/parts/1",{method:"PUT",headers:{origin:"https://screennote.test",origin,cookie:s.cookie,"content-type":"application/octet-stream"},body:new Uint8Array([1,2,3,4])}),state.env as any,{} as any);
     expect(part1.status).toBe(200);
     const complete=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/complete",{method:"POST",headers,body:"{}"}),state.env as any,{} as any);
     expect(complete.status).toBe(200);expect(await complete.json()).toMatchObject({status:"ready"});
@@ -197,7 +197,7 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(saved.status).toBe(200);
     const locked=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`),state.env as any,{} as any);
     expect(locked.status).toBe(401);
-    const access=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/access`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:"context-password"})}),state.env as any,{} as any);
+    const access=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/access`,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({password:"context-password"})}),state.env as any,{} as any);
     expect(access.status).toBe(200);
     const read=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`,{headers:{cookie:access.headers.get("set-cookie")!.split(";")[0]}}),state.env as any,{} as any);
     expect(read.status).toBe(200);expect(await read.json()).toMatchObject({details});
@@ -208,13 +208,13 @@ describe("ScreenNote temporary sharing API",()=>{
     const share=await pub.json() as any,url=`https://screennote.test/api/share/${share.token}/reviews`;
     const initial=await worker.fetch(new Request(url,{headers:{"x-reviewer-key":reviewerKey}}),state.env as any,{} as any);
     expect(await initial.json()).toMatchObject({reviews:[],myReview:null});
-    const missing=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reviewerKey,decision:"changes-requested",comment:"",time:5})}),state.env as any,{} as any);
+    const missing=await worker.fetch(new Request(url,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({reviewerKey,decision:"changes-requested",comment:"",time:5})}),state.env as any,{} as any);
     expect(missing.status).toBe(400);
-    const saved=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reviewerKey,reviewerLabel:"Luke",decision:"changes-requested",comment:"Payment state is unclear",time:5})}),state.env as any,{} as any);
+    const saved=await worker.fetch(new Request(url,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({reviewerKey,reviewerLabel:"Luke",decision:"changes-requested",comment:"Payment state is unclear",time:5})}),state.env as any,{} as any);
     expect(saved.status).toBe(200);expect(await saved.json()).toMatchObject({saved:true});
     const listed=await worker.fetch(new Request(url,{headers:{"x-reviewer-key":reviewerKey}}),state.env as any,{} as any);
     expect(await listed.json()).toMatchObject({myReview:{reviewerLabel:"Luke",decision:"changes-requested",comment:"Payment state is unclear",time:5},reviews:[{reviewerLabel:"Luke",decision:"changes-requested"}]});
-    const updated=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reviewerKey,reviewerLabel:"Luke",decision:"approved",comment:"",time:6})}),state.env as any,{} as any);
+    const updated=await worker.fetch(new Request(url,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({reviewerKey,reviewerLabel:"Luke",decision:"approved",comment:"",time:6})}),state.env as any,{} as any);
     expect(updated.status).toBe(200);
     const final=await worker.fetch(new Request(url,{headers:{"x-reviewer-key":reviewerKey}}),state.env as any,{} as any);
     expect(await final.json()).toMatchObject({myReview:{decision:"approved",comment:"",time:6},reviews:[{decision:"approved"}]});
@@ -225,7 +225,7 @@ describe("ScreenNote temporary sharing API",()=>{
     const share=await pub.json() as any;
     const locked=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}`),state.env as any,{} as any);
     expect(locked.status).toBe(401);
-    const access=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/access`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:"long-password"})}),state.env as any,{} as any);
+    const access=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/access`,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({password:"long-password"})}),state.env as any,{} as any);
     expect(access.status).toBe(200);expect(access.headers.get("set-cookie")).toContain("HttpOnly");
   });
   it("throttles comment spam by share and hashed client network",async()=>{
@@ -242,11 +242,11 @@ describe("ScreenNote temporary sharing API",()=>{
     const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:3,ownerKey:key})}),state.env as any,{} as any);
     const share=await pub.json() as any, url=`https://screennote.test/api/share/${share.token}/comments`;
     const author="d".repeat(48);
-    const first=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({authorKey:author,text:"The menu jumps here",time:4,anchorX:0.25,anchorY:0.5})}),state.env as any,{} as any);
+    const first=await worker.fetch(new Request(url,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({authorKey:author,text:"The menu jumps here",time:4,anchorX:0.25,anchorY:0.5})}),state.env as any,{} as any);
     expect(first.status).toBe(201);const comment=await first.json() as any;
-    const reply=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({authorKey:"e".repeat(48),parentId:comment.id,text:"I can reproduce it",time:4})}),state.env as any,{} as any);
+    const reply=await worker.fetch(new Request(url,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({authorKey:"e".repeat(48),parentId:comment.id,text:"I can reproduce it",time:4})}),state.env as any,{} as any);
     expect(reply.status).toBe(201);
-    const resolve=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/comments/${comment.id}/resolve`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({ownerKey:key,resolved:true})}),state.env as any,{} as any);
+    const resolve=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/comments/${comment.id}/resolve`,{method:"PATCH",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({ownerKey:key,resolved:true})}),state.env as any,{} as any);
     expect(resolve.status).toBe(200);
   });
   it("locks password guesses by share and client IP after five failures",async()=>{
