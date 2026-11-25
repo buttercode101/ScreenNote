@@ -91,6 +91,7 @@ The Cloudflare branch has moved beyond the earlier primary-flow-only UI. The fol
 | Bug reports | Structured fields and Markdown export; explicit shared-visibility notice | URL and long-text security cases; live viewer acceptance |
 | Review status | Needs feedback / changes requested / approved stored in local clip and shared context | Live D1 persistence and viewer permissions |
 | Shared context | Owner-key protected Worker endpoint; viewer displays captions, transcript search, chapters, annotations and report | Real deployed D1 migration and password-gated read/write checks |
+| Anonymous reactions | New D1 `share_reactions` table and `/reactions` API; one like/thanks/idea reaction per browser key, with counts and removal | Live share test, one-vote identity, 500-voter limit and UI accessibility |
 | Portable library backup | ZIP export/restore includes local media, editing metadata and private share-management keys; duplicate-safe restore | Device storage/quota, corrupt archive, large archive and separate-profile restore |
 | Recording setup | 720p saver / 1080p balanced / up-to-1440p clear profiles, microphone source refresh/selection, system audio, camera bubble size/corner, 3-second cancellable countdown, pause/resume | Real device/source picker tests; unsupported mobile browser behavior |
 | Offline behavior | Connection banner; local preview/edit/download remain available; publishing is blocked offline | Offline reload/cache behavior and reconnect/resume |
