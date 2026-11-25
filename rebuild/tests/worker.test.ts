@@ -33,6 +33,7 @@ class FakeD1 {
   passwordAttempts = new Map<string, any>();
   details = new Map<string, string>();
   uploadParts: any[] = [];
+  reactions = new Map<string, any>();
   prepare(sql: string) {
     const db = this;
     return { bind(...v: any[]) {
@@ -54,6 +55,8 @@ class FakeD1 {
           if (sql.includes("FROM comments") && sql.includes("COUNT(*)")) return { total: db.comments.size };
           if (sql.includes("FROM comments")) return db.comments.get(v[0]) ?? null;
           if (sql.includes("FROM share_details")) return db.details.has(v[0]) ? { payload: db.details.get(v[0]) } : null;
+          if (sql.includes("FROM share_reactions") && sql.includes("COUNT(*)")) return { total:[...db.reactions.values()].filter(r=>r.share_id===v[0]).length };
+          if (sql.includes("FROM share_reactions")) return db.reactions.get(v[0]+":"+v[1]) ?? null;
           if (sql.includes("FROM share_password_attempts")) return db.passwordAttempts.get(`${v[0]}:${v[1]}`) ?? null;
           if (sql.includes("FROM share_access_sessions")) return db.access.has(v[0]) ? { token_hash: v[0] } : null;
           return null;
@@ -67,6 +70,8 @@ class FakeD1 {
           if (sql.startsWith("DELETE FROM recording_upload_parts")) db.uploadParts=db.uploadParts.filter(p=>p.recording_id!==v[0]);
           if (sql.startsWith("INSERT INTO shares")) db.shares.set(v[0], { id:v[0], recording_id:v[1], owner_token_hash:v[2], owner_key_hash:v[3], token_hash:v[4], expires_at:v[5], password_salt:v[6], password_hash:v[7], revoked_at:null });
           if (sql.startsWith("INSERT OR REPLACE INTO share_details")) db.details.set(v[0], v[1]);
+          if (sql.startsWith("INSERT OR REPLACE INTO share_reactions")) db.reactions.set(v[0]+":"+v[1],{share_id:v[0],voter_hash:v[1],reaction:v[2],created_at:v[3]});
+          if (sql.startsWith("DELETE FROM share_reactions")) db.reactions.delete(v[0]+":"+v[1]);
           if (sql.startsWith("INSERT OR REPLACE INTO share_password_attempts")) db.passwordAttempts.set(`${v[0]}:${v[1]}`, { share_id:v[0], ip_hash:v[1], window_started:v[2], attempts:v[3], locked_until:v[4] });
           if (sql.startsWith("DELETE FROM share_password_attempts")) {
             if (sql.includes("window_started")) { for (const [key,row] of db.passwordAttempts) if (row.window_started <= v[0]) db.passwordAttempts.delete(key); }
@@ -81,6 +86,7 @@ class FakeD1 {
         },
         async all() {
           if (sql.includes("FROM recording_upload_parts")) return { results:db.uploadParts.filter(p=>p.recording_id===v[0]).sort((a,b)=>a.part-b.part).map(p=>({part:p.part,size:p.size,objectKey:p.object_key,object_key:p.object_key})) };
+          if (sql.includes("FROM share_reactions")) { const grouped=new Map<string,number>(); for(const r of db.reactions.values())if(r.share_id===v[0])grouped.set(r.reaction,(grouped.get(r.reaction)||0)+1);return {results:[...grouped].map(([reaction,count])=>({reaction,count}))}; }
           if (sql.includes("FROM comments WHERE share_id")) return { results:[...db.comments.values()].filter(c=>c.share_id===v[0]) };
           if (sql.includes("FROM recordings r LEFT JOIN shares") && sql.includes("status = 'ready'")) {
             return { results:[...db.recordings.values()].filter(r=>r.status==="ready"&&!([...db.shares.values()].some(s=>s.recording_id===r.id))).map(r=>({id:r.id,object_key:r.object_key})) };
@@ -148,6 +154,21 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(complete.status).toBe(200);expect(await complete.json()).toMatchObject({status:"ready"});
     const stored=state.objects.get("shared/"+reservation.id);expect(stored?.bytes.length).toBe(size);
     expect(state.objects.has("recording-parts/"+reservation.id+"/0")).toBe(false);
+  });
+  it("supports anonymous share reactions with one vote per browser key",async()=>{
+    const s=await session(state.env),u=await upload(state.env,s.cookie),key="e".repeat(64);
+    const pub=await worker.fetch(new Request("https://screennote.test/api/recordings/"+u.id+"/publish",{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:1,ownerKey:key})}),state.env as any,{} as any);
+    const share=await pub.json() as any,base="https://screennote.test/api/share/"+share.token;
+    const initial=await worker.fetch(new Request(base+"/reactions"),state.env as any,{} as any);
+    expect(await initial.json()).toMatchObject({counts:{like:0,thanks:0,idea:0},myReaction:""});
+    const vote=await worker.fetch(new Request(base+"/reactions",{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({voterKey:"f".repeat(64),reaction:"like"})}),state.env as any,{} as any);
+    expect(await vote.json()).toMatchObject({counts:{like:1,thanks:0,idea:0},myReaction:"like"});
+    const own=await worker.fetch(new Request(base+"/reactions",{headers:{"x-voter-key":"f".repeat(64)}}),state.env as any,{} as any);
+    expect(await own.json()).toMatchObject({myReaction:"like"});
+    const change=await worker.fetch(new Request(base+"/reactions",{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({voterKey:"f".repeat(64),reaction:"thanks"})}),state.env as any,{} as any);
+    expect(await change.json()).toMatchObject({counts:{like:0,thanks:1,idea:0},myReaction:"thanks"});
+    const remove=await worker.fetch(new Request(base+"/reactions",{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({voterKey:"f".repeat(64),reaction:""})}),state.env as any,{} as any);
+    expect(await remove.json()).toMatchObject({counts:{like:0,thanks:0,idea:0},myReaction:""});
   });
   it("persists share context behind the owner key and exposes it to viewers",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie),key="c".repeat(64);
