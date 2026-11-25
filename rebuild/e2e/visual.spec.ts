@@ -213,3 +213,31 @@ test("help and settings guidance remains readable and contained at every breakpo
   await expect(page.getByText(/private Cloudflare R2 bucket/)).toBeVisible();
 });
 
+
+
+test("landscape layouts, keyboard access and accessible control names",async({page})=>{
+  await page.goto("/");
+  for(const theme of ["light","dark"]){
+    await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
+    for(const viewport of [{width:844,height:390},{width:1024,height:600},{width:1280,height:720}]){
+      await page.setViewportSize(viewport);
+      await expect(page.locator("body")).toBeVisible();
+      const metrics=await page.evaluate(()=>({width:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth,height:document.documentElement.clientHeight}));
+      expect(metrics.scroll,JSON.stringify({...viewport,...metrics})).toBeLessThanOrEqual(metrics.width+1);
+    }
+  }
+  await page.setViewportSize({width:390,height:844});
+  const unnamed=await page.locator("button,[role=button],a[href],input:not([type=hidden]),select,textarea").evaluateAll(nodes=>nodes.filter(el=>{
+    const e=el;
+    if(e.disabled||e.getAttribute("aria-hidden")==="true")return false;
+    const type=e.getAttribute("type");
+    if(type==="file")return !!(e.getAttribute("aria-label")||e.labels?.length);
+    return !(e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||e.textContent?.trim()||e.labels?.length||e.title);
+  }).map(e=>({tag:e.tagName,html:e.outerHTML.slice(0,180)})));
+  expect(unnamed,JSON.stringify(unnamed)).toEqual([]);
+  await page.keyboard.press("Tab");
+  const focused=await page.evaluate(()=>({tag:document.activeElement?.tagName,outline:getComputedStyle(document.activeElement).outlineStyle,skip:document.activeElement?.classList.contains("skip")}));
+  expect(focused.tag).toBeTruthy();
+  expect(focused.outline).not.toBe("none");
+});
+
