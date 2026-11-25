@@ -1,5 +1,5 @@
-const CACHE_NAME = "screennote-shell-v3";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/app.js", "/style.css", "/privacy.html"];
+const CACHE_NAME = "screennote-react-shell-v4";
+const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
