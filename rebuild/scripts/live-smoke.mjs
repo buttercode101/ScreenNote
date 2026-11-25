@@ -207,13 +207,13 @@ try {
   assert.equal(range.headers.get("content-range"),"bytes 0-63/"+sampleBytes.length);
   assert.equal((await range.arrayBuffer()).byteLength,64);
   const viewer=randomUUID(),authorKey=randomBytes(32).toString("hex"),eventId=randomUUID();
-  const posted=await json(await nativeApi("comment",{id:nativeId,owner:nativeOwner,viewer,eventId,authorKey,name:"Live QA",text:"Native comment",time:2}));
+  const posted=await json(await nativeApi("comment",{id:nativeId,owner:nativeOwner,viewer,eventId,authorKey,name:"Live QA",text:"Native comment",time:2,accessPassword:nativePassword}));
   const root=posted.comments.find(x=>x.id===eventId);assert.ok(root);
   const replyId=randomUUID();
-  const replied=await json(await nativeApi("comment",{id:nativeId,viewer:randomUUID(),eventId:replyId,authorKey:crypto.randomBytes(24).toString("hex"),name:"Guest",text:"Nested reply",time:2,parentId:eventId}));
+  const replied=await json(await nativeApi("comment",{id:nativeId,viewer:randomUUID(),eventId:replyId,authorKey:randomBytes(32).toString("hex"),name:"Guest",text:"Nested reply",time:2,parentId:eventId,accessPassword:nativePassword}));
   assert.equal(replied.comments.find(x=>x.id===replyId).parentId,eventId);
-  await json(await nativeApi("edit-comment",{id:nativeId,viewer,authorKey,commentId:eventId,expectedVersion:root.createdAt,text:"Edited native comment"}));
-  await json(await nativeApi("resolve-thread",{id:nativeId,viewer,owner:nativeOwner,commentId:eventId,resolved:true}));
+  await json(await nativeApi("edit-comment",{id:nativeId,viewer,authorKey,commentId:eventId,expectedVersion:root.createdAt,text:"Edited native comment",accessPassword:nativePassword}));
+  await json(await nativeApi("resolve-thread",{id:nativeId,viewer,owner:nativeOwner,commentId:eventId,resolved:true,accessPassword:nativePassword}));
   await json(await nativeApi("reaction",{id:nativeId,viewer:randomUUID(),reaction:"thanks",accessPassword:nativePassword}));
   const title=await json(await nativeApi("title",{id:nativeId,owner:nativeOwner,title:"Native parity verified"}));assert.equal(title.title,"Native parity verified");
   const status=await json(await nativeApi("review-status",{id:nativeId,owner:nativeOwner,reviewStatus:"approved"}));assert.equal(status.reviewStatus,"approved");
