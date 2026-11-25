@@ -38,11 +38,13 @@ assert.ok((await request(cssPath)).ok, "production CSS asset responds");
 const ownerKey = "a".repeat(64);
 let recordingId = null;
 let shareToken = null;
+let sessionCookie = null;
 try {
 const sessionResponse = await request("/api/session");
 assert.equal(sessionResponse.status, 200);
 const cookie = sessionResponse.headers.get("set-cookie")?.split(";")[0];
 assert.ok(cookie, "guest session cookie is set");
+sessionCookie = cookie;
 const headers = { cookie, origin, "content-type": "application/json" };
 const recording = await json(await request("/api/recordings", {
   method: "POST", headers,
@@ -133,7 +135,7 @@ console.log("Live ScreenNote acceptance passed: assets, guest session, real D1/R
   if (shareToken) {
     await request(`/api/share/${shareToken}/manage`, { method:"DELETE", headers:{origin,"content-type":"application/json"}, body:JSON.stringify({ownerKey}) }).catch(() => undefined);
   } else if (recordingId) {
-    await request(`/api/recordings/${recordingId}`, { method:"DELETE", headers:{cookie:headers?.cookie,origin,"content-type":"application/json"}, body:JSON.stringify({ownerKey}) }).catch(() => undefined);
+    await request(`/api/recordings/${recordingId}`, { method:"DELETE", headers:{cookie:sessionCookie,origin,"content-type":"application/json"}, body:JSON.stringify({ownerKey}) }).catch(() => undefined);
   }
   throw error;
 }
