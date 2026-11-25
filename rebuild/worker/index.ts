@@ -620,7 +620,8 @@ async function serveStatic(request: Request, env: Bindings, ctx: ExecutionContex
   if (pathname.split("/").some((part) => part === "." || part === "..") || !/^\/[a-zA-Z0-9_./-]+$/.test(pathname)) return new Response("Bad path", { status: 400 });
   if (env.ASSETS) {
     const assetPath = pathname === "/" ? "/index.html" : pathname;
-    const response = await env.ASSETS.fetch(new Request(new URL(assetPath, url), request));
+    const assetRequest = new Request(new URL(assetPath, url), { method: request.method, headers: request.headers, redirect: "follow" });
+    const response = await env.ASSETS.fetch(assetRequest);
     const headers = applySecurityHeaders(new Headers(response.headers));
     return new Response(request.method === "HEAD" ? null : response.body, { status: response.status, statusText: response.statusText, headers });
   }

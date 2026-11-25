@@ -140,10 +140,11 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(api.headers.get("x-frame-options")).toBe("DENY");
     expect(api.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
     expect(api.headers.get("permissions-policy")).toContain("display-capture=(self)");
-    let requestedAsset="";const env={...state.env,ASSETS:{fetch:async(request:Request)=>{requestedAsset=new URL(request.url).pathname;return new Response("<!doctype html><html></html>",{headers:{"content-type":"text/html"}})}}};
+    let requestedAsset="",assetRedirectMode="";const env={...state.env,ASSETS:{fetch:async(request:Request)=>{requestedAsset=new URL(request.url).pathname;assetRedirectMode=request.redirect;return new Response("<!doctype html><html></html>",{headers:{"content-type":"text/html"}})}}};
     const page=await worker.fetch(new Request("https://screennote.test/"),env as any,{} as any);
     expect(page.headers.get("content-security-policy")).toContain("script-src 'self'");
     expect(page.status).toBe(200);expect(requestedAsset).toBe("/index.html");
+    expect(assetRedirectMode).toBe("follow");
     expect(page.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
   });
   it("creates guest sessions and rejects cross-origin writes",async()=>{
