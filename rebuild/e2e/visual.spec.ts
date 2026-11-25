@@ -86,6 +86,8 @@ test("imported recording opens the full editor with preview, annotations, captio
   const rect=await canvas.boundingBox();
   if(rect) { await page.mouse.move(rect.x+rect.width*.2,rect.y+rect.height*.2);await page.mouse.down();await page.mouse.move(rect.x+rect.width*.45,rect.y+rect.height*.4,{steps:4});await page.mouse.up(); }
   await expect(page.getByText(/1 marks on this video/i)).toBeVisible();
+  await page.getByRole("button",{name:/Export annotated copy/i}).click();
+  await expect(page.getByRole("status").filter({hasText:/Annotated copy saved/i})).toBeVisible({timeout:30000});
   await page.getByRole("button",{name:/Save all changes/i}).click();
   await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
   for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});const dims=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));expect(dims.body).toBeLessThanOrEqual(width+1);expect(dims.doc).toBeLessThanOrEqual(width+1);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
