@@ -7,7 +7,7 @@ const source = "legacy/public";
 const output = "public";
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
-for (const file of ["sw.js", "icon.svg"]) {
+for (const file of ["sw.js", "icon.svg", "manifest.webmanifest"]) {
   try { await cp(`${source}/${file}`, `${output}/${file}`); } catch { /* optional static asset */ }
 }
 console.log("Prepared Cloudflare-only public assets; legacy UI bundle is excluded.");
