@@ -66,8 +66,8 @@ test("import, title, captions, chapters and bug-report context persist locally",
   await page.locator("#export-report").click();
   expect((await download).suggestedFilename()).toContain("bug-report");
   await page.locator("#main").getByRole("button",{name:"My recordings"}).click();
-  await expect(page.getByRole("heading",{name:title})).toBeVisible();
-  await page.locator("#library-search").fill("payment method");
+  await expect(page.locator(".clip-card").first()).toContainText(title);
+  await page.locator("#library-search").fill("walkthrough");
   await expect(page.getByText("1 of 1 recordings")).toBeVisible();
 });
 
@@ -109,7 +109,7 @@ test("appearance preference persists after reload and local library survives",as
   await expect(page.locator("html")).toHaveAttribute("data-theme","light");
   await page.locator("#import-video").setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
-  await page.getByRole("button",{name:"My recordings"}).click();
+  await page.locator("#main").getByRole("button",{name:"My recordings"}).click();
   await expect(page.locator(".clip-card")).toHaveCount(1);
   await page.reload();
   await expect(page.locator(".clip-card")).toHaveCount(1);
