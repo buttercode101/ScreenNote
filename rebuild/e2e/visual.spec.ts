@@ -58,7 +58,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.goto("/");
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
-  await expect(page.getByRole("img",{name:"sample preview frame"})).toBeVisible({timeout:10000});
+  await expect(page.locator(".clip-thumb")).toBeVisible();\n  await expect(page.locator(".clip-thumb img, .clip-thumb-fallback").first()).toBeVisible({timeout:10000});
   await expect(page.getByRole("button",{name:/Preview/i})).toBeVisible();
   await expect(page.getByRole("button",{name:/Edit/i})).toBeVisible();
   await page.getByRole("button",{name:/Preview/i}).click();
@@ -110,7 +110,7 @@ test("recording setup exposes quality, microphone and camera placement controls"
   await expect(page.getByLabel("Recording quality")).toHaveValue("clear");
   await expect(page.getByLabel("Microphone source")).toBeVisible();
   await expect(page.getByLabel("Camera bubble size")).toBeVisible();
-  await page.getByLabel("Camera bubble").check();
+  await page.getByRole("checkbox",{name:"Camera bubble"}).check();
   await page.getByLabel("Camera bubble position").selectOption("top-left");
   await expect(page.getByLabel("Camera bubble position")).toHaveValue("top-left");
   await page.getByLabel("Camera bubble position").selectOption("custom");
@@ -122,7 +122,7 @@ test("preferences export and restore a portable local library backup",async({pag
   await page.goto("/");
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
-  await page.getByRole("button",{name:/Preferences/i}).click();
+  await page.locator(".sidebar").getByText("Preferences",{exact:true}).click();
   await expect(page.getByRole("dialog",{name:/Preferences & backups/i})).toBeVisible();
   const downloadPromise=page.waitForEvent("download");
   await page.getByRole("button",{name:/Back up my library/i}).click();
