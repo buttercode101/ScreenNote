@@ -243,3 +243,7 @@
 /* Keep annotation coordinates aligned to the actual source frame, including portrait and 4:3 media. */
 .editor-video-wrap,.share-video-wrap{aspect-ratio:auto}
 .editor-video-wrap video,.share-video-wrap video{display:block;width:100%;height:auto;max-height:72vh;object-fit:contain}
+
+
+.editor-blur-overlay{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
+.editor-blur-preview{fill:rgba(20,25,20,.12);stroke:rgba(20,25,20,.35);stroke-width:2;backdrop-filter:blur(12px)}
