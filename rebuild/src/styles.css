@@ -180,3 +180,10 @@
 .shared-report strong{font-weight:700}
 [data-theme="dark"] .shared-context{background:#222821;border-color:#343a32}
 [data-theme="dark"] .shared-context input,[data-theme="dark"] .shared-chapters button,[data-theme="dark"] .shared-transcript button{background:#171c17;border-color:#41483e;color:#f1f0e8}
+
+
+.shared-annotation-overlay{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible}
+.shared-mark.rectangle{fill:none;stroke:#ff6b35;stroke-width:5;vector-effect:non-scaling-stroke}
+.shared-mark.highlight{fill:rgba(255,210,40,.34);stroke:#e9b92d;stroke-width:2;vector-effect:non-scaling-stroke}
+.shared-mark.redact{fill:#161a17;stroke:#161a17}
+.shared-mark.blur{fill:rgba(25,30,25,.22);stroke:rgba(25,30,25,.55);stroke-width:2;backdrop-filter:blur(12px)}
