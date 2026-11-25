@@ -10,7 +10,7 @@ import "./styles.css";
 type Comment = { isMine?:boolean; anchorX:number|null; anchorY:number|null; id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
 type Share = { title:string; mimeType:string; size:number; duration:number; expiresAt:number; passwordRequired:boolean };
 type ShareDetails = { annotations?:{kind:string;x:number;y:number;w:number;h:number}[]; captions?:{start:number;end:number;text:string}[]; chapters?:{time:number;title:string}[]; report?:{url:string;steps:string;expected:string;actual:string;environment:string}|null; reviewStatus?:"needs-feedback"|"changes-requested"|"approved" };
-function voterIdentity(token:string) { const key="screennote-voter-"+token;let value=localStorage.getItem(key);if(!value){value=newOwnerKey();localStorage.setItem(key,value)}return value; }
+function voterIdentity(token:string) { const key="screennote-voter-"+token;try{let value=localStorage.getItem(key);if(!value){value=newOwnerKey();localStorage.setItem(key,value)}return value}catch{return newOwnerKey()} }
 function identity(token:string) {
   const key = "screennote-author-" + token;
   let value = localStorage.getItem(key);
