@@ -84,9 +84,10 @@ class FakeD1 {
   }
 }
 const makeEnv = () => {
-  const DB=new FakeD1(), objects=new Map<string, {bytes:Uint8Array;type:string}>(), deleted:string[]=[];
+  const DB=new FakeD1(), objects=new Map<string, {bytes:Uint8Array;type:string;uploaded:Date}>(), deleted:string[]=[];
   const MEDIA={
-    async put(key:string, body:ReadableStream<Uint8Array>, options:any){const bytes=new Uint8Array(await new Response(body).arrayBuffer());objects.set(key,{bytes,type:options.httpMetadata.contentType});},
+    async put(key:string, body:ReadableStream<Uint8Array>, options:any){const bytes=new Uint8Array(await new Response(body).arrayBuffer());objects.set(key,{bytes,type:options.httpMetadata.contentType,uploaded:new Date()});},
+    async list(options:any={}){const keys=[...objects.keys()].filter(key=>key.startsWith(options.prefix??""));const limit=options.limit??1000;return {objects:keys.slice(0,limit).map(key=>({key,uploaded:objects.get(key)!.uploaded})),truncated:keys.length>limit};},
     async get(key:string, options?:any){const o=objects.get(key);if(!o)return null;const bytes=options?.range?o.bytes.slice(options.range.offset,options.range.offset+options.range.length):o.bytes;return {body:new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer]).stream(),httpEtag:'etag'};},
     async delete(key:string){objects.delete(key);deleted.push(key);}
   };
@@ -163,6 +164,15 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(media.status).toBe(206);expect(media.headers.get("content-range")).toBe("bytes 1-2/4");
     const del=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}`,{method:"DELETE",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({ownerKey:key})}),state.env as any,{} as any);
     expect(del.status).toBe(200);expect(state.objects.size).toBe(0);
+  });
+  it("purges stale R2 objects that no longer have a D1 recording reference",async()=>{
+    const key="shared/orphaned-test-object";
+    state.objects.set(key,{bytes:new Uint8Array([1,2,3]),type:"video/webm",uploaded:new Date(Date.now()-3601*1000)});
+    let task:Promise<void>|undefined;
+    await worker.scheduled({} as any,state.env as any,{waitUntil(p:Promise<void>){task=p;}} as any);
+    await task;
+    expect(state.objects.has(key)).toBe(false);
+    expect(state.deleted).toContain(key);
   });
   it("deletes completed uploads that were never published after the grace period",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie);

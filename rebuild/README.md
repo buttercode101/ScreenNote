@@ -30,7 +30,7 @@ ScreenNote is a short-form async collaboration tool. Record or import a video, r
 - Local delete and republish preserve the recording/recovery key if remote share revocation fails.
 - Playback bubbles that surface active comment threads at their timestamps.
 - Portable private recovery-key export/import.
-- Worker health, observability and scheduled retention cleanup for expired shares, abandoned uploads and completed-but-unpublished uploads.
+- Worker health, observability and scheduled retention cleanup for expired shares, abandoned uploads, completed-but-unpublished uploads and stale R2 objects with no D1 reference.
 
 ## Limits
 
