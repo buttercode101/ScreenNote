@@ -174,3 +174,50 @@ dialog{overscroll-behavior:contain}
 @media(orientation:landscape) and (max-height:520px){.sidebar{padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom))}.content,.viewer{padding-block:20px}.stage{min-height:240px}.reply-panel{max-height:60vh}}
 @media(forced-colors:active){button,a,input,select,textarea,summary,[tabindex]:focus-visible{forced-color-adjust:auto}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid Highlight}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.icon-button{transform:none!important}}
+
+
+/* ScreenNote Studio — a distinct visual identity for the Cloudflare build. */
+:root{--bg:#f4f5f1;--panel:#fff;--soft:#e9ece5;--text:#171d19;--muted:#59645c;--line:#d5ddd4;--accent:#a6d936;--tint:#edf6d9;--dark:#111a15;--light:#f5f8ef;--surface:#fff;font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-feature-settings:"ss01" on,"cv11" on}
+:root[data-theme=dark]{--bg:#101512;--panel:#18211c;--soft:#222d25;--text:#edf3e9;--muted:#aab6aa;--line:#354239;--accent:#c1f36b;--tint:#293a20;--dark:#080d0a;--light:#eff8e5;--surface:#18211c;color-scheme:dark}
+body{background:var(--bg);color:var(--text);font-size:14px;letter-spacing:-.01em}
+.shell{grid-template-columns:248px minmax(0,1fr);background:var(--bg)}
+.sidebar{width:248px;padding:30px 20px 24px;background:#111a15;color:#eef4e9;border:0}
+.sidebar .brand{color:#f4f8ef;font-size:22px;letter-spacing:-1.1px}.sidebar .brand img{width:34px;height:34px}
+.sidebar .nav-label{color:#91a095;margin:46px 12px 12px;font-size:9px;letter-spacing:1.8px}
+.sidebar .nav{gap:5px}.sidebar .nav button{min-height:46px;border-radius:7px;color:#c7d1c7;padding:12px 13px;font-size:13px;transition:background .18s,color .18s}
+.sidebar .nav button:hover{background:#26342b;color:#fff}.sidebar .nav .active{background:#c1f36b;color:#142015;font-weight:750}
+.sidebar .side-note{border-color:#354239;color:#aab7aa}.sidebar .side-note strong{color:#f1f5eb}
+.workspace{background:var(--bg)}.topbar{height:72px;padding-inline:clamp(20px,3.5vw,52px);border-color:var(--line);background:var(--panel)}
+.topbar .tag{font-size:10px;letter-spacing:1.5px;font-weight:700}.content{max-width:1500px;padding:clamp(24px,3.6vw,54px)}
+h1{font-size:clamp(34px,4.3vw,56px);font-weight:680;letter-spacing:-2.5px;line-height:1.02}h2{font-size:22px;font-weight:680;letter-spacing:-.9px}h3{font-size:15px;font-weight:700;letter-spacing:-.25px}
+.eyebrow{font-size:9px;letter-spacing:2px;font-weight:800;color:#617d36}:root[data-theme=dark] .eyebrow{color:#c1f36b}
+.heading{align-items:flex-end;margin-bottom:34px}.heading p{font-size:14px;line-height:1.7;max-width:520px}
+.icon-button{border-radius:7px;background:var(--panel);border-color:var(--line)}
+.btn{border-radius:6px;min-height:46px;padding:12px 17px;font-size:13px;font-weight:700;letter-spacing:-.01em;border-color:var(--line);box-shadow:0 1px 0 #101a1008}
+.btn.primary{background:#b7ed4b;border-color:#b7ed4b;color:#152015}:root[data-theme=dark] .btn.primary{background:#c1f36b;border-color:#c1f36b;color:#111a15}
+.btn.dark{background:#111a15;color:#f5f8ef;border-color:#111a15}
+.panel{border-radius:8px;padding:25px;background:var(--panel);border-color:var(--line);box-shadow:0 2px 12px #17231908}
+:root[data-theme=dark] .panel{box-shadow:0 2px 18px #00000014}
+.record-grid{gap:20px}.stage{border-radius:8px;background:#111a15;min-height:360px;color:#eff8e5}
+.stage:before{background-image:linear-gradient(#ffffff09 1px,transparent 1px),linear-gradient(90deg,#ffffff09 1px,transparent 1px);background-size:32px 32px}
+.stage .screen-symbol{border-radius:5px;border-color:#a7c18a55;background:#1e3024}.stage .play-disc{background:#c1f36b;color:#142015}
+.stage h2{font-size:26px;font-weight:700;letter-spacing:-1px}.stage p{color:#b8c7b7;font-size:13px}
+.stage-top{border-radius:4px;border-color:#61745f;color:#e5efdf;letter-spacing:1.5px}
+.record-options .option{padding:18px 0}.option strong{font-weight:700}.option input{accent-color:#91c62e}
+.clip-grid{gap:16px}.clip-card{border-radius:7px;background:var(--panel);border-color:var(--line);box-shadow:0 2px 8px #15201608;animation:none}
+.clip-card:hover{border-color:#9ab66d;box-shadow:0 7px 20px #15201612}.clip-art{background:var(--soft)}.clip-body{padding:18px}
+.clip-body h3{font-size:14px;line-height:1.45}.empty{grid-column:1/-1;border-radius:7px;background:var(--soft);border-color:#aab9a6;padding:42px 28px}
+.field input,.field textarea,.field select,select{border-radius:6px;border-color:var(--line);background:var(--panel)}
+.field input:focus,.field textarea:focus,.field select:focus,select:focus{border-color:#8dbb38;box-shadow:0 0 0 3px #a6d9362b;outline:0}
+.notice,.beta-note{border-radius:6px;background:var(--soft);border-color:var(--line)}.error-box{border-radius:6px}
+.viewer-top{max-width:1320px;padding:22px clamp(18px,3vw,36px)}.viewer{max-width:1320px;padding:38px clamp(18px,3vw,36px)}
+.viewer-grid{gap:22px}.viewer h1{font-size:clamp(28px,3.4vw,42px);letter-spacing:-1.7px}
+.video-panel{border-radius:7px;background:#080d0a}.reply-panel{border-radius:7px}.comment{padding:18px 0}
+.timestamp{background:var(--tint);color:var(--text);border-radius:4px}
+.reactions button[aria-pressed=true]{background:var(--tint);border-color:#91c62e}
+#notice{border-radius:6px;background:#111a15;color:#f3f8ed;box-shadow:0 8px 28px #0003}
+dialog{border-radius:8px;box-shadow:0 22px 80px #0004}.footer{border-color:var(--line)}
+:focus-visible{outline-color:#6d9e25!important;outline-offset:3px}:root[data-theme=dark] :focus-visible{outline-color:#c1f36b!important}
+@media(max-width:1024px){.shell{grid-template-columns:190px minmax(0,1fr)}.sidebar{width:190px}.content{padding:28px 24px}}
+@media(max-width:767px){.topbar{height:66px;padding-inline:18px}.content{padding:28px 18px}.heading{align-items:flex-start;margin-bottom:24px}.heading h1{font-size:clamp(32px,9vw,42px);letter-spacing:-1.7px}.panel{padding:20px}.stage{min-height:270px}.viewer{padding-block:26px}}
+@media(max-width:420px){.content{padding-inline:15px}.topbar{padding-inline:15px}.heading h1{font-size:34px}.panel{padding:17px}.stage{min-height:250px}}
