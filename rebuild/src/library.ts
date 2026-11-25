@@ -70,6 +70,15 @@ export async function listClips(): Promise<Omit<Clip, "blob">[]> {
   });
 }
 
+export async function listFullClips(): Promise<Clip[]> {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(CLIPS, "readonly").objectStore(CLIPS).getAll();
+    request.onsuccess = () => resolve((request.result as Clip[]).sort((a, b) => b.createdAt - a.createdAt));
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function saveClip(clip: Clip): Promise<void> {
   const db = await database();
   return new Promise((resolve, reject) => {
