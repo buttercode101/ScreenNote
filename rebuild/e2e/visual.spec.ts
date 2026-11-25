@@ -24,6 +24,16 @@ test("light and dark layouts remain contained from 320px through desktop", async
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expectContained(page, viewport.width);
+    if (viewport.width <= 480) {
+      const geometry = await page.evaluate(() => {
+        const rect = (selector: string) => { const r = document.querySelector(selector)!.getBoundingClientRect(); return { left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height }; };
+        return { title:rect(".welcome-row h1"), art:rect(".welcome-art"), intro:rect(".welcome-row .intro"), record:rect(".capture-actions .button") };
+      });
+      const overlaps = (a: typeof geometry.title, b: typeof geometry.title) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      expect(overlaps(geometry.title, geometry.art), "mobile hero title and illustration must not overlap").toBe(false);
+      expect(overlaps(geometry.intro, geometry.art), "mobile intro and illustration must not overlap").toBe(false);
+      expect(geometry.record.height, "primary recording action must meet a 44px touch target").toBeGreaterThanOrEqual(44);
+    }
     await page.screenshot({ path: `test-results/screenshots/${viewport.name}-light.png`, fullPage: true });
 
     await page.getByRole("button", { name: "Toggle appearance" }).click();
