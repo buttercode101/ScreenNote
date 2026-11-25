@@ -1,5 +1,6 @@
 import { describe,expect,it } from "vitest";
 import { readFile } from "node:fs/promises";
+// @ts-ignore - tested browser JavaScript module
 import { makeLibraryBackup,readLibraryBackup } from "../legacy/lib/library-backup.js";
 describe("portable local library backup",()=>{
  it("round-trips a real sample video, clip metadata and private management key",async()=>{
