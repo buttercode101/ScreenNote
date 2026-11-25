@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Check, Clock3, LockKeyhole, MessageCircle, Send, ShieldCheck, Video } from "lucide-react";
+import { Check, Clock3, Heart, Lightbulb, LockKeyhole, MessageCircle, Send, ShieldCheck, Sparkles, Video } from "lucide-react";
 import { findShareByToken } from "./library";
-import { shareRequest } from "./sharing";
+import { newOwnerKey, shareRequest } from "./sharing";
 // @ts-expect-error Shared browser-safe enrichment module has no declaration file.
 import { captionsVTT } from "../legacy/lib/enrichment.js";
 import "./styles.css";
@@ -10,6 +10,7 @@ import "./styles.css";
 type Comment = { isMine?:boolean; anchorX:number|null; anchorY:number|null; id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
 type Share = { title:string; mimeType:string; size:number; duration:number; expiresAt:number; passwordRequired:boolean };
 type ShareDetails = { annotations?:{kind:string;x:number;y:number;w:number;h:number}[]; captions?:{start:number;end:number;text:string}[]; chapters?:{time:number;title:string}[]; report?:{url:string;steps:string;expected:string;actual:string;environment:string}|null; reviewStatus?:"needs-feedback"|"changes-requested"|"approved" };
+function voterIdentity(token:string) { const key="screennote-voter-"+token;let value=localStorage.getItem(key);if(!value){value=newOwnerKey();localStorage.setItem(key,value)}return value; }
 function identity(token:string) {
   const key = "screennote-author-" + token;
   let value = localStorage.getItem(key);
@@ -22,6 +23,8 @@ function ShareViewer({token}:{token:string}) {
   const [share,setShare]=useState<Share|null>(null),[comments,setComments]=useState<Comment[]>([]),[password,setPassword]=useState(""),[locked,setLocked]=useState(false),[error,setError]=useState(""),[loading,setLoading]=useState(true);
   const [text,setText]=useState(""),[replyTo,setReplyTo]=useState<string|null>(null),[time,setTime]=useState(0),[ownerKey,setOwnerKey]=useState<string|null>(null),[annotateMode,setAnnotateMode]=useState(false),[annotation,setAnnotation]=useState<{x:number;y:number}|null>(null),[details,setDetails]=useState<ShareDetails>({}),[transcriptQuery,setTranscriptQuery]=useState("");
   const [captionUrl,setCaptionUrl]=useState<string|null>(null);
+  const [reactions,setReactions]=useState({like:0,thanks:0,idea:0});
+  const [myReaction,setMyReaction]=useState("");
   const video=useRef<HTMLVideoElement>(null);
   const authorKey=useMemo(()=>identity(token),[token]);
   async function load() {
@@ -30,6 +33,7 @@ function ShareViewer({token}:{token:string}) {
       const data=await shareRequest<Share>(token);setShare(data);setLocked(false);
       const discussion=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(discussion.comments);
       const context=await shareRequest<{details:ShareDetails}>(token,"/details");setDetails(context.details||{});
+      const votes=await shareRequest<{counts:{like:number;thanks:number;idea:number};myReaction:string}>(token,"/reactions",{headers:{"x-voter-key":voterIdentity(token)}});setReactions(votes.counts);setMyReaction(votes.myReaction);
       const local=await findShareByToken(token);setOwnerKey(local?.share?.ownerKey??localStorage.getItem("screennote-recovery-"+token));
     } catch(e) {
       if ((e as {status?:number}).status===401) setLocked(true);
@@ -48,6 +52,10 @@ function ShareViewer({token}:{token:string}) {
     if(!annotateMode)return;
     const rect=event.currentTarget.getBoundingClientRect();
     setAnnotation({x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height))});
+  }
+  async function react(reaction:"like"|"thanks"|"idea"|""){
+    try{const result=await shareRequest<{counts:{like:number;thanks:number;idea:number};myReaction:string}>(token,"/reactions",{method:"POST",body:JSON.stringify({voterKey:voterIdentity(token),reaction})});setReactions(result.counts);setMyReaction(result.myReaction)}
+    catch(e){setError(e instanceof Error?e.message:"Could not save your reaction.")}
   }
   async function send(event:React.FormEvent) {
     event.preventDefault();if(!text.trim())return;
@@ -126,6 +134,11 @@ function ShareViewer({token}:{token:string}) {
     <div className="share-layout"><section className="share-main"><div className="share-heading"><span className="eyebrow">A MOMENT, SHARED</span>{details.reviewStatus&&<span className={"shared-review-status "+details.reviewStatus}>{details.reviewStatus==="approved"?"Approved":details.reviewStatus==="changes-requested"?"Changes requested":"Needs feedback"}</span>}<h1>{share.title}</h1><p>Watch the clip. Leave a note at the exact moment that matters.</p></div>
       <div className={"share-video-wrap "+(annotateMode?"annotate-mode":"")} onClick={placeAnnotation}><video ref={video} src={"/api/share/"+token+"/media"} controls playsInline preload="metadata" onTimeUpdate={e=>setTime(e.currentTarget.currentTime)}>{captionUrl&&<track kind="captions" src={captionUrl} srcLang="en" label="Owner captions" default/>}</video>{!!details.annotations?.length&&<svg className="shared-annotation-overlay" viewBox="0 0 1000 562" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="sn-arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#ff6b35"/></marker></defs>{details.annotations.map((mark,i)=>{const x=mark.x*1000,y=mark.y*562,w=mark.w*1000,h=mark.h*562;if(mark.kind==="arrow")return <line key={i} x1={x} y1={y} x2={x+w} y2={y+h} stroke="#ff6b35" strokeWidth="5" markerEnd="url(#sn-arrowhead)"/>;return <rect key={i} x={x} y={y} width={w} height={h} className={"shared-mark "+mark.kind}/>})}</svg>}{comments.filter(c=>c.anchorX!==null&&c.anchorX!==undefined&&c.anchorY!==null&&Math.abs(c.time-time)<1.5&&!c.deletedAt).map(c=><button key={"pin-"+c.id} className="frame-annotation-pin" style={{left:(c.anchorX!*100)+"%",top:(c.anchorY!*100)+"%"}} title={c.body} onClick={e=>{e.stopPropagation();seek(c.time);}}/>)}{annotation&&<span className="pending-annotation-pin" style={{left:(annotation.x*100)+"%",top:(annotation.y*100)+"%"}}/>}{annotateMode&&<button className="annotation-layer" aria-label="Choose a point on the video frame" onClick={e=>{e.preventDefault();e.stopPropagation();placeAnnotation(e as unknown as React.MouseEvent<HTMLDivElement>);}}/>}{activeBubbles.map((c,i)=><button key={c.id} className="playback-bubble" style={{bottom:(20+Math.min(3,i)*52)+"px"}} onClick={()=>seek(c.time)}><MessageCircle size={14}/>{c.body.slice(0,90)}</button>)}</div>
       <div className="share-video-meta"><span>{timeLabel(share.duration)} · {Math.ceil(share.size/1024/1024)} MB</span><span>Available until {new Date(share.expiresAt*1000).toLocaleString()}</span></div>
+      <section className="share-reactions" aria-label="Quick reactions"><span className="eyebrow">QUICK REACTION</span><div>
+        <button className={myReaction==="like"?"active":""} aria-pressed={myReaction==="like"} onClick={()=>react(myReaction==="like"?"":"like")}><Heart size={15}/> Like <b>{reactions.like}</b></button>
+        <button className={myReaction==="thanks"?"active":""} aria-pressed={myReaction==="thanks"} onClick={()=>react(myReaction==="thanks"?"":"thanks")}><Sparkles size={15}/> Thanks <b>{reactions.thanks}</b></button>
+        <button className={myReaction==="idea"?"active":""} aria-pressed={myReaction==="idea"} onClick={()=>react(myReaction==="idea"?"":"idea")}><Lightbulb size={15}/> Idea <b>{reactions.idea}</b></button>
+      </div></section>
       {(details.chapters?.length||details.captions?.length||details.report)?<section className="shared-context" aria-label="Video context">
         {details.chapters?.length?<div><span className="eyebrow">CHAPTERS</span><div className="shared-chapters">{details.chapters.map((chapter,i)=><button key={i} onClick={()=>seek(chapter.time)}><span>{timeLabel(chapter.time)}</span>{chapter.title}</button>)}</div></div>:null}
         {details.captions?.length?<div><span className="eyebrow">SEARCH THE TRANSCRIPT</span><input value={transcriptQuery} onChange={e=>setTranscriptQuery(e.target.value)} placeholder="Find a word or phrase"/><div className="shared-transcript">{details.captions.filter(cue=>cue.text.toLocaleLowerCase().includes(transcriptQuery.toLocaleLowerCase())).map((cue,i)=><button key={i} onClick={()=>seek(cue.start)}><span>{timeLabel(cue.start)}</span>{cue.text}</button>)}</div></div>:null}
