@@ -87,7 +87,7 @@ progress{width:100%;height:12px;margin-top:16px;accent-color:var(--accent)}selec
 /* ScreenNote containment system — shared by legacy and React surfaces. */
 html,body,#root,#app,.app-shell,.main-content,.page-wrap,.share-page{width:100%;max-width:100%;min-width:0}
 html,body{overflow-x:clip}
-*,*::before,*::after{box-sizing:border-box;min-width:0}
+*,*::before,*::after{box-sizing:border-box}:where(.shell,.workspace,.content,.heading,.record-grid,.editor-grid,.clip-grid,.viewer-grid,.share-layout,.help-grid,.actions,.top-actions,.field-row,.comment-head,.dialog-actions)>*{min-width:0}
 img,video,canvas,iframe,svg{max-width:100%}
 p,h1,h2,h3,h4,h5,h6,small,strong,span,label,a,li,dd,dt,blockquote{overflow-wrap:anywhere;word-break:normal}
 pre,code,kbd,samp{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
@@ -153,3 +153,24 @@ table th,table td{overflow-wrap:anywhere;word-break:normal}
 /* Keep full-screen backdrops full-screen; constrain only the dialog surface. */
 .modal-backdrop{width:100vw;max-width:100vw;max-height:100dvh;inset:0}
 .modal-backdrop>[role="dialog"],.modal-backdrop .modal,.modal-backdrop .preview-modal,.modal-backdrop .publish-modal{width:min(100%,920px);max-width:calc(100vw - 20px)}
+
+
+/* Product-wide interaction, viewport and accessibility refinements. */
+html{scroll-padding-block:16px;scroll-behavior:smooth}
+body{min-width:320px;overflow-wrap:normal}
+button,a,input,select,textarea,[role="button"]{-webkit-tap-highlight-color:transparent}
+a:not(.btn):not(.brand){text-decoration-thickness:1px;text-underline-offset:3px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #a9472b;outline-offset:3px}
+:root[data-theme=dark] button:focus-visible,:root[data-theme=dark] a:focus-visible,:root[data-theme=dark] input:focus-visible,:root[data-theme=dark] select:focus-visible,:root[data-theme=dark] textarea:focus-visible,:root[data-theme=dark] summary:focus-visible,:root[data-theme=dark] [tabindex]:focus-visible{outline-color:#ffd0b9}
+input,select,textarea{accent-color:var(--accent);color-scheme:inherit}
+select{max-width:100%}
+button:not(.timestamp),.btn,.icon-button,.nav button,.timestamp{touch-action:manipulation}
+:where(.content,.viewer,.privacy,.workspace,.main-content){scroll-margin-top:16px}
+:where(.sidebar,.viewer-top,.topbar){padding-top:max(12px,env(safe-area-inset-top))}
+#notice{bottom:max(16px,env(safe-area-inset-bottom))}
+dialog{overscroll-behavior:contain}
+@media(hover:hover) and (pointer:fine){.btn:not(:disabled):hover,.icon-button:not(:disabled):hover{filter:brightness(.94);transform:translateY(-1px)}}
+@media(hover:none){.btn:hover,.icon-button:hover{filter:none;transform:none}}
+@media(orientation:landscape) and (max-height:520px){.sidebar{padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom))}.content,.viewer{padding-block:20px}.stage{min-height:240px}.reply-panel{max-height:60vh}}
+@media(forced-colors:active){button,a,input,select,textarea,summary,[tabindex]:focus-visible{forced-color-adjust:auto}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid Highlight}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.icon-button{transform:none!important}}
