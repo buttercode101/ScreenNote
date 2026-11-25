@@ -665,6 +665,7 @@ export default {
         await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
       }
       await env.DB.prepare("DELETE FROM share_password_attempts WHERE window_started <= ?").bind(now - 3600).run();
+      await env.DB.prepare("DELETE FROM share_action_rate_limits WHERE window_started <= ?").bind(now - 3600).run();
       // R2 objects can outlive their D1 row if a request or prior cleanup was interrupted.
       // Keep a one-hour grace window, then purge only unreferenced shared-media objects.
       const referencedPartRows = await env.DB.prepare("SELECT object_key FROM recording_upload_parts").bind().all<{object_key:string}>();
