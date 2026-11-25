@@ -15,6 +15,10 @@ on:
       - "rebuild/**"
       - ".github/workflows/screennote-rebuild.yml"
 
+concurrency:
+  group: screennote-cloudflare-development
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
