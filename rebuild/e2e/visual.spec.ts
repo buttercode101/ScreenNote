@@ -134,6 +134,12 @@ test("temporary share viewer and privacy route use the independent responsive de
   const token="a".repeat(40);
   await page.route(`**/api/share/${token}`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({title:"A product walkthrough",mimeType:"video/webm",size:2048,duration:38,expiresAt:Math.floor(Date.now()/1000)+86400,passwordRequired:false})}));
   await page.route(`**/api/share/${token}/comments`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[]})}));
+  let selectedReaction="";
+  await page.route("**/api/share/"+token+"/reactions",async route=>{
+    if(route.request().method()==="POST")selectedReaction=route.request().postDataJSON().reaction||"";
+    const counts={like:selectedReaction==="like"?1:0,thanks:selectedReaction==="thanks"?1:0,idea:selectedReaction==="idea"?1:0};
+    await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({counts,myReaction:selectedReaction})});
+  });
   await page.route("**/api/share/"+token+"/details",route=>route.fulfill({
     status:200,contentType:"application/json",
     body:JSON.stringify({details:{
@@ -146,6 +152,8 @@ test("temporary share viewer and privacy route use the independent responsive de
   await page.goto("/s/"+token);
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
   await expect(page.getByText("Approved",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:/Thanks/i}).click();
+  await expect(page.getByRole("button",{name:/Thanks/i})).toHaveAttribute("aria-pressed","true");
   await expect(page.locator(".share-video-wrap")).toBeVisible();
   await expect(page.locator(".share-discussion")).toBeVisible();
   await expect(page.getByRole("button",{name:/Introduction/i})).toBeVisible();
