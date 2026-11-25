@@ -6,7 +6,7 @@ This branch is a separately implemented Cloudflare-first product. It is not a vi
 
 - **Frontend:** React 19 + TypeScript + Vite. The deployed entrypoint is `rebuild/index.html` and `rebuild/src/main.tsx`.
 - **Design system:** independent editorial interface: Space Grotesk / Source Sans 3 / DM Mono, warm mineral paper, near-black recording surface and acid-lime action colour. It does not load the Vercel stylesheet or Vercel HTML/JS.
-- **Build assets:** `scripts/build-legacy.mjs` now copies only the offline service worker and app icon. It does not bundle or copy the legacy browser app.
+- **Build assets:** `scripts/prepare-public.mjs` now copies only the offline service worker and app icon. It does not bundle or copy the legacy browser app.
 - **Backend:** Cloudflare Worker with D1 metadata and R2 media storage.
 - **Local-first data:** IndexedDB stores original recordings on the user's device; publishing is explicit.
 - **Legacy source:** `legacy/` remains in this branch as a behavior/feature reference and migration source only. It is not the deployed UI.
