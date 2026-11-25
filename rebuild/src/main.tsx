@@ -71,6 +71,7 @@ function App() {
   const [expiryDays, setExpiryDays] = useState(3);
   const [sharePassword, setSharePassword] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [shareLink, setShareLink] = useState("");
   const [recoveryData, setRecoveryData] = useState("");
   const recoveryFileRef = useRef<HTMLInputElement>(null);
@@ -309,22 +310,24 @@ function App() {
         if (!stopped.ok) throw new Error("The previous share could not be ended. Your existing link and local recording are unchanged.");
       }
       const ownerKey = newOwnerKey();
-      const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey);
-      const detailsResponse = await fetch("/api/share/" + result.token + "/details", { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey, details: { annotations: clip.annotations || [], captions: clip.captions || [], chapters: clip.chapters || [], report: clip.report || null, reviewStatus: clip.reviewStatus || "needs-feedback" } }) });
+      setUploadProgress(0);
+      const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey, setUploadProgress);
+      const resolvedOwnerKey = result.ownerKey || ownerKey;
+      const detailsResponse = await fetch("/api/share/" + result.token + "/details", { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey, details: { annotations: clip.annotations || [], captions: clip.captions || [], chapters: clip.chapters || [], report: clip.report || null, reviewStatus: clip.reviewStatus || "needs-feedback" } }) });
       if (!detailsResponse.ok) {
-        await fetch("/api/share/" + result.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey }) }).catch(() => undefined);
+        await fetch("/api/share/" + result.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey }) }).catch(() => undefined);
         throw new Error("The video uploaded, but its review context could not be saved. The incomplete share was rolled back; your local original is safe.");
       }
-      const next = { ...clip, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey, expiresAt: result.expiresAt } };
+      const next = { ...clip, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt } };
       await saveClip(next); await refresh();
       const fullUrl = new URL(result.url, location.origin).toString();
       setShareLink(fullUrl);
-      setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey, recordingId: result.id, expiresAt: result.expiresAt }, null, 2));
+      setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey: resolvedOwnerKey, recordingId: result.id, expiresAt: result.expiresAt }, null, 2));
       await navigator.clipboard?.writeText(fullUrl).catch(() => undefined);
       setPublishId(null); setSharePassword("");
       setMessage("Your temporary link is ready. The link has been copied if clipboard access is available.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't publish this recording."); }
-    finally { setPublishing(false); }
+    finally { setPublishing(false); setUploadProgress(0); }
   }
 
   async function exportLibraryBackup() {
