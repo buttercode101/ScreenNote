@@ -81,6 +81,15 @@ test("screen capture can pause, resume, and save a private local recording", asy
   await expect(page.getByText("Recording saved privately on this device.")).toBeVisible({timeout:15000});
   await expect(page.locator(".clip-card")).toHaveCount(1);
   await expect(page.locator(".clip-card").first()).toContainText("Screen recording");
+  await page.getByRole("button", { name:/Play Screen recording/ }).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.waitForFunction(() => (document.querySelector(".preview-video") as HTMLVideoElement | null)?.readyState! >= 1);
+  await page.getByLabel("From (seconds)").fill("0.2");
+  await page.getByLabel("To (seconds)").fill("1.5");
+  await page.getByRole("button", { name:"Save trimmed copy", exact:true }).click();
+  await expect(page.getByText("Trimmed copy saved locally. Your original is unchanged.")).toBeVisible({timeout:15000});
+  await expect(page.locator(".clip-card")).toHaveCount(2);
+  await expect(page.locator(".clip-card").filter({hasText:"trimmed"})).toHaveCount(1);
 });
 
 test("appearance preference survives reload", async ({ page }) => {
