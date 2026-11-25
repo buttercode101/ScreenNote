@@ -8,6 +8,7 @@ import { clampTrimRange, trimVideoElement } from "./trim";
 import ShareViewer from "./ShareViewer";
 import PrivacyPage from "./PrivacyPage";
 import EditorWorkspace from "./EditorWorkspace";
+import PreviewWorkspace from "./PreviewWorkspace";
 import "./styles.css";
 
 const recorder = new ScreenRecorder();
@@ -46,6 +47,7 @@ function App() {
   const [dark, setDark] = useState(() => { try { return localStorage.getItem("screennote-theme") === "dark"; } catch { return false; } });
   const [query, setQuery] = useState("");
   const [previewClip, setPreviewClip] = useState<Clip | null>(null);
+  const [previewMode, setPreviewMode] = useState<"preview" | "edit">("preview");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const [trimStart, setTrimStart] = useState(0);
@@ -168,12 +170,18 @@ function App() {
   }
 
   async function openPreview(id: string) {
+    setPreviewMode("preview");
     const clip = await getClip(id);
     if (!clip) { setMessage("This recording is no longer available on this device."); return; }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewClip(clip);
     setTrimStart(0); setTrimEnd(clip.duration);
     setPreviewUrl(URL.createObjectURL(clip.blob));
+  }
+
+  async function openEditor(id: string) {
+    await openPreview(id);
+    setPreviewMode("edit");
   }
 
   async function saveTrimmedCopy() {
@@ -321,14 +329,14 @@ function App() {
 
         <section className="library-section" id="library">
           <div className="section-heading"><div><div className="eyebrow">YOUR LIBRARY</div><h2>Recent recordings <span className="count-badge">{clips.length}</span></h2></div><div className="library-tools"><label className="search-box"><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a recording" aria-label="Search recordings"/></label><button className="button secondary import-button" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import</button></div></div>
-          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions"><button className="button secondary clip-text-action" onClick={() => openPreview(clip.id)}><Play size={14}/> Preview</button><button className="button secondary clip-text-action" onClick={() => openPreview(clip.id)}><Scissors size={14}/> Edit</button>{clip.share && clip.share.expiresAt * 1000 > Date.now() && <button className="icon-button" onClick={() => stopSharing(clip.id)} aria-label={`Stop sharing ${clip.title}`} title="Stop sharing"><ShieldCheck size={16}/></button>}<button className="icon-button" onClick={() => shareClip(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
+          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions"><button className="button secondary clip-text-action" onClick={() => openPreview(clip.id)}><Play size={14}/> Preview</button><button className="button secondary clip-text-action" onClick={() => openEditor(clip.id)}><Scissors size={14}/> Edit</button>{clip.share && clip.share.expiresAt * 1000 > Date.now() && <button className="icon-button" onClick={() => stopSharing(clip.id)} aria-label={`Stop sharing ${clip.title}`} title="Stop sharing"><ShieldCheck size={16}/></button>}<button className="icon-button" onClick={() => shareClip(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
         </section>
 
         <section className="bottom-note"><div className="note-icon"><Sparkles size={18}/></div><div><strong>A little more clarity goes a long way.</strong><p>Record locally. Share temporarily. Keep the conversation tied to the exact moment—and let it end when you do.</p></div><span className="build-label"><Activity size={13}/> TEMPORARY BY DESIGN</span></section>
         <footer><span>© {new Date().getFullYear()} ScreenNote</span><span>Made for clear communication.</span><a href="/privacy">Privacy</a></footer>
       </div>
     </main>
-    {previewClip && previewUrl && <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />}
+    {previewClip && previewUrl && (previewMode === "edit" ? <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} /> : <PreviewWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onEdit={() => setPreviewMode("edit")} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />)}
     {publishId && <div className="modal-backdrop" role="presentation" onClick={() => !publishing && setPublishId(null)}><section className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
       <div className="publish-modal-head"><div><span className="eyebrow">SHARE A MOMENT</span><h2 id="publish-title">Make a temporary link</h2><p>Your original stays on this device. Only this shared copy is uploaded.</p></div><button className="icon-button" onClick={()=>setPublishId(null)} aria-label="Close share settings"><X size={18}/></button></div>
       <label className="field-label">Link expires after<select value={expiryDays} onChange={e=>setExpiryDays(Number(e.target.value))}><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option></select></label>
