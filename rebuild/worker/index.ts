@@ -265,7 +265,11 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       if (captions.length > 100 || chapters.length > 20 || annotations.length > 40) return fail("Video context exceeds the supported item limits.", 400);
       for (const cue of captions as any[]) if (!cue || !Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.start < 0 || cue.end <= cue.start || cue.end > share.duration_seconds + .05 || typeof cue.text !== "string" || cue.text.length > 500) return fail("Shared captions contain an invalid cue.", 400);
       for (const chapter of chapters as any[]) if (!chapter || !Number.isFinite(chapter.time) || chapter.time < 0 || chapter.time >= share.duration_seconds || typeof chapter.title !== "string" || !chapter.title.trim() || chapter.title.length > 80) return fail("Shared chapters contain an invalid entry.", 400);
-      for (const mark of annotations as any[]) if (!mark || !["rectangle","arrow","highlight","blur","redact"].includes(mark.kind) || ![mark.x,mark.y,mark.w,mark.h].every(Number.isFinite) || mark.x < 0 || mark.y < 0 || mark.w < 0 || mark.h < 0 || mark.x + mark.w > 1 || mark.y + mark.h > 1) return fail("Shared annotations contain an invalid mark.", 400);
+      for (const mark of annotations as any[]) {
+        if (!mark || !["rectangle","arrow","highlight","blur","redact"].includes(mark.kind) || ![mark.x,mark.y,mark.w,mark.h].every(Number.isFinite) || mark.x < 0 || mark.y < 0 || mark.w < 0 || mark.h < 0 || mark.x + mark.w > 1 || mark.y + mark.h > 1) return fail("Shared annotations contain an invalid mark.", 400);
+        const hasTime = mark.time !== undefined, hasDuration = mark.duration !== undefined;
+        if (hasTime !== hasDuration || (hasTime && (!Number.isFinite(mark.time) || !Number.isFinite(mark.duration) || mark.time < 0 || mark.time > share.duration_seconds || mark.duration < 0.1 || mark.duration > 30 || mark.time + mark.duration > share.duration_seconds + 0.1))) return fail("A timed annotation has an invalid time range.", 400);
+      }
       await env.DB.prepare("INSERT OR REPLACE INTO share_details (share_id, payload, updated_at) VALUES (?, ?, ?)").bind(share.id, payload, Math.floor(Date.now() / 1000)).run();
       return json({ saved: true });
     }

@@ -205,6 +205,7 @@ test("temporary share viewer and privacy route use the independent responsive de
   await page.addInitScript(({token,ownerKey})=>localStorage.setItem("screennote-recovery-"+token,ownerKey),{token,ownerKey});
   let currentDetails:any={
     captions:[{start:1,end:2,text:"The first step"}],
+    annotations:[{kind:"rectangle",x:.1,y:.1,w:.2,h:.2,time:10,duration:4},{kind:"redact",x:.3,y:.3,w:.2,h:.2}],
     chapters:[{time:1,title:"Introduction"}],
     report:{steps:"Open the menu",expected:"Menu opens",actual:"Menu remains closed",url:"",environment:""},
     reviewBrief:{purpose:"Review the checkout flow",focus:"Inspect the payment confirmation",expectedOutcome:"A receipt is shown",requestedAction:"approve"},
@@ -238,6 +239,7 @@ test("temporary share viewer and privacy route use the independent responsive de
   const packetDownload=await packetDownloadPromise;
   expect(packetDownload.suggestedFilename()).toBe("screennote-review-packet.md");
   await expect(page.locator(".share-video-wrap")).toBeVisible();
+  await expect(page.locator(".shared-annotation-overlay .shared-mark")).toHaveCount(1); // Only the untimed legacy mark is active at 0s.
   await expect(page.locator(".share-discussion")).toBeVisible();
   await expect(page.getByRole("button",{name:/Introduction/i})).toBeVisible();
   await expect(page.getByText(/SEARCH THE TRANSCRIPT/i)).toBeVisible();
