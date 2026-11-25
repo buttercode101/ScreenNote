@@ -587,6 +587,13 @@ export default {
       await env.DB.prepare("DELETE FROM share_password_attempts WHERE window_started <= ?").bind(now - 3600).run();
       // R2 objects can outlive their D1 row if a request or prior cleanup was interrupted.
       // Keep a one-hour grace window, then purge only unreferenced shared-media objects.
+      const referencedPartRows = await env.DB.prepare("SELECT object_key FROM recording_upload_parts").bind().all<{object_key:string}>();
+      const referencedPartKeys = new Set(referencedPartRows.results.map(row=>row.object_key));
+      const partObjects = await env.MEDIA.list({ prefix:"recording-parts/", limit:1000 });
+      for (const object of partObjects.objects) {
+        if (object.uploaded.getTime() > (now - 3600) * 1000 || referencedPartKeys.has(object.key)) continue;
+        await env.MEDIA.delete(object.key);
+      }
       const referencedRows = await env.DB.prepare("SELECT object_key FROM recordings").bind().all<{ object_key:string }>();
       const referencedKeys = new Set(referencedRows.results.map(row => row.object_key));
       const mediaObjects = await env.MEDIA.list({ prefix:"shared/", limit:1000 });
