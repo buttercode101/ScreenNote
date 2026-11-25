@@ -131,6 +131,7 @@ test("appearance, local library and portable backup persist across a fresh brows
   const restoreOpen=await freshPage.locator("#modal").evaluate((el:any)=>el.open);
   if(!restoreOpen)throw new Error("Library backup restore failed: "+await freshPage.locator("#error").innerText()+" "+await freshPage.locator("#notice").innerText());
   await expect(freshPage.locator("#modal")).toContainText("Restore your ScreenNote library");
+  for(const width of [320,375,768]){await freshPage.setViewportSize({width,height:900});await contained(freshPage,width);}
   await freshPage.getByRole("button",{name:"Restore backup"}).click();
   await expect(freshPage.locator(".clip-card")).toHaveCount(1);
   await freshPage.reload();
