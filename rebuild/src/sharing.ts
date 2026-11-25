@@ -1,7 +1,7 @@
 // @ts-expect-error Shared browser-safe retry helper has no declaration file.
 import { retryTransfer } from "../legacy/lib/transfer.js";
 export type PublishResult = { id: string; token: string; url: string; expiresAt: number; passwordProtected: boolean; ownerKey: string };
-type PendingUpload = { id: string; size: number; mimeType: string; ownerKey: string; createdAt: number };
+type PendingUpload = { id: string; title: string; size: number; mimeType: string; ownerKey: string; createdAt: number };
 async function readJson<T>(response: Response): Promise<T & {error?:string}> {
   return await response.json().catch(() => ({})) as T & {error?:string};
 }
@@ -28,7 +28,7 @@ export async function publishRecording(
   await ensureGuestSession();
   const type=clip.mimeType.split(";")[0],storageKey="screennote-pending-upload-"+(clip.id||"unknown");
   let pending=loadPending(storageKey);
-  if(pending&&(pending.size!==clip.size||pending.mimeType!==type)){savePending(storageKey,null);pending=null;}
+  if(pending&&(pending.size!==clip.size||pending.mimeType!==type||pending.title!==clip.title)){savePending(storageKey,null);pending=null;}
   let state:{status:string;parts:{part:number;size:number}[];chunkBytes:number}|null=null;
   if(pending){
     const response=await fetch("/api/recordings/"+pending.id+"/upload-state",{credentials:"same-origin"});
@@ -40,7 +40,7 @@ export async function publishRecording(
     const create=await fetch("/api/recordings",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({title:clip.title,mimeType:type,size:clip.size,duration:clip.duration})});
     const reservation=await readJson<{id?:string;chunkBytes?:number}>(create);
     if(!create.ok||!reservation.id)throw new Error(reservation.error||"Couldn't prepare this video for sharing.");
-    pending={id:reservation.id,size:clip.size,mimeType:type,ownerKey,createdAt:Date.now()};
+    pending={id:reservation.id,title:clip.title,size:clip.size,mimeType:type,ownerKey,createdAt:Date.now()};
     savePending(storageKey,pending);
     const status=await fetch("/api/recordings/"+pending.id+"/upload-state",{credentials:"same-origin"});
     if(!status.ok){const data=await readJson(status);throw new Error(data.error||"Couldn't start the resumable upload.");}
