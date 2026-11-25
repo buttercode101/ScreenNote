@@ -95,6 +95,17 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:"Close editor"}).click();
 });
 
+test("recording setup exposes quality, microphone and camera placement controls",async({page})=>{
+  await page.goto("/");
+  await page.locator("summary").filter({hasText:/Recording quality, microphone and camera settings/i}).click();
+  await expect(page.getByLabel("Recording quality")).toBeVisible();
+  await page.getByLabel("Recording quality").selectOption("clear");
+  await expect(page.getByLabel("Recording quality")).toHaveValue("clear");
+  await page.getByLabel("Microphone source").toBeVisible();
+  await page.getByLabel("Camera bubble size").toBeVisible();
+  await page.getByLabel("Camera bubble position").selectOption("top-left");
+  await expect(page.getByLabel("Camera bubble position")).toHaveValue("top-left");
+});
 test("preferences export and restore a portable local library backup",async({page})=>{
   await page.goto("/");
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
