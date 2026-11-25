@@ -392,6 +392,7 @@ function App() {
         if (!stopped.ok) throw new Error("The shared copy could not be removed. Your local recording and recovery key have been kept.");
       }
       await deleteClip(id);
+      try { localStorage.removeItem("screennote-pending-upload-"+id); } catch { /* storage may be restricted */ }
       await refresh();
       setMessage("Recording deleted from this device.");
     } catch (error) {
