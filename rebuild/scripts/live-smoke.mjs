@@ -152,6 +152,82 @@ console.log("Live ScreenNote acceptance passed: assets, guest session, real D1/R
   throw error;
 }
 
+// Full 0.5.0 API parity smoke against the deployed Cloudflare D1/R2 implementation.
+const nativeHealth = await json(await request("/api/clip?op=health"));
+assert.equal(nativeHealth.configured,true);
+assert.equal(nativeHealth.maxBytes,50_000_000);
+assert.equal(nativeHealth.maxSeconds,600);
+const sampleResponse = await request("/sample.webm");
+assert.equal(sampleResponse.status,200,"original sample video is served by Cloudflare assets");
+const sampleBytes = new Uint8Array(await sampleResponse.arrayBuffer());
+assert.ok(sampleBytes.length>4 && sampleBytes.length<=50_000_000);
+const nativeId = crypto.randomUUID();
+const nativeOwner = crypto.randomBytes(32).toString("hex");
+const nativePassword = "cloudflare-native-live-check";
+let nativeReserved = false;
+const nativeHeaders = {origin,"content-type":"application/json"};
+const nativeApi = (op,body={},id=nativeId)=>request("/api/clip?op="+op+(id?"&id="+encodeURIComponent(id):""),{method:"POST",headers:nativeHeaders,body:JSON.stringify(body)});
+try {
+  const reservation = await json(await nativeApi("reserve",{
+    id:nativeId,owner:nativeOwner,title:"Native Cloudflare parity smoke",type:"video/webm",duration:15,size:sampleBytes.length,
+    start:0,end:15,linkDays:1,password:nativePassword,reviewStatus:"needs-feedback",width:1280,height:720,
+    captions:[{start:0,end:1,text:"A live caption"}],chapters:[{time:1,title:"Live chapter"}],
+    report:{url:"https://example.com/live-smoke",steps:"Open the sample",expected:"Video loads",actual:"Video loads",environment:"GitHub Actions"}
+  }));
+  nativeReserved=true;
+  assert.equal(reservation.id,nativeId);
+  const partBytes=2*1024*1024;
+  for(let part=0,offset=0;offset<sampleBytes.length;part++,offset+=partBytes){
+    const chunk=sampleBytes.subarray(offset,Math.min(sampleBytes.length,offset+partBytes));
+    const result=await json(await nativeApi("upload-chunk",{id:nativeId,owner:nativeOwner,part,data:Buffer.from(chunk).toString("base64")}));
+    assert.equal(result.uploaded,true);
+  }
+  const state=await json(await nativeApi("upload-state",{id:nativeId,owner:nativeOwner}));
+  assert.deepEqual(state.parts,Array.from({length:Math.ceil(sampleBytes.length/partBytes)},(_,i)=>i));
+  const published=await json(await nativeApi("publish",{id:nativeId,owner:nativeOwner,width:1280,height:720}));
+  assert.equal(published.passwordProtected,true);
+  assert.equal(published.title,"Native Cloudflare parity smoke");
+  const noPassword=await request("/api/clip?op=view&id="+nativeId);
+  assert.equal(noPassword.status,401,"native share password gate is enforced");
+  const wrong=await nativeApi("view",{id:nativeId,accessPassword:"wrong-password"});
+  assert.equal(wrong.status,401,"wrong native share password is rejected");
+  const view=await json(await nativeApi("view",{id:nativeId,accessPassword:nativePassword}));
+  assert.equal(view.passwordProtected,true);
+  assert.equal(view.captions[0].text,"A live caption");
+  assert.equal(view.chapters[0].title,"Live chapter");
+  assert.equal(view.report.steps,"Open the sample");
+  const range=await fetch(view.mediaUrl,{headers:{range:"bytes=0-63"}});
+  assert.equal(range.status,206,"native R2 media supports byte ranges");
+  assert.equal(range.headers.get("content-range"),"bytes 0-63/"+sampleBytes.length);
+  assert.equal((await range.arrayBuffer()).byteLength,64);
+  const viewer=crypto.randomUUID(),authorKey=crypto.randomBytes(24).toString("hex"),eventId=crypto.randomUUID();
+  const posted=await json(await nativeApi("comment",{id:nativeId,owner:nativeOwner,viewer,eventId,authorKey,name:"Live QA",text:"Native comment",time:2}));
+  const root=posted.comments.find(x=>x.id===eventId);assert.ok(root);
+  const replyId=crypto.randomUUID();
+  const replied=await json(await nativeApi("comment",{id:nativeId,viewer:crypto.randomUUID(),eventId:replyId,authorKey:crypto.randomBytes(24).toString("hex"),name:"Guest",text:"Nested reply",time:2,parentId:eventId}));
+  assert.equal(replied.comments.find(x=>x.id===replyId).parentId,eventId);
+  await json(await nativeApi("edit-comment",{id:nativeId,viewer,authorKey,commentId:eventId,expectedVersion:root.createdAt,text:"Edited native comment"}));
+  await json(await nativeApi("resolve-thread",{id:nativeId,viewer,owner:nativeOwner,commentId:eventId,resolved:true}));
+  await json(await nativeApi("reaction",{id:nativeId,viewer:crypto.randomUUID(),reaction:"thanks",accessPassword:nativePassword}));
+  const title=await json(await nativeApi("title",{id:nativeId,owner:nativeOwner,title:"Native parity verified"}));assert.equal(title.title,"Native parity verified");
+  const status=await json(await nativeApi("review-status",{id:nativeId,owner:nativeOwner,reviewStatus:"approved"}));assert.equal(status.reviewStatus,"approved");
+  const manage=await json(await nativeApi("manage",{id:nativeId,owner:nativeOwner}));assert.equal(manage.status,"published");
+  const restored=await json(await nativeApi("restore-media",{id:nativeId,owner:nativeOwner}));assert.match(restored.mediaUrl,/op=media/);
+  for(let attempt=0;attempt<5;attempt++)assert.equal((await nativeApi("view",{id:nativeId,accessPassword:"wrong-password-again"})).status,401);
+  assert.equal((await nativeApi("view",{id:nativeId,accessPassword:nativePassword})).status,429,"five failed attempts lock the native password gate");
+  await json(await nativeApi("delete-comment",{id:nativeId,viewer,authorKey,commentId:eventId}));
+  await json(await nativeApi("revoke",{id:nativeId,owner:nativeOwner}));
+  assert.equal((await request("/api/clip?op=view&id="+nativeId)).status,404,"revoked native share is unavailable");
+  await json(await nativeApi("delete",{id:nativeId,owner:nativeOwner}));
+  nativeReserved=false;
+  const capacity=await json(await request("/api/clip?op=health"));
+  assert.ok(capacity.reservedBytes<=nativeHealth.reservedBytes+sampleBytes.length*2);
+  console.log("Native Cloudflare acceptance passed: D1 reservation, chunk resume state, R2 publish/range, password lockout, captions/chapters/report, nested comments/edit/resolve/delete, reaction, owner metadata, revoke and cleanup.");
+} catch(error) {
+  if(nativeReserved)await nativeApi("delete",{id:nativeId,owner:nativeOwner}).catch(()=>undefined);
+  throw error;
+}
+
 async function jsonText(response) {
   assert.equal(response.status, 200, "homepage responds");
   return await response.text();
