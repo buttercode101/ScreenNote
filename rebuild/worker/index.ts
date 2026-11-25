@@ -468,11 +468,18 @@ export default {
       const legacyClipRows = await env.DB.prepare("SELECT object_key FROM legacy_clip_records").bind().all<{object_key:string}>();
       const legacyPartRows = await env.DB.prepare("SELECT object_key FROM legacy_clip_parts").bind().all<{object_key:string}>();
       const legacyReferenced = new Set([...legacyClipRows.results,...legacyPartRows.results].map(x=>x.object_key));
-      const legacyObjects = await env.MEDIA.list({prefix:"legacy/clips/",limit:1000});
-      for (const object of legacyObjects.objects) {
-        if (object.uploaded.getTime()>(nowMs-3600000) || legacyReferenced.has(object.key)) continue;
-        await env.MEDIA.delete(object.key);
+      const cleanupState = await env.DB.prepare("SELECT cursor FROM legacy_cleanup_state WHERE id=1").first<{cursor:string|null}>();
+      let cleanupCursor = cleanupState?.cursor || undefined;
+      for (let page=0;page<10;page++) {
+        const listing = await env.MEDIA.list({prefix:"legacy/clips/",limit:1000,...(cleanupCursor?{cursor:cleanupCursor}:{})});
+        for (const object of listing.objects) {
+          if (object.uploaded.getTime()>(nowMs-3600000) || legacyReferenced.has(object.key)) continue;
+          await env.MEDIA.delete(object.key);
+        }
+        cleanupCursor = listing.truncated ? listing.cursor : undefined;
+        if (!cleanupCursor) break;
       }
+      await env.DB.prepare("UPDATE legacy_cleanup_state SET cursor=? WHERE id=1").bind(cleanupCursor || null).run();
       await env.DB.prepare("DELETE FROM guest_sessions WHERE expires_at <= ?").bind(now).run();
       await env.DB.prepare("DELETE FROM share_access_sessions WHERE expires_at <= ?").bind(now).run();
     })());

@@ -36,3 +36,6 @@ CREATE INDEX IF NOT EXISTS share_password_attempts_window
 
 
 -- Native 0.5.0 API tables are defined in migrations/0005_legacy_clip_api.sql.
+
+
+-- Persistent R2 orphan scan cursor is defined in migrations/0006_legacy_cleanup_cursor.sql.
