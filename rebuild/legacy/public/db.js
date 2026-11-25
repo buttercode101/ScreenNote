@@ -8,3 +8,5 @@ export const finish=(clip,draftId)=>transact(['clips','drafts'],t=>{t.objectStor
 export const remove=id=>transact(['clips'],t=>t.objectStore('clips').delete(id));
 
 export function get(id){return new Promise((resolve,reject)=>{const r=db.transaction('clips').objectStore('clips').get(id);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+
+export const putMany=clips=>transact(['clips'],t=>{const store=t.objectStore('clips');for(const clip of clips)store.put(clip)});

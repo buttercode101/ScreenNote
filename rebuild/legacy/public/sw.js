@@ -1,4 +1,4 @@
-const CACHE_NAME = "screennote-shell-v2";
+const CACHE_NAME = "screennote-shell-v3";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/app.js", "/style.css", "/privacy.html"];
 
 self.addEventListener("install", (event) => {
