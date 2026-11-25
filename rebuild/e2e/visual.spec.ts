@@ -134,7 +134,15 @@ test("temporary share viewer and privacy route use the independent responsive de
   const token="a".repeat(40);
   await page.route(`**/api/share/${token}`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({title:"A product walkthrough",mimeType:"video/webm",size:2048,duration:38,expiresAt:Math.floor(Date.now()/1000)+86400,passwordRequired:false})}));
   await page.route(`**/api/share/${token}/comments`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[]})}));
-  await page.route(`**/api/share/${token}/details`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({details:{captions:[{start:1,end:2,text:"The first step"}],chapters:[{time:1,title:"Introduction"}],report:{steps:"Open the menu",expected:"Menu opens",actual:"Menu remains closed",url:"",environment:""},reviewStatus:"approved"}}})}));
+  await page.route("**/api/share/"+token+"/details",route=>route.fulfill({
+    status:200,contentType:"application/json",
+    body:JSON.stringify({details:{
+      captions:[{start:1,end:2,text:"The first step"}],
+      chapters:[{time:1,title:"Introduction"}],
+      report:{steps:"Open the menu",expected:"Menu opens",actual:"Menu remains closed",url:"",environment:""},
+      reviewStatus:"approved"
+    }})
+  }));
   await page.goto("/s/"+token);
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
   await expect(page.getByText("Approved",{exact:true})).toBeVisible();
