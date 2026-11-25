@@ -3,7 +3,7 @@ const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 const token = process.env.CLOUDFLARE_API_TOKEN;
 const databaseId = "44a5859b-6411-4513-bd17-3302fbbc0575";
 if (!accountId || !token) throw new Error("Cloudflare account and API token are required to apply D1 migrations.");
-for (const migrationFile of ["0004_password_attempt_limits.sql", "0005_legacy_clip_api.sql", "0006_legacy_cleanup_cursor.sql", "0007_legacy_clip_tombstones.sql", "0008_share_details.sql", "0009_resumable_recording_uploads.sql"]) {
+for (const migrationFile of ["0004_password_attempt_limits.sql", "0005_legacy_clip_api.sql", "0006_legacy_cleanup_cursor.sql", "0007_legacy_clip_tombstones.sql", "0008_share_details.sql", "0009_resumable_recording_uploads.sql", "0010_share_reactions.sql"]) {
   const migration = await readFile(new URL("../worker/migrations/" + migrationFile, import.meta.url), "utf8");
   const statements = migration.split(";").map(statement => statement.trim()).filter(Boolean);
   for (const sql of statements) {
