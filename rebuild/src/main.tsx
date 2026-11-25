@@ -155,7 +155,7 @@ function App() {
     else await saveClip(clip);
     activeSessionId.current = null;
     await refresh();
-    setMessage("Recording saved privately on this device.");
+    setMessage(result.recoveryWarning ? "Recording saved privately, but interruption-recovery chunks could not all be stored. Download a backup before leaving this page." : "Recording saved privately on this device.");
   }
 
   useEffect(() => {
