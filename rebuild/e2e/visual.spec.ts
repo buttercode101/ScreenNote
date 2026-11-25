@@ -22,6 +22,8 @@ test("light and dark layouts remain contained from 320px through desktop", async
   for (const viewport of viewports) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/");
+    await page.evaluate(() => localStorage.setItem("screennote-theme", "light"));
+    await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expectContained(page, viewport.width);
     if (viewport.width <= 480) {
