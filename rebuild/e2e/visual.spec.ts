@@ -74,11 +74,11 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
   const srtDownloadPromise=page.waitForEvent("download");
   await page.getByRole("button",{name:/Export SRT/i}).click();
-  expect((await srtDownloadPromise).suggestedFilename()).toMatch(/\\.srt$/);
+  expect((await srtDownloadPromise).suggestedFilename()).toMatch(/\.srt$/);
   await page.locator(".context-editor textarea").nth(1).fill("0:00 Introduction");
   const chapterDownloadPromise=page.waitForEvent("download");
   await page.getByRole("button",{name:/Export chapters JSON/i}).click();
-  expect((await chapterDownloadPromise).suggestedFilename()).toMatch(/chapters\\.json$/);
+  expect((await chapterDownloadPromise).suggestedFilename()).toMatch(/chapters\.json$/);
   await page.getByRole("button",{name:/Edit & annotate/i}).click();
   await page.getByRole("button",{name:"Blur"}).click();
   const canvas=page.locator(".annotation-overlay");
