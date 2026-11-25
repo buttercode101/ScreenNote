@@ -97,7 +97,7 @@ test("screen capture can pause, resume and save a private local recording",async
   await expect(page.locator("#recording-title-input")).toBeVisible();
 });
 
-test("appearance preference persists after reload and local library survives",async({page})=>{
+test("appearance, local library and portable backup persist across a fresh browser",async({page,browser})=>{
   await page.goto("/");
   await page.getByRole("button",{name:"Toggle light or dark mode"}).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
@@ -112,6 +112,19 @@ test("appearance preference persists after reload and local library survives",as
   await expect(page.locator(".clip-card")).toHaveCount(1);
   await page.reload();
   await expect(page.locator(".clip-card")).toHaveCount(1);
+  const downloadPromise=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Back up library"}).click();
+  const backup=await downloadPromise;expect(backup.suggestedFilename()).toMatch(/\.snbackup$/);
+  const backupPath=await backup.path();expect(backupPath).toBeTruthy();
+  const freshContext=await browser.newContext(),freshPage=await freshContext.newPage();
+  await freshPage.goto("/");
+  await freshPage.locator("#restore-library-backup").setInputFiles(backupPath!);
+  await expect(freshPage.getByRole("dialog",{name:"Restore your ScreenNote library"})).toBeVisible();
+  await freshPage.getByRole("button",{name:"Restore backup"}).click();
+  await expect(freshPage.locator(".clip-card")).toHaveCount(1);
+  await freshPage.reload();
+  await expect(freshPage.locator(".clip-card")).toHaveCount(1);
+  await freshContext.close();
 });
 
 test("installable app shell keeps the local library usable offline",async({page,context})=>{
