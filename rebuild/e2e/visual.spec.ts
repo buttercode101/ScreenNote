@@ -63,6 +63,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:/Preview/i}).click();
   await expect(page.locator(".preview-workspace")).toBeVisible();
   await expect(page.locator(".preview-workspace video")).toBeVisible();
+  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});const dims=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));expect(dims.body).toBeLessThanOrEqual(width+1);expect(dims.doc).toBeLessThanOrEqual(width+1);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});}
   await page.getByRole("button",{name:/Open editor/i}).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
   await expect(page.locator(".editor-video-wrap video")).toBeVisible();
