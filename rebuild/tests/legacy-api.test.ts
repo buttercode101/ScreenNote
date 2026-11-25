@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { Input, BufferSource, WEBM } from "mediabunny";
+import { inspectNativeMedia } from "../worker/validate-media";
 import { describe, expect, it } from "vitest";
 import { applyComment, passwordRecord, checkPassword } from "../worker/legacy-api";
 
@@ -8,6 +11,17 @@ async function clip(){
  return {id:uuid(),ownerHash:await digest(owner),status:"published",expiresAt:Date.now()+86400000,start:0,end:30,duration:30,title:"Unit clip",comments:[] as any[],votes:{} as Record<string,string>,discussionRevision:0};
 }
 describe("Cloudflare 0.5.0 API parity helpers",()=>{
+ it("validates the real bundled WebM container and track metadata",async()=>{
+  const bytes=new Uint8Array(await readFile(new URL("../legacy/public/sample.webm",import.meta.url)));
+  const input=new Input({source:new BufferSource(bytes),formats:[WEBM]});
+  const duration=await input.getDurationFromMetadata(),video=await input.getPrimaryVideoTrack();
+  expect(duration).not.toBeNull();expect(video).not.toBeNull();
+  const expected={type:"video/webm",size:bytes.length,duration:duration!};
+  input.dispose();
+  const result=await inspectNativeMedia(bytes,expected);
+  expect(result.width).toBeGreaterThan(0);expect(result.height).toBeGreaterThan(0);
+  await expect(inspectNativeMedia(new Uint8Array([1,2,3]),{type:"video/webm",size:3,duration:1})).rejects.toThrow(/valid video/);
+ });
  it("hashes passwords with PBKDF2 and rejects incorrect values",async()=>{
   const record=await passwordRecord("strong-screen-note-password");
   expect(record.passwordAlgorithm).toBe("pbkdf2-sha256");
