@@ -16,7 +16,9 @@ function inspectStoredZip(bytes){
   if(flags&1||method!==0||compressed!==size||size===0xffffffff||compressed===0xffffffff)throw Error("Only uncompressed, private ScreenNote backup archives are supported.");
   const name=strFromU8(bytes.subarray(cursor+46,cursor+46+nameLen));
   if(name.startsWith("/")||name.includes("..")||name.includes("\\")||!(name==="manifest.json"||/^videos\/[0-9a-f-]{36}\.(mp4|webm)$/.test(name))||names.has(name))throw Error("The backup contains an unexpected or duplicate file.");
-  names.add(name);total+=size;if(total>MAX_VIDEO_TOTAL+10*1024*1024)throw Error("The backup expands beyond the supported size.");
+  if(name==="manifest.json"&&size>20*1024*1024)throw Error("The backup manifest is too large.");
+  if(name.startsWith("videos/")&&size>MAX_CLIP_BYTES)throw Error("A video in the backup exceeds 50 MB.");
+  names.add(name);total+=size;if(total>MAX_VIDEO_TOTAL+20*1024*1024)throw Error("The backup expands beyond the supported size.");
   cursor+=46+nameLen+extraLen+commentLen;
  }
  if(!names.has("manifest.json"))throw Error("The backup manifest is missing.");
@@ -27,7 +29,7 @@ export async function makeLibraryBackup(clips,onProgress=()=>{}){
  if(clips.length>MAX_CLIPS)throw Error("Back up no more than 500 recordings at once.");
  const total=clips.reduce((sum,c)=>sum+(c.blob?.size||0),0);if(total>MAX_VIDEO_TOTAL)throw Error("This library is larger than the 250 MB backup limit. Export large videos individually, then back up the remaining library.");
  let copied=0;
- const entries=clips.map(c=>{const {blob,...metadata}=c;const type=blob?.type||c.type||"";const ext=blob?(type.split(";")[0]==="video/mp4"?"mp4":type.split(";")[0]==="video/webm"?"webm":null):null;if(blob&&(!ext||blob.size>MAX_CLIP_BYTES))throw Error("A local video has an unsupported type or exceeds 50 MB.");const videoPath=blob?`videos/${c.id}.${ext}`:null;return{metadata,videoPath,videoSize:blob?.size||0,videoType:type}});
+ const entries=clips.map(c=>{if(!validId(c.id))throw Error("A local recording has an invalid identity.");if(c.owner&&!/^[a-f0-9]{64}$/.test(c.owner))throw Error("A local recovery key is invalid.");const {blob,...metadata}=c;const type=blob?.type||c.type||"";const ext=blob?(type.split(";")[0]==="video/mp4"?"mp4":type.split(";")[0]==="video/webm"?"webm":null):null;if(blob&&(!ext||blob.size>MAX_CLIP_BYTES))throw Error("A local video has an unsupported type or exceeds 50 MB.");const videoPath=blob?`videos/${c.id}.${ext}`:null;return{metadata,videoPath,videoSize:blob?.size||0,videoType:type}});
  const manifest={format:"screennote-library-backup",version:1,origin:globalThis.location?.origin||"local",createdAt:new Date().toISOString(),clipCount:entries.length,totalVideoBytes:total,clips:entries};
  const output=[];let resolveDone,rejectDone;const done=new Promise((resolve,reject)=>{resolveDone=resolve;rejectDone=reject});
  const zip=new Zip((error,chunk,final)=>{if(error){rejectDone(error);return}if(chunk?.length)output.push(chunk);if(final)resolveDone()});
@@ -45,12 +47,13 @@ export async function readLibraryBackup(file,existingIds=new Set()){
  if(!file||file.size>MAX_ARCHIVE)throw Error("Choose a ScreenNote backup smaller than 260 MB.");
  const bytes=new Uint8Array(await file.arrayBuffer()),envelope=inspectStoredZip(bytes),files=unzipSync(bytes);
  let manifest;try{manifest=JSON.parse(strFromU8(files["manifest.json"]))}catch{throw Error("The backup manifest could not be read.");}
- if(!manifest||manifest.format!=="screennote-library-backup"||manifest.version!==1||!Array.isArray(manifest.clips)||manifest.clips.length>MAX_CLIPS)throw Error("This is not a supported ScreenNote library backup.");
+ if(!manifest||manifest.format!=="screennote-library-backup"||manifest.version!==1||!Array.isArray(manifest.clips)||manifest.clips.length>MAX_CLIPS||manifest.clipCount!==manifest.clips.length)throw Error("This is not a supported ScreenNote library backup.");
  const records=[],ids=new Set();let totalVideoBytes=0,duplicates=0;
  for(const entry of manifest.clips){
   if(!entry||typeof entry!=="object"||!entry.metadata||!validId(entry.metadata.id)||ids.has(entry.metadata.id))throw Error("The backup contains an invalid or duplicate recording.");
   const metadata={...entry.metadata};ids.add(metadata.id);const videoPath=entry.videoPath,videoSize=Number(entry.videoSize)||0,videoType=entry.videoType;delete metadata.blob;
   if(metadata.owner!==undefined&&metadata.owner!==null&&!/^[a-f0-9]{64}$/.test(metadata.owner))throw Error("A recovery key in this backup is invalid.");
+  if((metadata.shared||metadata.revoked||metadata.uploadAttempted)&&!metadata.owner)throw Error("A shared recording is missing its management key.");
   if(videoPath){
    const ext=String(videoType||"").split(";")[0]==="video/mp4"?"mp4":String(videoType||"").split(";")[0]==="video/webm"?"webm":null;
    if(!ext||videoPath!==`videos/${metadata.id}.${ext}`||videoSize<=0||videoSize>MAX_CLIP_BYTES)throw Error("A backup video entry is invalid.");
@@ -60,7 +63,7 @@ export async function readLibraryBackup(file,existingIds=new Set()){
   if(!Number.isFinite(metadata.duration)||metadata.duration<=0||metadata.duration>1800||!Number.isFinite(metadata.createdAt))throw Error("A recording's metadata is invalid.");
   if(existingIds.has(metadata.id)){duplicates++;continue}records.push(metadata);
  }
- if(totalVideoBytes>MAX_VIDEO_TOTAL)throw Error("The backup contains more than 250 MB of video.");
+ if(totalVideoBytes>MAX_VIDEO_TOTAL||Number(manifest.totalVideoBytes)!==totalVideoBytes)throw Error("The backup video total does not match its manifest.");
  for(const name of envelope.names)if(name!=="manifest.json"&&!manifest.clips.some(e=>e.videoPath===name))throw Error("The backup contains an unlisted file.");
  return{clips:records,duplicates,totalVideoBytes,sourceOrigin:typeof manifest.origin==="string"?manifest.origin.slice(0,2048):"",clipCount:manifest.clips.length};
 }
