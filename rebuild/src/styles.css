@@ -46,3 +46,30 @@ button:disabled{cursor:not-allowed}
   .capture-copy p{font-size:12px;line-height:1.5}
   .capture-actions{gap:9px}
 }
+
+/* Readability pass: maintain hierarchy without tiny interface copy */
+@media(min-width:1024px){
+  .workspace-label{font-size:11px}
+  .local-pill{font-size:10px}
+  .privacy-card strong{font-size:12px}
+  .privacy-card p{font-size:11px}
+  .profile-row strong{font-size:12px}
+  .profile-row span{font-size:11px}
+  .nav-item{font-size:14px}
+  .nav-count{font-size:12px}
+  .capture-copy p{font-size:13px;line-height:1.55}
+  .toggle-option{font-size:12px}
+  .intro{font-size:14px;line-height:1.6}
+  .section-heading h2{font-size:21px}
+  .clip-info h3{font-size:14px}
+  .clip-info p{font-size:12px;line-height:1.5}
+  .empty-state p{font-size:14px;line-height:1.6}
+  .bottom-note p{font-size:13px;line-height:1.55}
+  footer{font-size:11px}
+}
+@media(max-width:480px){
+  .intro{font-size:13px;line-height:1.55}
+  .capture-copy p{font-size:13px;line-height:1.5}
+  .toggle-option{font-size:13px}
+  .empty-state p{font-size:13px;line-height:1.55}
+}
