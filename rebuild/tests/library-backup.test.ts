@@ -12,5 +12,5 @@ describe("portable local library backup",()=>{
   expect(restored.clips[0].blob.size).toBe(bytes.length);expect(new Uint8Array(await restored.clips[0].blob.arrayBuffer())).toEqual(bytes);
   const duplicate=await readLibraryBackup(backup,new Set([clip.id]));expect(duplicate.clips).toHaveLength(0);expect(duplicate.duplicates).toBe(1);
  });
- it("rejects malformed and compressed archives before import",async()=>{await expect(readLibraryBackup(new Blob(["not a zip"]))).rejects.toThrow(/backup smaller/);const compressed=zipSync({"manifest.json":strToU8("{}")},{level:6});await expect(readLibraryBackup(new Blob([compressed]))).rejects.toThrow(/uncompressed/)});
+ it("rejects malformed and compressed archives before import",async()=>{await expect(readLibraryBackup(new Blob(["not a zip"]))).rejects.toThrow(/backup smaller/);const compressed=zipSync({"manifest.json":strToU8("{}")},{level:6});await expect(readLibraryBackup(new Blob([compressed.buffer.slice(compressed.byteOffset,compressed.byteOffset+compressed.byteLength) as ArrayBuffer]))).rejects.toThrow(/uncompressed/)});
 });
