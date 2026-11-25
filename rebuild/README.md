@@ -23,13 +23,14 @@ ScreenNote is a short-form async collaboration tool. Record or import a video, r
 - Pause/resume, finish, local chunk persistence and interrupted-recording recovery.
 - MP4/WebM/MOV local import, metadata inspection, playback, local trimming to a new WebM copy and download.
 - IndexedDB local library; no cloud upload until explicit publication.
-- Guest sessions, D1 metadata, R2 private media upload and deletion.
+- Guest sessions, D1 metadata, R2 private media upload and deletion; failed publication cleans up its reservation/object.
 - Expiring share links, optional password gate and anonymous viewer.
 - Timestamped comments, nested replies, frame-point annotations, comment editing/deletion, creator resolve/reopen and in-player playback bubbles.
 - Structured recursive discussion export for coding-agent handoff, plus separate video download and private recovery-key export/import.
+- Local delete and republish preserve the recording/recovery key if remote share revocation fails.
 - Playback bubbles that surface active comment threads at their timestamps.
 - Portable private recovery-key export/import.
-- Worker health, observability and scheduled retention cleanup.
+- Worker health, observability and scheduled retention cleanup for expired shares, abandoned uploads and completed-but-unpublished uploads.
 
 ## Limits
 
