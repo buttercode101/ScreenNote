@@ -389,7 +389,7 @@ function App() {
       const clip = await getClip(id);
       if (clip?.share) {
         const stopped = await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
-        if (!stopped.ok) throw new Error("The shared copy could not be removed. Your local recording and recovery key have been kept.");
+        if (!stopped.ok && stopped.status !== 404) throw new Error("The shared copy could not be removed. Your local recording and recovery key have been kept.");
       }
       await deleteClip(id);
       try { localStorage.removeItem("screennote-pending-upload-"+id); } catch { /* storage may be restricted */ }
