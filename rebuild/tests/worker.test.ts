@@ -142,7 +142,7 @@ describe("ScreenNote temporary sharing API",()=>{
     const del=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}`,{method:"DELETE",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({ownerKey:key})}),state.env as any,{} as any);
     expect(del.status).toBe(200);expect(state.objects.size).toBe(0);
   });
-}  it("deletes completed uploads that were never published after the grace period",async()=>{
+  it("deletes completed uploads that were never published after the grace period",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie);
     expect(u.uploaded.status).toBe(200);
     const row=state.DB.recordings.get(u.id);
