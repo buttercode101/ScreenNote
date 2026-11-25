@@ -20,7 +20,7 @@ const viewports = [
 
 async function contained(page: import("@playwright/test").Page, width:number) {
   const m=await page.evaluate(()=>{
-    const selectors="button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.preview-modal,.publish-modal,[role=dialog]";
+    const selectors="button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.preview-modal,.publish-modal,.preview-workspace,.preview-workspace-content,.editor-workspace,.editor-topline,.editor-body,.editor-stage,.editor-toolbar,.editor-side,.editor-card,.annotation-list,.context-editor,.editor-tabs,.share-page,.share-topbar,.share-layout,.share-video-wrap,.share-discussion,.share-comment-form,.guest-review-panel,.review-decision-options,.review-response-list,[role=dialog]";
     const offenders=[...document.querySelectorAll<HTMLElement>(selectors)].filter(el=>{
       const style=getComputedStyle(el),r=el.getBoundingClientRect();
       return style.display!=="none"&&style.visibility!=="hidden"&&r.width>0&&(r.left < -1 || r.right > innerWidth+1);
@@ -66,10 +66,13 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:/Preview/i}).click();
   await expect(page.locator(".preview-workspace")).toBeVisible();
   await expect(page.locator(".preview-workspace video")).toBeVisible();
-  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});const dims=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));expect(dims.body).toBeLessThanOrEqual(width+1);expect(dims.doc).toBeLessThanOrEqual(width+1);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});}
+  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});}
   await page.getByRole("button",{name:/Open editor/i}).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
   await expect(page.locator(".editor-video-wrap video")).toBeVisible();
+  await page.locator(".editor-title-button").click();
+  await page.locator(".editor-title-wrap input").fill("A".repeat(100));
+  await page.keyboard.press("Enter");
   await page.getByRole("button",{name:/Captions & context/i}).click();
   await expect(page.getByText(/OWNER-SUPPLIED CAPTIONS/i)).toBeVisible();
   await page.locator(".context-editor textarea").first().fill("WEBVTT\n\n00:00:00.100 --> 00:00:00.500\nOpening frame");
@@ -105,7 +108,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(page.getByRole("status").filter({hasText:/Annotated copy saved/i})).toBeVisible({timeout:30000});
   await page.getByRole("button",{name:/Save all changes/i}).click();
   await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
-  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});const dims=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));expect(dims.body).toBeLessThanOrEqual(width+1);expect(dims.doc).toBeLessThanOrEqual(width+1);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
+  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
   await page.getByRole("button",{name:/Share a reviewed copy/i}).click();
   await expect(page.getByRole("heading",{name:"Make a temporary link"})).toBeVisible();
   const modalLayer=await page.locator(".modal-backdrop").evaluate(el=>Number(getComputedStyle(el).zIndex));
@@ -241,9 +244,7 @@ test("temporary share viewer and privacy route use the independent responsive de
   await expect(page.getByText(/Open the menu/i)).toBeVisible();
   for(const width of [320,375,768,1120,1440]){
     await page.setViewportSize({width,height:900});
-    const dimensions=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));
-    expect(dimensions.body).toBeLessThanOrEqual(width+1);
-    expect(dimensions.doc).toBeLessThanOrEqual(width+1);
+    await contained(page,width);
     if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/share-${width}.png`,fullPage:true});
   }
   await page.goto("/privacy");
