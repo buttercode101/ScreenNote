@@ -86,6 +86,7 @@ function App() {
   };
   useEffect(() => { refresh().catch(() => setMessage("Your browser's local storage is unavailable.")); }, []);
   useEffect(() => { setCaptureSupported(Boolean(navigator.mediaDevices?.getDisplayMedia)); }, []);
+  useEffect(() => { const key=(event:KeyboardEvent)=>{if(event.key==="Escape"){if(showSettings)setShowSettings(false);else if(publishId&&!publishing)setPublishId(null)}};window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key)},[showSettings,publishId,publishing]);
   useEffect(() => {
     const onlineNow = () => setOnline(true), offlineNow = () => setOnline(false);
     window.addEventListener("online", onlineNow); window.addEventListener("offline", offlineNow);
