@@ -75,6 +75,9 @@ function App() {
   const [sharePassword, setSharePassword] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [storageEstimate, setStorageEstimate] = useState<{usage:number;quota:number}|null>(null);
+  const [persistentStorage, setPersistentStorage] = useState<boolean|null>(null);
+  const [storageStatus, setStorageStatus] = useState("");
   const [shareLink, setShareLink] = useState("");
   const [recoveryData, setRecoveryData] = useState("");
   const recoveryFileRef = useRef<HTMLInputElement>(null);
@@ -88,7 +91,24 @@ function App() {
   };
   useEffect(() => { refresh().catch(() => setMessage("Your browser's local storage is unavailable.")); }, []);
   useEffect(() => { setCaptureSupported(Boolean(navigator.mediaDevices?.getDisplayMedia)); }, []);
+  async function refreshStorageInfo() {
+    try {
+      if (!navigator.storage?.estimate) { setStorageEstimate(null); setPersistentStorage(null); return; }
+      const estimate=await navigator.storage.estimate();
+      setStorageEstimate({usage:estimate.usage||0,quota:estimate.quota||0});
+      setPersistentStorage(navigator.storage.persisted?await navigator.storage.persisted():null);
+    } catch { setStorageStatus("Storage information is unavailable in this browser."); }
+  }
+  async function requestPersistentStorage() {
+    try {
+      if (!navigator.storage?.persist) { setStorageStatus("This browser does not offer persistent storage protection."); return; }
+      const granted=await navigator.storage.persist();setPersistentStorage(granted);
+      setStorageStatus(granted?"The browser granted persistent storage protection.":"The browser did not grant persistent storage protection. Back up important recordings regularly.");
+    } catch { setStorageStatus("Could not request persistent storage protection."); }
+  }
+
   useEffect(() => { const key=(event:KeyboardEvent)=>{if(event.key==="Escape"){if(showSettings)setShowSettings(false);else if(publishId&&!publishing)setPublishId(null)}};window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key)},[showSettings,publishId,publishing]);
+  useEffect(() => { if(showSettings) void refreshStorageInfo(); },[showSettings]);
   useEffect(() => {
     const onlineNow = () => setOnline(true), offlineNow = () => setOnline(false);
     window.addEventListener("online", onlineNow); window.addEventListener("offline", offlineNow);
@@ -454,6 +474,7 @@ function App() {
     {showSettings && <div className="modal-backdrop" role="presentation" onClick={() => setShowSettings(false)}><section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()}>
       <header><div><span className="eyebrow">YOUR SPACE</span><h2 id="settings-title">Preferences & backups</h2><p>Keep control of your recordings, appearance and recovery keys.</p></div><button className="icon-button" onClick={() => setShowSettings(false)} aria-label="Close preferences"><X size={18}/></button></header>
       <div className="settings-section"><strong>Appearance</strong><p>Choose the workspace presentation.</p><button className="button secondary" onClick={() => setDark(!dark)}>{dark ? <Sun size={16}/> : <Moon size={16}/>} Switch to {dark ? "light" : "dark"} appearance</button></div>
+      <div className="settings-section"><strong>On-device storage</strong><p>Recordings stay in this browser. Check available space and ask the browser to protect ScreenNote data from automatic eviction where supported.</p>{storageEstimate&&<div className="storage-meter"><div><span>Site storage used</span><strong>{formatBytes(storageEstimate.usage)} / {formatBytes(storageEstimate.quota)}</strong></div><progress max={Math.max(1,storageEstimate.quota)} value={storageEstimate.usage}/></div>}{persistentStorage===true?<p className="storage-protected"><ShieldCheck size={14}/> Persistent storage protection is enabled.</p>:persistentStorage===false?<button className="button secondary" onClick={requestPersistentStorage}>Protect local recordings</button>:<p className="storage-status">Storage protection is not available in this browser.</p>}{storageStatus&&<p className="storage-status" role="status">{storageStatus}</p>}</div>
       <div className="settings-section"><strong>Local library backup</strong><p>Export your recordings, editing context and private share-management keys to a portable ZIP file, or restore a backup. The ZIP is not encrypted: keep it private. Existing recordings with matching IDs are skipped.</p><div className="settings-actions"><button className="button primary" disabled={backupBusy || !clips.length} onClick={exportLibraryBackup}><Download size={16}/>{backupBusy ? "Working…" : "Back up my library"}</button><button className="button secondary" disabled={backupBusy} onClick={() => backupFileRef.current?.click()}><ArrowDownToLine size={16}/> Restore a library backup</button></div></div>
       <div className="settings-section"><strong>Share recovery key</strong><p>Import a private key to manage a share from this browser. Keep the key secret.</p><button className="button secondary" onClick={() => recoveryFileRef.current?.click()}><ShieldCheck size={16}/> Import share recovery key</button></div>
       <div className="settings-footnote"><ShieldCheck size={15}/> Originals and backups stay on your device unless you explicitly share a video.</div>
