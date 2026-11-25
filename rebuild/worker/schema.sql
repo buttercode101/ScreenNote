@@ -42,3 +42,5 @@ CREATE INDEX IF NOT EXISTS share_password_attempts_window
 
 
 -- Native deleted/expired share tombstones are defined in migrations/0007_legacy_clip_tombstones.sql.
+
+CREATE TABLE IF NOT EXISTS share_details (share_id TEXT PRIMARY KEY REFERENCES shares(id) ON DELETE CASCADE, payload TEXT NOT NULL, updated_at INTEGER NOT NULL);
