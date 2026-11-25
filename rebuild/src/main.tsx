@@ -228,7 +228,8 @@ function App() {
       if (!clip) throw new Error("This local recording is no longer available.");
       if (!clip.duration || clip.duration > 600) throw new Error("This clip needs a valid duration of 10 minutes or less before it can be shared.");
       if (clip.share) {
-        await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
+        const stopped = await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
+        if (!stopped.ok) throw new Error("The previous share could not be ended. Your existing link and local recording are unchanged.");
       }
       const ownerKey = newOwnerKey();
       const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey);
@@ -268,9 +269,18 @@ function App() {
 
   async function remove(id: string) {
     if (!window.confirm("Delete this recording from this device? This cannot be undone.")) return;
-    const clip = await getClip(id);
-    if (clip?.share) await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) }).catch(() => undefined);
-    await deleteClip(id); await refresh();
+    try {
+      const clip = await getClip(id);
+      if (clip?.share) {
+        const stopped = await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
+        if (!stopped.ok) throw new Error("The shared copy could not be removed. Your local recording and recovery key have been kept.");
+      }
+      await deleteClip(id);
+      await refresh();
+      setMessage("Recording deleted from this device.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Couldn't delete this recording. Your local copy is still here.");
+    }
   }
 
   return <div className="app-shell">
