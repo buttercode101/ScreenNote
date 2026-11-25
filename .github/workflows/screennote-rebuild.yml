@@ -53,6 +53,9 @@ jobs:
       - name: Deploy isolated Cloudflare development Worker
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         run: npm run deploy
+      - name: Verify deployed app and real share lifecycle
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: node scripts/live-smoke.mjs
 
   build:
     name: build
