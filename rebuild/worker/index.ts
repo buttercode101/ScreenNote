@@ -219,7 +219,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       const chapters = Array.isArray(body.details.chapters) ? body.details.chapters : [];
       const annotations = Array.isArray(body.details.annotations) ? body.details.annotations : [];
       if (body.details.reviewStatus !== undefined && !["needs-feedback","changes-requested","approved"].includes(String(body.details.reviewStatus))) return fail("Choose a valid review status.", 400);
-      const brief = body.details.reviewBrief;
+      const brief = body.details.reviewBrief as Record<string, unknown> | null | undefined;
       if (brief !== undefined && brief !== null) {
         if (typeof brief !== "object" || Array.isArray(brief)) return fail("Review brief must be an object.", 400);
         for (const field of ["purpose","focus","expectedOutcome"] as const) if (brief[field] !== undefined && (typeof brief[field] !== "string" || brief[field].length > (field === "purpose" ? 160 : 400))) return fail("Review brief text is too long or invalid.", 400);
