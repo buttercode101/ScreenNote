@@ -54,18 +54,34 @@ test("independent React workspace is contained at 13 widths in light and dark",a
   }
 });
 
-test("imported recording can be previewed, trimmed and shared from the new workspace",async({page})=>{
+test("imported recording opens the full editor with preview, annotations, captions and sharing",async({page})=>{
   await page.goto("/");
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
-  await page.getByRole("button",{name:/Play sample/i}).click();
-  await expect(page.getByRole("dialog",{name:/sample/i})).toBeVisible();
-  await expect(page.locator("video.preview-video")).toBeVisible();
-  await page.getByRole("button",{name:/Share temporarily/i}).click();
+  await expect(page.getByRole("button",{name:/Preview/i})).toBeVisible();
+  await expect(page.getByRole("button",{name:/Edit/i})).toBeVisible();
+  await page.getByRole("button",{name:/Preview/i}).click();
+  await expect(page.locator(".editor-workspace")).toBeVisible();
+  await expect(page.locator(".editor-video-wrap video")).toBeVisible();
+  await page.getByRole("button",{name:/Captions & context/i}).click();
+  await expect(page.getByText(/OWNER-SUPPLIED CAPTIONS/i)).toBeVisible();
+  await page.locator(".context-editor textarea").first().fill("WEBVTT\\n\\n00:00:00.100 --> 00:00:00.500\\nOpening frame");
+  await page.getByRole("button",{name:/Save context/i}).click();
+  await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
+  await page.getByRole("button",{name:/Edit & annotate/i}).click();
+  await page.getByRole("button",{name:"Blur"}).click();
+  const canvas=page.locator(".annotation-overlay");
+  const rect=await canvas.boundingBox();
+  if(rect) { await page.mouse.move(rect.x+rect.width*.2,rect.y+rect.height*.2);await page.mouse.down();await page.mouse.move(rect.x+rect.width*.45,rect.y+rect.height*.4,{steps:4});await page.mouse.up(); }
+  await expect(page.getByText(/1 marks on this video/i)).toBeVisible();
+  await page.getByRole("button",{name:/Save all changes/i}).click();
+  await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
+  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});const dims=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));expect(dims.body).toBeLessThanOrEqual(width+1);expect(dims.doc).toBeLessThanOrEqual(width+1);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
+  await page.getByRole("button",{name:/Share a reviewed copy/i}).click();
   await expect(page.getByRole("heading",{name:"Make a temporary link"})).toBeVisible();
   await expect(page.getByText(/Only this shared copy is uploaded/i)).toBeVisible();
   await page.getByRole("button",{name:"Close share settings"}).click();
-  await page.getByRole("button",{name:"Close preview"}).click();
+  await page.getByRole("button",{name:"Close editor"}).click();
 });
 
 test("new frontend contains no legacy stylesheet or legacy app script requests",async({page})=>{
