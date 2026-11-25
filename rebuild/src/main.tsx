@@ -237,6 +237,8 @@ function App() {
   async function recoverSession(id: string) {
     try {
       await restoreRecordingSession(id);
+      const recovered = await getClip(id);
+      if (recovered && !recovered.thumbnail) { const thumbnail = await createVideoThumbnail(recovered.blob); if (thumbnail) await saveClip({ ...recovered, thumbnail }); }
       await refresh();
       setMessage("Your interrupted recording was recovered.");
     } catch (error) {
