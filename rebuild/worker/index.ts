@@ -31,6 +31,17 @@ const json = (data: unknown, status = 200, headers: HeadersInit = {}) =>
   Response.json(data, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers } });
 const fail = (message: string, status = 400) => json({ error: message }, status);
 
+const SHARE_ACTION_WINDOW_SECONDS = 10 * 60;
+async function allowShareAction(request: Request, env: Bindings, shareId: string, action: string, limit: number): Promise<boolean> {
+  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const ipHash = await digest(`${shareId}:${action}:${ip}`);
+  const now = Math.floor(Date.now() / 1000), windowStarted = Math.floor(now / SHARE_ACTION_WINDOW_SECONDS) * SHARE_ACTION_WINDOW_SECONDS;
+  await env.DB.prepare("INSERT INTO share_action_rate_limits (share_id, ip_hash, action, window_started, count) VALUES (?, ?, ?, ?, 1) ON CONFLICT (share_id, ip_hash, action) DO UPDATE SET window_started = excluded.window_started, count = CASE WHEN share_action_rate_limits.window_started = excluded.window_started THEN share_action_rate_limits.count + 1 ELSE 1 END")
+    .bind(shareId, ipHash, action, windowStarted).run();
+  const row = await env.DB.prepare("SELECT count FROM share_action_rate_limits WHERE share_id = ? AND ip_hash = ? AND action = ?")
+    .bind(shareId, ipHash, action).first<{count:number}>();
+  return (row?.count ?? 0) <= limit;
+}
 async function readJsonLimited<T>(request: Request, maxBytes = 64 * 1024): Promise<T | null> {
   const declared = request.headers.get("content-length");
   if (declared && Number.isFinite(Number(declared)) && Number(declared) > maxBytes) return null;
@@ -274,6 +285,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     }
     if (action === "reactions" && request.method === "POST") {
       const body = await readJsonLimited<{voterKey?:string;reaction?:string}>(request, 2048);
+      if (!await allowShareAction(request, env, share.id, "reaction", 60)) return fail("Too many reactions from this network. Try again in a few minutes.", 429);
       if (typeof body?.voterKey !== "string" || !/^[a-f0-9]{64}$/.test(body.voterKey)) return fail("A private browser reaction key is required.", 400);
       if (!["like","thanks","idea",""].includes(body.reaction || "")) return fail("Choose a listed reaction.", 400);
       const voterHash = await digest(body.voterKey);
@@ -305,6 +317,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     }
     if (action === "reviews" && request.method === "POST") {
       const body = await readJsonLimited<{ reviewerKey?: string; reviewerLabel?: string; decision?: string; comment?: string; time?: number }>(request, 4096);
+      if (!await allowShareAction(request, env, share.id, "review", 10)) return fail("Too many review updates from this network. Try again in a few minutes.", 429);
       if (!body || typeof body.reviewerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.reviewerKey)) return fail("A private review identity is required.", 400);
       if (!["approved","changes-requested","question"].includes(body.decision || "")) return fail("Choose a valid review decision.", 400);
       if (typeof body.comment !== "string" || body.comment.length > 500) return fail("Review notes must be 500 characters or fewer.", 400);
@@ -340,6 +353,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     }
     if (action === "comments" && request.method === "POST") {
       const body = await readJsonLimited<{ authorKey?: string; text?: string; time?: number; parentId?: string | null; viewerLabel?: string; anchorX?: number; anchorY?: number }>(request, 8192);
+      if (!await allowShareAction(request, env, share.id, "comment", 12)) return fail("Too many comments from this network. Try again in a few minutes.", 429);
       if (!body || typeof body.authorKey !== "string" || !/^[A-Za-z0-9_-]{32,64}$/.test(body.authorKey)) return fail("A valid comment identity is required.", 400);
       if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 2000) return fail("Comments must be between 1 and 2,000 characters.", 400);
       if (!Number.isFinite(body.time) || body.time! < 0 || body.time! > share.duration_seconds) return fail("Choose a timestamp within this video.", 400);

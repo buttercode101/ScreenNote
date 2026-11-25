@@ -31,6 +31,7 @@ class FakeD1 {
   comments = new Map<string, any>();
   access = new Set<string>();
   passwordAttempts = new Map<string, any>();
+  actionLimits = new Map<string, any>();
   details = new Map<string, string>();
   uploadParts: any[] = [];
   reactions = new Map<string, any>();
@@ -61,6 +62,7 @@ class FakeD1 {
           if (sql.includes("FROM share_reactions") && sql.includes("COUNT(*)")) return { total:[...db.reactions.values()].filter(r=>r.share_id===v[0]).length };
           if (sql.includes("FROM share_reactions")) return db.reactions.get(v[0]+":"+v[1]) ?? null;
           if (sql.includes("FROM share_password_attempts")) return db.passwordAttempts.get(`${v[0]}:${v[1]}`) ?? null;
+          if (sql.includes("FROM share_action_rate_limits")) return db.actionLimits.get(`${v[0]}:${v[1]}:${v[2]}`) ?? null;
           if (sql.includes("FROM share_access_sessions")) return db.access.has(v[0]) ? { token_hash: v[0] } : null;
           return null;
         },
@@ -77,6 +79,7 @@ class FakeD1 {
           if (sql.startsWith("INSERT OR REPLACE INTO share_reviews")) db.reviews.set(v[0]+":"+v[1],{share_id:v[0],reviewer_hash:v[1],reviewer_label:v[2],decision:v[3],comment:v[4],time_seconds:v[5],created_at:v[6],updated_at:v[7]});
           if (sql.startsWith("DELETE FROM share_reactions")) db.reactions.delete(v[0]+":"+v[1]);
           if (sql.startsWith("INSERT OR REPLACE INTO share_password_attempts")) db.passwordAttempts.set(`${v[0]}:${v[1]}`, { share_id:v[0], ip_hash:v[1], window_started:v[2], attempts:v[3], locked_until:v[4] });
+          if (sql.startsWith("INSERT INTO share_action_rate_limits")) { const key=`${v[0]}:${v[1]}:${v[2]}`,old=db.actionLimits.get(key);db.actionLimits.set(key,{share_id:v[0],ip_hash:v[1],action:v[2],window_started:v[3],count:old&&old.window_started===v[3]?old.count+1:1}); }
           if (sql.startsWith("DELETE FROM share_password_attempts")) {
             if (sql.includes("window_started")) { for (const [key,row] of db.passwordAttempts) if (row.window_started <= v[0]) db.passwordAttempts.delete(key); }
             else db.passwordAttempts.delete(`${v[0]}:${v[1]}`);
@@ -224,6 +227,15 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(locked.status).toBe(401);
     const access=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/access`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:"long-password"})}),state.env as any,{} as any);
     expect(access.status).toBe(200);expect(access.headers.get("set-cookie")).toContain("HttpOnly");
+  });
+  it("throttles comment spam by share and hashed client network",async()=>{
+    const s=await session(state.env),u=await upload(state.env,s.cookie),ownerKey="b".repeat(64);
+    const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:1,ownerKey})}),state.env as any,{} as any);
+    const share=await pub.json() as any,token=share.token,authorKey="a".repeat(43);
+    const headers={origin:"https://screennote.test","content-type":"application/json","cf-connecting-ip":"203.0.113.8"};
+    for(let i=0;i<12;i++){const res=await worker.fetch(new Request(`https://screennote.test/api/share/${token}/comments`,{method:"POST",headers,body:JSON.stringify({authorKey,text:"Feedback "+i,time:1,viewerLabel:"Guest"})}),state.env as any,{} as any);expect(res.status).toBe(201);}
+    const blocked=await worker.fetch(new Request(`https://screennote.test/api/share/${token}/comments`,{method:"POST",headers,body:JSON.stringify({authorKey,text:"Spam",time:1})}),state.env as any,{} as any);
+    expect(blocked.status).toBe(429);
   });
   it("supports timestamped nested discussion and creator thread resolution",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie),key="c".repeat(64);
