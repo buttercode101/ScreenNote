@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "node scripts/build-legacy.mjs && cf build",
+    "build": "node scripts/prepare-public.mjs && cf build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests",
     "deploy": "cf deploy",
