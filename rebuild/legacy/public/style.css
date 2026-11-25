@@ -374,3 +374,6 @@ h2{font-family:Georgia,serif;font-weight:400;letter-spacing:-.5px}
 }
 @media(max-width:390px){.content{padding-inline:14px}.library-heading h1{font-size:40px}.library-heading .actions{grid-template-columns:1fr}.library-heading .actions:after{grid-column:auto}.clip-grid,.library-filters{grid-template-columns:minmax(0,1fr)}.library-filters .field:first-child{grid-column:auto}.record-options{padding:15px}}
 @media(prefers-reduced-motion:reduce){.clip-card:hover{transform:none}}
+
+/* Header action placement for the new horizontal shell. */
+@media(min-width:681px){.topbar{position:fixed;top:15px;right:clamp(20px,5vw,72px);width:auto;height:auto;min-height:0;z-index:35}.top-actions{position:static;gap:10px}}
