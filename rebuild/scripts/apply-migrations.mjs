@@ -13,6 +13,10 @@ for (const migrationFile of ["0004_password_attempt_limits.sql", "0005_legacy_cl
       body: JSON.stringify({ sql })
     });
     const result = await response.json();
+    const duplicateUploadUntil = migrationFile === "0009_resumable_recording_uploads.sql"
+      && sql.startsWith("ALTER TABLE recordings ADD COLUMN upload_until")
+      && (result.errors ?? []).some(error => String(error.message || "").toLowerCase().includes("duplicate column"));
+    if (duplicateUploadUntil) continue;
     if (!response.ok || !result.success || result.errors?.length) {
       throw new Error(`D1 migration ${migrationFile} failed: ${JSON.stringify(result.errors ?? result)}`);
     }
