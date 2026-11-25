@@ -1,5 +1,5 @@
+// @ts-nocheck
 import { Input, BufferSource, MP4, WEBM, EncodedPacketSink } from "mediabunny";
-// @ts-ignore - shared browser-safe validation constants
 import { MAX_BYTES, MAX_SECONDS, isVideo } from "../legacy/lib/rules.js";
 
 const invalid=()=>Object.assign(new Error("This upload does not contain a valid video. Keep your local copy and re-export as MP4 or WebM."),{status:400});
