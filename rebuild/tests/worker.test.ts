@@ -1,6 +1,29 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import worker from "../worker/index";
 
+(globalThis as any).FixedLengthStream = class {
+  readable: ReadableStream<Uint8Array>;
+  writable: WritableStream<Uint8Array>;
+  constructor(length: number) {
+    const stream = new TransformStream<Uint8Array, Uint8Array>();
+    const writer = stream.writable.getWriter();
+    let received = 0;
+    this.readable = stream.readable;
+    this.writable = new WritableStream<Uint8Array>({
+      write(chunk) {
+        received += chunk.byteLength;
+        if (received > length) throw new Error("FixedLengthStream overflow");
+        return writer.write(chunk);
+      },
+      close() {
+        if (received !== length) return writer.abort(new Error("FixedLengthStream length mismatch"));
+        return writer.close();
+      },
+      abort(reason) { return writer.abort(reason); }
+    });
+  }
+};
+
 class FakeD1 {
   sessions = new Set<string>();
   recordings = new Map<string, any>();
