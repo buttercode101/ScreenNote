@@ -113,3 +113,20 @@ test("appearance preference persists after reload and local library survives",as
   await page.reload();
   await expect(page.locator(".clip-card")).toHaveCount(1);
 });
+
+test("installable app shell keeps the local library usable offline",async({page,context})=>{
+  await page.goto("/");
+  await page.locator("#import-video").setInputFiles(path.resolve("legacy/public/sample.webm"));
+  await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
+  await page.locator("#main").getByRole("button",{name:"My recordings"}).click();
+  await expect(page.locator(".clip-card")).toHaveCount(1);
+  await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
+  await page.reload();
+  await page.evaluate(async()=>{if(navigator.serviceWorker.controller)return;await new Promise<void>(resolve=>navigator.serviceWorker.addEventListener("controllerchange",()=>resolve(),{once:true}));});
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole("heading",{name:/Your recordings|Show it/})).toBeVisible({timeout:10000});
+  await expect(page.locator(".clip-card")).toHaveCount(1);
+  await expect(page.locator("#import-video")).toBeAttached();
+  await context.setOffline(false);
+});
