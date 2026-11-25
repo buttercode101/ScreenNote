@@ -12,7 +12,7 @@ const PROFILES: Record<QualityPreset, RecordingProfile> = {
 };
 const MIME_TYPES = ["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
 export function recordingProfile(quality: QualityPreset = "balanced"): RecordingProfile { return PROFILES[quality]; }
-export function supportedMimeType(): string { return MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type)) ?? ""; }
+export function supportedMimeType(): string { return typeof MediaRecorder === "undefined" ? "" : MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type)) ?? ""; }
 
 export class ScreenRecorder {
   private recorder?: MediaRecorder;
@@ -115,6 +115,7 @@ export class ScreenRecorder {
         }
       };
       displayTrack.addEventListener("ended", this.displayEndedHandler, { once: true });
+      if (displayTrack.readyState === "ended") queueMicrotask(this.displayEndedHandler);
     } catch (error) {
       cleanupVideo?.(); [display, ...(microphone ? [microphone] : []), ...(camera ? [camera] : []), ...(composite ? [composite] : [])].forEach(source => source.getTracks().forEach(track => track.stop()));
       await audioContext?.close().catch(() => undefined); throw error;
