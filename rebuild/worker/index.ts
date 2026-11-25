@@ -27,8 +27,24 @@ const PASSWORD_ATTEMPT_WINDOW_SECONDS = 15 * 60;
 const PASSWORD_LOCK_SECONDS = 15 * 60;
 const encoder = new TextEncoder();
 
-const json = (data: unknown, status = 200, headers: HeadersInit = {}) =>
-  Response.json(data, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers } });
+const SECURITY_HEADERS: Record<string,string> = {
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "x-frame-options": "DENY",
+  "cross-origin-opener-policy": "same-origin",
+  "permissions-policy": "camera=(self), microphone=(self), display-capture=(self), geolocation=(), clipboard-read=(), clipboard-write=(self)",
+  "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none"
+};
+function applySecurityHeaders(headers: Headers): Headers {
+  for (const [name,value] of Object.entries(SECURITY_HEADERS)) headers.set(name,value);
+  headers.set("x-content-type-options","nosniff");
+  return headers;
+}
+const json = (data: unknown, status = 200, headers: HeadersInit = {}) => {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("cache-control","no-store");
+  applySecurityHeaders(responseHeaders);
+  return Response.json(data, { status, headers: responseHeaders });
+};
 const fail = (message: string, status = 400) => json({ error: message }, status);
 
 const SHARE_ACTION_WINDOW_SECONDS = 10 * 60;
@@ -192,6 +208,7 @@ async function serveMedia(request: Request, env: Bindings, share: NonNullable<Aw
     "content-disposition": "inline"
   });
   if (range) headers.set("content-range", range.contentRange);
+  applySecurityHeaders(headers);
   return new Response(request.method === "HEAD" ? null : object.body, { status: range ? 206 : 200, headers });
 }
 async function handleApi(request: Request, env: Bindings): Promise<Response> {
@@ -601,13 +618,18 @@ async function serveStatic(request: Request, env: Bindings, ctx: ExecutionContex
   if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
   const url = new URL(request.url), pathname = url.pathname === "/" || /^\/s\/[A-Za-z0-9_-]{32,64}\/?$/.test(url.pathname) ? "/index.html" : url.pathname;
   if (pathname.split("/").some((part) => part === "." || part === "..") || !/^\/[a-zA-Z0-9_./-]+$/.test(pathname)) return new Response("Bad path", { status: 400 });
-  if (env.ASSETS) return env.ASSETS.fetch(new Request(new URL(pathname, url), request));
+  if (env.ASSETS) {
+    const response = await env.ASSETS.fetch(new Request(new URL(pathname, url), request));
+    const headers = applySecurityHeaders(new Headers(response.headers));
+    return new Response(request.method === "HEAD" ? null : response.body, { status: response.status, statusText: response.statusText, headers });
+  }
   const compressedObject = /\\.(?:js|css)$/.test(pathname) ? await env.STATIC.get("site" + pathname + ".br") : null;
   const object = compressedObject ?? await env.STATIC.get("site" + pathname);
   if (!object) return new Response("Not found", { status: 404 });
   const types: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".webmanifest": "application/manifest+json" };
   const ext = pathname.slice(pathname.lastIndexOf("."));
   const headers = new Headers({ "content-type": types[ext] ?? "application/octet-stream", "cache-control": pathname.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache", "x-content-type-options": "nosniff", "referrer-policy": "strict-origin-when-cross-origin" });
+  applySecurityHeaders(headers);
   if (compressedObject) headers.set("content-encoding", "br");
   if (object.httpEtag) headers.set("etag", object.httpEtag);
   return new Response(request.method === "HEAD" ? null : object.body, { headers });

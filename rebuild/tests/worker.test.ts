@@ -135,6 +135,16 @@ describe("ScreenNote temporary sharing API",()=>{
     const response=await worker.fetch(new Request("https://screennote.test/api/recordings",{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:huge}),state.env as any,{} as any);
     expect(response.status).toBe(400);expect(state.DB.recordings.size).toBe(0);
   });
+  it("sets restrictive security headers on API and static responses",async()=>{
+    const api=await worker.fetch(new Request("https://screennote.test/api/health"),state.env as any,{} as any);
+    expect(api.headers.get("x-frame-options")).toBe("DENY");
+    expect(api.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    expect(api.headers.get("permissions-policy")).toContain("display-capture=(self)");
+    const env={...state.env,ASSETS:{fetch:async()=>new Response("<!doctype html><html></html>",{headers:{"content-type":"text/html"}})}};
+    const page=await worker.fetch(new Request("https://screennote.test/"),env as any,{} as any);
+    expect(page.headers.get("content-security-policy")).toContain("script-src 'self'");
+    expect(page.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
+  });
   it("creates guest sessions and rejects cross-origin writes",async()=>{
     const res=await worker.fetch(new Request("https://screennote.test/api/session",{headers:{origin:"https://evil.test"}}),state.env as any,{} as any);
     expect(res.status).toBe(403);expect(state.DB.sessions.size).toBe(0);
