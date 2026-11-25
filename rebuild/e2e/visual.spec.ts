@@ -45,6 +45,44 @@ test("light and dark layouts remain contained from 320px through desktop", async
   }
 });
 
+test("screen capture can pause, resume, and save a private local recording", async ({ page }) => {
+  await page.addInitScript(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 640; canvas.height = 360;
+    const context = canvas.getContext("2d");
+    if (!context || typeof canvas.captureStream !== "function") throw new Error("Canvas capture is unavailable in this test browser.");
+    let frame = 0;
+    const paint = () => {
+      context.fillStyle = frame % 2 ? "#e8f0e9" : "#f7f7f4";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "#1d5945";
+      context.font = "bold 32px sans-serif";
+      context.fillText("ScreenNote capture test " + frame, 36, 80);
+      frame++;
+      requestAnimationFrame(paint);
+    };
+    paint();
+    const displayStream = canvas.captureStream(15);
+    Object.defineProperty(navigator.mediaDevices, "getDisplayMedia", { configurable:true, value:async () => displayStream });
+  });
+  await page.goto("/");
+  await page.getByLabel("Microphone").uncheck();
+  await page.getByLabel("System audio").uncheck();
+  await page.locator(".capture-actions .button.primary").click();
+  await expect(page.getByText(/RECORDING/)).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.getByRole("button", { name:"Pause", exact:true }).click();
+  await expect(page.getByText(/PAUSED/)).toBeVisible();
+  await page.waitForTimeout(300);
+  await page.getByRole("button", { name:"Resume", exact:true }).click();
+  await expect(page.getByText(/RECORDING/)).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.getByRole("button", { name:"Finish", exact:true }).click();
+  await expect(page.getByText("Recording saved privately on this device.")).toBeVisible({timeout:15000});
+  await expect(page.locator(".clip-card")).toHaveCount(1);
+  await expect(page.locator(".clip-card").first()).toContainText("Screen recording");
+});
+
 test("appearance preference survives reload", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Toggle appearance" }).click();
