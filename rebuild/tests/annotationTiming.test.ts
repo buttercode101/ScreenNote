@@ -23,4 +23,18 @@ describe("playhead-anchored visual annotations", () => {
   it("rejects invalid playback time instead of showing stale marks", () => {
     expect(annotationIsVisible(mark, Number.NaN)).toBe(false);
   });
+
+  it("shifts and clips timed marks when saving a trimmed copy", () => {
+    const marks: Annotation[] = [
+      {kind:"rectangle",x:.1,y:.1,w:.2,h:.2,time:8,duration:5},
+      {kind:"arrow",x:.1,y:.1,w:.2,h:.2,time:2,duration:2},
+      {kind:"highlight",x:.1,y:.1,w:.2,h:.2,time:18,duration:2},
+      {kind:"redact",x:.1,y:.1,w:.2,h:.2}
+    ];
+    expect(trimAnnotations(marks,10,20)).toEqual([
+      {...marks[0],time:0,duration:3},
+      {...marks[2],time:8,duration:2},
+      marks[3]
+    ]);
+  });
 });
