@@ -102,10 +102,14 @@ test("temporary share viewer and privacy route use the independent responsive de
   const token="a".repeat(40);
   await page.route(`**/api/share/${token}`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({title:"A product walkthrough",mimeType:"video/webm",size:2048,duration:38,expiresAt:Math.floor(Date.now()/1000)+86400,passwordRequired:false})}));
   await page.route(`**/api/share/${token}/comments`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[]})}));
+  await page.route(`**/api/share/${token}/details`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({details:{captions:[{start:1,end:2,text:"The first step"}],chapters:[{time:1,title:"Introduction"}],report:{steps:"Open the menu",expected:"Menu opens",actual:"Menu remains closed",url:"",environment:""}}})}));
   await page.goto("/s/"+token);
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
   await expect(page.locator(".share-video-wrap")).toBeVisible();
   await expect(page.locator(".share-discussion")).toBeVisible();
+  await expect(page.getByRole("button",{name:/Introduction/i})).toBeVisible();
+  await expect(page.getByText(/SEARCH THE TRANSCRIPT/i)).toBeVisible();
+  await expect(page.getByText(/Open the menu/i)).toBeVisible();
   for(const width of [320,375,768,1120,1440]){
     await page.setViewportSize({width,height:900});
     const dimensions=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));
