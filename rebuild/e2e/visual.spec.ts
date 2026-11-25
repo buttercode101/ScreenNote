@@ -66,11 +66,8 @@ test("import, title, captions, chapters and bug-report context persist locally",
   const download=page.waitForEvent("download");
   await page.locator("#export-report").click();
   expect((await download).suggestedFilename()).toContain("bug-report");
-  await page.locator("#main").getByRole("button",{name:"My recordings"}).click();
-  await expect(page.getByRole("heading",{name:/Your recordings/})).toBeVisible();
-  await expect(page.locator("#library-grid")).toContainText(savedTitle);
-  await page.locator("#library-search").fill("walkthrough");
-  await expect(page.getByText("1 of 1 recordings")).toBeVisible();
+  await expect(page.locator("#recording-title-input")).toHaveValue(savedTitle);
+  for(const width of [320,375,768]){await page.setViewportSize({width,height:900});await contained(page,width);}
 });
 
 test("screen capture can pause, resume and save a private local recording",async({page})=>{
