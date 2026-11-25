@@ -20,7 +20,7 @@ const viewports = [
 
 async function contained(page: import("@playwright/test").Page, width:number) {
   const m=await page.evaluate(()=>{
-    const selectors=".button,.btn,button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.share-layout,.share-discussion,.modal,.preview-modal,.publish-modal,[role=dialog]";
+    const selectors=".button,.btn,button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.share-layout,.share-discussion,.viewer,.viewer-top,.viewer-grid,.viewer-media,.reply-panel,.modal,.preview-modal,.publish-modal,[role=dialog]";
     const offenders=[...document.querySelectorAll<HTMLElement>(selectors)].filter(el=>{
       const style=getComputedStyle(el),r=el.getBoundingClientRect();
       return style.display!=="none"&&style.visibility!=="hidden"&&r.width>0&&(r.left < -1 || r.right > innerWidth+1);
