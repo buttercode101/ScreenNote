@@ -126,6 +126,11 @@ assert.equal(reviewSaved.status,200,"guest review decision is stored without an 
 const reviewList = await json(await request(sharePath + "/reviews",{headers:{cookie:accessCookie,"x-reviewer-key":reviewerKey}}));
 assert.equal(reviewList.myReview.decision,"changes-requested");
 assert.equal(reviewList.myReview.comment,"Payment state needs correction");
+const ownerStatusDetails={...sharedDetails,reviewStatus:"approved"};
+const ownerStatusSave=await request(sharePath+"/details",{method:"PUT",headers:{origin,"content-type":"application/json"},body:JSON.stringify({ownerKey,details:ownerStatusDetails})});
+assert.equal(ownerStatusSave.status,200,"creator can close the review after acting on guest feedback");
+const statusAfterReview=await json(await request(sharePath+"/details",{headers:{cookie:accessCookie}}));
+assert.equal(statusAfterReview.details.reviewStatus,"approved","review completion status is persisted for the share page");
 const voterKey = randomBytes(32).toString("hex");
 const reaction = await json(await request(sharePath + "/reactions", {
   method: "POST", headers: { origin, cookie: accessCookie, "content-type": "application/json" },

@@ -189,16 +189,19 @@ test("temporary share viewer and privacy route use the independent responsive de
     const counts={like:selectedReaction==="like"?1:0,thanks:selectedReaction==="thanks"?1:0,idea:selectedReaction==="idea"?1:0};
     await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({counts,myReaction:selectedReaction})});
   });
-  await page.route("**/api/share/"+token+"/details",route=>route.fulfill({
-    status:200,contentType:"application/json",
-    body:JSON.stringify({details:{
-      captions:[{start:1,end:2,text:"The first step"}],
-      chapters:[{time:1,title:"Introduction"}],
-      report:{steps:"Open the menu",expected:"Menu opens",actual:"Menu remains closed",url:"",environment:""},
-      reviewBrief:{purpose:"Review the checkout flow",focus:"Inspect the payment confirmation",expectedOutcome:"A receipt is shown",requestedAction:"approve"},
-      reviewStatus:"approved"
-    }})
-  }));
+  const ownerKey="a".repeat(64);
+  await page.addInitScript(({token,ownerKey})=>localStorage.setItem("screennote-recovery-"+token,ownerKey),{token,ownerKey});
+  let currentDetails:any={
+    captions:[{start:1,end:2,text:"The first step"}],
+    chapters:[{time:1,title:"Introduction"}],
+    report:{steps:"Open the menu",expected:"Menu opens",actual:"Menu remains closed",url:"",environment:""},
+    reviewBrief:{purpose:"Review the checkout flow",focus:"Inspect the payment confirmation",expectedOutcome:"A receipt is shown",requestedAction:"approve"},
+    reviewStatus:"approved"
+  };
+  await page.route("**/api/share/"+token+"/details",async route=>{
+    if(route.request().method()==="PUT"){currentDetails=route.request().postDataJSON().details;await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({saved:true})});return;}
+    await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({details:currentDetails})});
+  });
   await page.goto("/s/"+token);
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
   await expect(page.getByText("Approved",{exact:true})).toBeVisible();
@@ -214,6 +217,10 @@ test("temporary share viewer and privacy route use the independent responsive de
   await expect(reviewPanel).toContainText("Please adjust the payment state.");
   await page.getByRole("button",{name:/Thanks/i}).click();
   await expect(page.getByRole("button",{name:/Thanks/i})).toHaveAttribute("aria-pressed","true");
+  await reviewPanel.getByRole("button",{name:"Reopen review"}).click();
+  await expect(page.getByText("Needs feedback",{exact:true})).toBeVisible();
+  await reviewPanel.getByRole("button",{name:"Mark changes requested"}).click();
+  await expect(page.getByText("Changes requested",{exact:true})).toBeVisible();
   await expect(page.locator(".share-video-wrap")).toBeVisible();
   await expect(page.locator(".share-discussion")).toBeVisible();
   await expect(page.getByRole("button",{name:/Introduction/i})).toBeVisible();
