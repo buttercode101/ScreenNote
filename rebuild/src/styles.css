@@ -283,3 +283,8 @@
 .bubble-position-controls label{min-width:0}
 .bubble-position-controls input[type=range]{width:100%;min-width:0}
 @media(max-width:520px){.bubble-position-controls{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Structured review brief: keeps the share context legible without turning it into another oversized card. */
+.review-brief-fields{margin:18px 0;padding:14px 16px;border:1px solid var(--line);background:var(--paper);min-width:0}.review-brief-fields>summary{cursor:pointer;font:600 13px 'Space Grotesk',sans-serif;color:var(--ink)}.review-brief-fields>p{font-size:12px;line-height:1.5;margin:8px 0 14px;color:var(--muted)}.field-label textarea{display:block;width:100%;min-width:0;resize:vertical;background:var(--white);color:var(--ink);border:1px solid var(--line);border-radius:2px;padding:10px;font:14px 'Source Sans 3',sans-serif}.share-review-brief{margin:16px 0 24px;padding:18px 20px;border-left:3px solid var(--acid);background:var(--paper);min-width:0}.share-review-brief h2{font:600 clamp(18px,2.2vw,24px)/1.2 'Space Grotesk',sans-serif;margin:8px 0 12px;color:var(--ink)}.share-review-brief p{font-size:14px;line-height:1.55;color:var(--ink);margin:8px 0}.share-review-brief p strong{color:var(--muted)}.brief-action{display:inline-flex;margin-top:8px;padding:5px 8px;border:1px solid var(--line);font:10px 'DM Mono',monospace;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+@media(max-width:600px){.review-brief-fields{padding:12px}.share-review-brief{padding:14px}}

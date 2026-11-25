@@ -188,7 +188,7 @@ test("temporary share viewer and privacy route use the independent responsive de
   }));
   await page.goto("/s/"+token);
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
-  await expect(page.getByText("Approved",{exact:true})).toBeVisible();
+  await expect(page.getByText("Approved",{exact:true})).toBeVisible();\n  await expect(page.getByRole("region",{name:"Review brief"})).toContainText("Review the checkout flow");\n  await expect(page.getByRole("region",{name:"Review brief"})).toContainText("A receipt is shown");
   await page.getByRole("button",{name:/Thanks/i}).click();
   await expect(page.getByRole("button",{name:/Thanks/i})).toHaveAttribute("aria-pressed","true");
   await expect(page.locator(".share-video-wrap")).toBeVisible();
