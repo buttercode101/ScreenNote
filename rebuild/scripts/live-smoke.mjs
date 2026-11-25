@@ -28,7 +28,7 @@ async function retryHealth() {
 }
 const health = await retryHealth();
 assert.equal(health.status, "ok");
-const homeResponse = await request("/");
+const homeResponse = await fetch(origin + "/", { redirect: "follow" });
 assert.equal(homeResponse.headers.get("x-frame-options"), "DENY");
 assert.equal(homeResponse.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
 assert.match(homeResponse.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
