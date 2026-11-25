@@ -146,7 +146,7 @@ async function handleMedia(request:Request,env:LegacyEnv,url:URL){
  const id=url.searchParams.get("id")||"",token=url.searchParams.get("token")||"",record=await getClip(env,id);
  if(!record)return null;
  const row=record.row,c=record.clip;
- if(c.status!=="published"||c.expiresAt<=Date.now()||!token||!row.media_token_hash||row.media_token_expires!>Date.now()||!safeEqual(await digest(token),row.media_token_hash))return response({error:"This media link has expired."},404);
+ if(c.status!=="published"||c.expiresAt<=Date.now()||!token||!row.media_token_hash||(row.media_token_expires ?? 0)<=Date.now()||!safeEqual(await digest(token),row.media_token_hash))return response({error:"This media link has expired."},404);
  const head=request.method==="HEAD",range=request.headers.get("range"),object=await env.MEDIA.head(row.object_key);
  if(!object)return response({error:"Video unavailable."},404);
  let start=0,end=object.size-1,status=200;

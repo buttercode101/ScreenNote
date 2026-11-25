@@ -1,3 +1,4 @@
+import { handleLegacyClip } from "./legacy-api";
 type Bindings = { DB: D1Database; MEDIA: R2Bucket; STATIC: R2Bucket; ASSETS?: Fetcher };
 const LEGACY_API_ORIGIN = "https://screennote-woad.vercel.app";
 
@@ -380,7 +381,16 @@ export default {
   async fetch(request: Request, env: Bindings, ctx: ExecutionContext): Promise<Response> {
     try {
       const url = new URL(request.url);
-      if (url.pathname === "/api/clip") return await proxyLegacyClip(request);
+      if (url.pathname === "/api/clip") {
+        try {
+          const native = await handleLegacyClip(request, env);
+          if (native) return native;
+          return await proxyLegacyClip(request);
+        } catch (error) {
+          const e = error as { status?:number; code?:string; message?:string };
+          return json({ code:e.code, error:e.message || "Could not complete the request." }, e.status || 400);
+        }
+      }
       if (url.pathname.startsWith("/api/")) return await handleApi(request, env);
       return await serveStatic(request, env, ctx);
     } catch (error) {
@@ -418,6 +428,34 @@ export default {
       const mediaObjects = await env.MEDIA.list({ prefix:"shared/", limit:1000 });
       for (const object of mediaObjects.objects) {
         if (object.uploaded.getTime() > (now - 3600) * 1000 || referencedKeys.has(object.key)) continue;
+        await env.MEDIA.delete(object.key);
+      }
+      // Native 0.5.0 API retention: expired/revoked uploads are deleted from R2 and D1 metadata remains for owner status.
+      const nowMs = Date.now();
+      const legacyExpired = await env.DB.prepare("SELECT id,status,object_key,data FROM legacy_clip_records WHERE (status='pending' AND upload_until<=?) OR (status='published' AND expires_at<=?) OR (status IN ('revoked','deleted','expired') AND json_extract(data,'$.cleanupComplete') IS NOT 1) LIMIT 100")
+        .bind(nowMs,nowMs).all<{id:string;status:string;object_key:string;data:string}>();
+      for (const row of legacyExpired.results) {
+        const clip = JSON.parse(row.data);
+        if (row.status === "pending" || row.status === "published") {
+          clip.status = "expired";
+          clip.cleanupComplete = true;
+          await env.DB.prepare("UPDATE legacy_clip_records SET status='expired',data=? WHERE id=?").bind(JSON.stringify(clip),row.id).run();
+        }
+        await env.MEDIA.delete(row.object_key);
+        const legacyParts = await env.DB.prepare("SELECT object_key FROM legacy_clip_parts WHERE clip_id=?").bind(row.id).all<{object_key:string}>();
+        for (const part of legacyParts.results) await env.MEDIA.delete(part.object_key);
+        await env.DB.prepare("DELETE FROM legacy_clip_parts WHERE clip_id=?").bind(row.id).run();
+        clip.cleanupComplete = true;
+        await env.DB.prepare("UPDATE legacy_clip_records SET data=?,media_token_hash=NULL,media_token_expires=NULL WHERE id=?").bind(JSON.stringify(clip),row.id).run();
+      }
+      await env.DB.prepare("DELETE FROM legacy_clip_password_attempts WHERE window_started<=? OR locked_until<=?").bind(now-3600,now).run();
+      // Reclaim orphaned native R2 objects only after a one-hour grace period.
+      const legacyClipRows = await env.DB.prepare("SELECT object_key FROM legacy_clip_records").bind().all<{object_key:string}>();
+      const legacyPartRows = await env.DB.prepare("SELECT object_key FROM legacy_clip_parts").bind().all<{object_key:string}>();
+      const legacyReferenced = new Set([...legacyClipRows.results,...legacyPartRows.results].map(x=>x.object_key));
+      const legacyObjects = await env.MEDIA.list({prefix:"legacy/clips/",limit:1000});
+      for (const object of legacyObjects.objects) {
+        if (object.uploaded.getTime()>(nowMs-3600000) || legacyReferenced.has(object.key)) continue;
         await env.MEDIA.delete(object.key);
       }
       await env.DB.prepare("DELETE FROM guest_sessions WHERE expires_at <= ?").bind(now).run();
