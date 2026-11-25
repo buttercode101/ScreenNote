@@ -108,6 +108,10 @@ test("recording setup exposes quality, microphone and camera placement controls"
   await expect(page.getByLabel("Camera bubble size")).toBeVisible();
   await page.getByLabel("Camera bubble position").selectOption("top-left");
   await expect(page.getByLabel("Camera bubble position")).toHaveValue("top-left");
+  await page.getByLabel("Camera bubble position").selectOption("custom");
+  await expect(page.getByLabel("Camera bubble horizontal position")).toBeVisible();
+  await page.getByLabel("Camera bubble horizontal position").fill("0.3");
+  await expect(page.getByLabel("Camera bubble horizontal position")).toHaveValue("0.3");
 });
 test("preferences export and restore a portable local library backup",async({page})=>{
   await page.goto("/");
