@@ -77,3 +77,23 @@ test("new frontend contains no legacy stylesheet or legacy app script requests",
   expect(requested).not.toContain("/app.js");
   expect(requested).toContain("/src/main.tsx");
 });
+
+
+test("temporary share viewer and privacy route use the independent responsive design",async({page})=>{
+  const token="a".repeat(40);
+  await page.route(`**/api/share/${token}`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({title:"A product walkthrough",mimeType:"video/webm",size:2048,duration:38,expiresAt:Math.floor(Date.now()/1000)+86400,passwordRequired:false})}));
+  await page.route(`**/api/share/${token}/comments`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[]})}));
+  await page.goto("/s/"+token);
+  await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
+  await expect(page.locator(".share-video-wrap")).toBeVisible();
+  await expect(page.locator(".share-discussion")).toBeVisible();
+  for(const width of [320,375,768,1120,1440]){
+    await page.setViewportSize({width,height:900});
+    const dimensions=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));
+    expect(dimensions.body).toBeLessThanOrEqual(width+1);
+    expect(dimensions.doc).toBeLessThanOrEqual(width+1);
+  }
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading",{name:"Your original stays with you."})).toBeVisible();
+  await expect(page.locator(".privacy-document")).toBeVisible();
+});
