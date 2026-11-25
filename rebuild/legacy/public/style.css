@@ -377,3 +377,9 @@ h2{font-family:Georgia,serif;font-weight:400;letter-spacing:-.5px}
 
 /* Header action placement for the new horizontal shell. */
 @media(min-width:681px){.topbar{position:fixed;top:15px;right:clamp(20px,5vw,72px);width:auto;height:auto;min-height:0;z-index:35}.top-actions{position:static;gap:10px}}
+
+/* Keep the warm accent coherent in both themes; remove inherited lime-only controls. */
+:root[data-theme=dark] .btn.primary,:root[data-theme=dark] .record-options .btn.primary{background:var(--accent);border-color:var(--accent);color:#211b17}
+:root[data-theme=dark] .dashboard-copy .eyebrow,:root[data-theme=dark] .recorder-intro>svg{color:var(--accent)}
+:root[data-theme=dark] .record-guide .guide-icon{background:var(--accent);color:#211b17}
+:root[data-theme=dark] .record-options input{accent-color:var(--accent)}
