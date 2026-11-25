@@ -106,6 +106,7 @@ test("recording setup exposes quality, microphone and camera placement controls"
   await expect(page.getByLabel("Recording quality")).toHaveValue("clear");
   await expect(page.getByLabel("Microphone source")).toBeVisible();
   await expect(page.getByLabel("Camera bubble size")).toBeVisible();
+  await page.getByLabel("Camera bubble").check();
   await page.getByLabel("Camera bubble position").selectOption("top-left");
   await expect(page.getByLabel("Camera bubble position")).toHaveValue("top-left");
   await page.getByLabel("Camera bubble position").selectOption("custom");
