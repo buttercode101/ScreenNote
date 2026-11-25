@@ -69,7 +69,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(page.locator(".editor-video-wrap video")).toBeVisible();
   await page.getByRole("button",{name:/Captions & context/i}).click();
   await expect(page.getByText(/OWNER-SUPPLIED CAPTIONS/i)).toBeVisible();
-  await page.locator(".context-editor textarea").first().fill("WEBVTT\\n\\n00:00:00.100 --> 00:00:00.500\\nOpening frame");
+  await page.locator(".context-editor textarea").first().fill("WEBVTT\n\n00:00:00.100 --> 00:00:00.500\nOpening frame");
   await page.getByRole("button",{name:/Save context/i}).click();
   await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
   await page.getByRole("button",{name:/Edit & annotate/i}).click();
