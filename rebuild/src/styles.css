@@ -138,3 +138,8 @@
 [data-theme="dark"] .editor-tabs button.active,[data-theme="dark"] .editor-toolbar button.selected{background:#e8eddf;color:#20231f;border-color:#e8eddf}
 @media(max-width:900px){.editor-body{grid-template-columns:minmax(0,1fr);}.editor-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}.editor-actions-card{grid-column:1/-1}}
 @media(max-width:600px){.editor-topline{gap:8px;padding:11px 12px}.editor-title-button{font-size:14px}.editor-title-wrap span{font-size:10px}.editor-body{padding:12px;gap:14px}.editor-side{grid-template-columns:minmax(0,1fr)}.editor-actions-card{grid-column:auto}.editor-toolbar{gap:5px;padding:8px}.editor-toolbar button{padding:8px;font-size:10px}.toolbar-label{width:100%}.context-editor{grid-template-columns:minmax(0,1fr);padding:12px}.context-editor .editor-card:nth-child(3),.context-editor .editor-card:nth-child(4){grid-column:auto}.editor-tabs{padding:9px 12px}.editor-tabs button{padding:8px 10px;font-size:11px}.editor-video-wrap{border-radius:8px}}
+
+
+.clip-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.clip-text-action{display:inline-flex;align-items:center;gap:5px;padding:7px 9px;font-size:11px;white-space:nowrap}
+@media(max-width:420px){.clip-text-action{padding:7px 8px;font-size:10px}.clip-actions{gap:4px}}
