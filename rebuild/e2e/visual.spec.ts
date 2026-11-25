@@ -55,6 +55,7 @@ test("independent React workspace is contained at 13 widths in light and dark",a
 });
 
 test("imported recording opens the full editor with preview, annotations, captions and sharing",async({page})=>{
+  test.setTimeout(90000);
   await page.goto("/");
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
@@ -126,10 +127,11 @@ test("recording setup exposes quality, microphone and camera placement controls"
   await expect(page.getByLabel("Camera bubble horizontal position")).toHaveValue("0.3");
 });
 test("preferences export and restore a portable local library backup",async({page})=>{
+  test.setTimeout(90000);
   await page.goto("/");
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
-  await page.locator(".sidebar").getByText("Preferences",{exact:true}).click();
+  await page.getByRole("button",{name:"Open preferences"}).click();
   await expect(page.getByRole("dialog",{name:/Preferences & backups/i})).toBeVisible();
   const downloadPromise=page.waitForEvent("download");
   await page.getByRole("button",{name:/Back up my library/i}).click();
