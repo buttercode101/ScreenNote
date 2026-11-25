@@ -231,7 +231,7 @@ test("landscape layouts, keyboard access and accessible control names",async({pa
     const e=el;
     if(e.hasAttribute("disabled")||e.getAttribute("aria-hidden")==="true")return false;
     const type=e.getAttribute("type");
-    if(type==="file")return !!(e.getAttribute("aria-label")||e.labels?.length);
+    if(type==="file")return !!(e.getAttribute("aria-label")||(e as HTMLInputElement).labels?.length);
     const labelled=!!(e.getAttribute("aria-label")||e.getAttribute("aria-labelledby")||e.textContent?.trim()||e.getAttribute("title")||e.getAttribute("placeholder")||e.getAttribute("alt")||e.closest("label")?.textContent?.trim()||(e.id&&document.querySelector(`label[for="${CSS.escape(e.id)}"]`)?.textContent?.trim()));return !labelled;
   }).map(e=>({tag:e.tagName,html:e.outerHTML.slice(0,180)})));
   expect(unnamed,JSON.stringify(unnamed)).toEqual([]);
