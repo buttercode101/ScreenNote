@@ -19,6 +19,7 @@ async function proxyLegacyClip(request: Request): Promise<Response> {
 const SESSION_COOKIE = "sn_guest";
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const UPLOAD_PART_BYTES = 2 * 1024 * 1024;
 const MAX_DURATION_SECONDS = 10 * 60;
 const MAX_COMMENTS_PER_SHARE = 200;
 const PASSWORD_ATTEMPT_LIMIT = 5;
@@ -308,10 +309,92 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     const mime = body.mimeType?.split(";")[0] ?? "";
     if (!["video/webm", "video/mp4", "video/quicktime"].includes(mime)) return fail("Choose an MP4, WebM or MOV video.", 415);
     const id = crypto.randomUUID(), now = Math.floor(Date.now() / 1000), key = `shared/${id}`;
-    await env.DB.prepare("INSERT INTO recordings (id, owner_token_hash, title, object_key, mime_type, byte_size, duration_seconds, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'uploading', ?, ?)")
-      .bind(id, owner, body.title.trim(), key, mime, body.size, Math.ceil(body.duration!), now, now).run();
-    return json({ id, uploadUrl: `/api/recordings/${id}/media` }, 201);
+    await env.DB.prepare("INSERT INTO recordings (id, owner_token_hash, title, object_key, mime_type, byte_size, duration_seconds, status, created_at, updated_at, upload_until) VALUES (?, ?, ?, ?, ?, ?, ?, 'uploading', ?, ?, ?)")
+      .bind(id, owner, body.title.trim(), key, mime, body.size, Math.ceil(body.duration!), now, now, now + 600).run();
+    return json({ id, uploadUrl: `/api/recordings/${id}/media`, chunkBytes: UPLOAD_PART_BYTES, uploadStateUrl: `/api/recordings/${id}/upload-state` }, 201);
   }
+
+  const uploadStateMatch = path.match(/^\/api\/recordings\/([a-f0-9-]{36})\/upload-state$/i);
+  if (uploadStateMatch && request.method === "GET") {
+    const row = await env.DB.prepare("SELECT status, upload_until AS uploadUntil FROM recordings WHERE id = ? AND owner_token_hash = ?").bind(uploadStateMatch[1], owner).first<{status:string;uploadUntil:number}>();
+    if (!row) return fail("This upload reservation is no longer available.", 404);
+    if (row.status !== "uploading") return json({ status: row.status, parts: [], chunkBytes: UPLOAD_PART_BYTES });
+    if (row.uploadUntil <= Math.floor(Date.now() / 1000)) return fail("This upload reservation expired. Start sharing again to create a fresh reservation.", 409);
+    const { results } = await env.DB.prepare("SELECT part_number AS part, byte_size AS size FROM recording_upload_parts WHERE recording_id = ? ORDER BY part_number").bind(uploadStateMatch[1]).all<{part:number;size:number}>();
+    return json({ status: row.status, parts: results, chunkBytes: UPLOAD_PART_BYTES });
+  }
+
+  const uploadPartMatch = path.match(/^\/api\/recordings\/([a-f0-9-]{36})\/parts\/(\d+)$/i);
+  if (uploadPartMatch && request.method === "PUT") {
+    const row = await env.DB.prepare("SELECT mime_type, byte_size, upload_until AS uploadUntil FROM recordings WHERE id = ? AND owner_token_hash = ? AND status = 'uploading'")
+      .bind(uploadPartMatch[1], owner).first<{mime_type:string;byte_size:number;uploadUntil:number}>();
+    if (!row) return fail("This upload reservation is no longer available.", 404);
+    const now = Math.floor(Date.now() / 1000);
+    if (row.uploadUntil <= now) return fail("This upload reservation expired. Start sharing again to create a fresh reservation.", 409);
+    const part = Number(uploadPartMatch[2]), count = Math.ceil(row.byte_size / UPLOAD_PART_BYTES);
+    if (!Number.isSafeInteger(part) || part < 0 || part >= count) return fail("Choose a valid upload part.", 400);
+    const expected = Math.min(UPLOAD_PART_BYTES, row.byte_size - part * UPLOAD_PART_BYTES);
+    const bytes = new Uint8Array(await request.arrayBuffer());
+    if (bytes.byteLength !== expected) return fail("This upload part has an unexpected size.", 400);
+    if (part === 0 && !(await validMediaHeader(new Response(bytes).body!, row.mime_type))) return fail("The uploaded file does not match its declared video format.", 415);
+    const objectKey = `recording-parts/${uploadPartMatch[1]}/${part}`;
+    await env.MEDIA.put(objectKey, bytes, { httpMetadata: { contentType: "application/octet-stream" } });
+    await env.DB.prepare("INSERT OR REPLACE INTO recording_upload_parts (recording_id, part_number, object_key, byte_size, created_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(uploadPartMatch[1], part, objectKey, bytes.byteLength, now).run();
+    await env.DB.prepare("UPDATE recordings SET upload_until = ?, updated_at = ? WHERE id = ? AND owner_token_hash = ?")
+      .bind(now + 600, now, uploadPartMatch[1], owner).run();
+    return json({ part, uploaded: true });
+  }
+
+  const uploadCompleteMatch = path.match(/^\/api\/recordings\/([a-f0-9-]{36})\/complete$/i);
+  if (uploadCompleteMatch && request.method === "POST") {
+    const row = await env.DB.prepare("SELECT object_key, mime_type, byte_size, upload_until AS uploadUntil FROM recordings WHERE id = ? AND owner_token_hash = ? AND status = 'uploading'")
+      .bind(uploadCompleteMatch[1], owner).first<{object_key:string;mime_type:string;byte_size:number;uploadUntil:number}>();
+    if (!row) return fail("This upload reservation is no longer available.", 404);
+    if (row.uploadUntil <= Math.floor(Date.now() / 1000)) return fail("This upload reservation expired. Start sharing again to create a fresh reservation.", 409);
+    const { results } = await env.DB.prepare("SELECT part_number AS part, object_key AS objectKey, byte_size AS size FROM recording_upload_parts WHERE recording_id = ? ORDER BY part_number")
+      .bind(uploadCompleteMatch[1]).all<{part:number;objectKey:string;size:number}>();
+    const count = Math.ceil(row.byte_size / UPLOAD_PART_BYTES);
+    const missing = Array.from({length:count},(_,i)=>i).filter(i=>!results.some(part=>part.part===i || (part as any).part_number===i));
+    if (missing.length) return json({ error: "Upload is incomplete. Resume the missing parts before completing.", missingParts: missing }, 409);
+    for (let i=0;i<count;i++) {
+      const part = results.find(item=>item.part===i || (item as any).part_number===i);
+      const expected = Math.min(UPLOAD_PART_BYTES, row.byte_size - i * UPLOAD_PART_BYTES);
+      if (!part || part.size !== expected) return fail("An uploaded part does not match the reserved video size.", 400);
+    }
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for (const part of results) {
+            const object = await env.MEDIA.get(part.objectKey);
+            if (!object) throw new Error("An uploaded part is missing from private storage.");
+            const reader = object.body.getReader();
+            for (;;) { const {done,value} = await reader.read(); if (done) break; controller.enqueue(value); }
+          }
+          controller.close();
+        } catch (error) { controller.error(error); }
+      }
+    });
+    const fixedLength = new FixedLengthStream(row.byte_size);
+    const pipePromise = stream.pipeTo(fixedLength.writable);
+    try {
+      await env.MEDIA.put(row.object_key, fixedLength.readable, { httpMetadata: { contentType: row.mime_type } });
+      await pipePromise;
+    } catch {
+      await pipePromise.catch(() => undefined);
+      await env.MEDIA.delete(row.object_key).catch(() => undefined);
+      return fail("The upload could not be assembled. Your local original and uploaded parts remain available for retry.", 503);
+    }
+    const assembled = await env.MEDIA.head(row.object_key);
+    if (!assembled || assembled.size !== row.byte_size) { await env.MEDIA.delete(row.object_key); return fail("The assembled video size did not match the reservation.", 400); }
+    const now = Math.floor(Date.now() / 1000);
+    await env.DB.prepare("UPDATE recordings SET status = 'ready', updated_at = ? WHERE id = ? AND owner_token_hash = ?")
+      .bind(now, uploadCompleteMatch[1], owner).run();
+    await Promise.all(results.map(part=>env.MEDIA.delete(part.objectKey)));
+    await env.DB.prepare("DELETE FROM recording_upload_parts WHERE recording_id = ?").bind(uploadCompleteMatch[1]).run();
+    return json({ id: uploadCompleteMatch[1], status: "ready" });
+  }
+
   const recordingMatch = path.match(/^\/api\/recordings\/([a-f0-9-]{36})(?:\/(media|publish))?$/i);
   if (recordingMatch && recordingMatch[2] === "media" && request.method === "PUT") {
     const row = await env.DB.prepare("SELECT object_key, mime_type, byte_size FROM recordings WHERE id = ? AND owner_token_hash = ? AND status = 'uploading'")
