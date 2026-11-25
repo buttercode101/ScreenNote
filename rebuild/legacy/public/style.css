@@ -221,3 +221,80 @@ dialog{border-radius:8px;box-shadow:0 22px 80px #0004}.footer{border-color:var(-
 @media(max-width:1024px){.shell{grid-template-columns:190px minmax(0,1fr)}.sidebar{width:190px}.content{padding:28px 24px}}
 @media(max-width:767px){.topbar{height:66px;padding-inline:18px}.content{padding:28px 18px}.heading{align-items:flex-start;margin-bottom:24px}.heading h1{font-size:clamp(32px,9vw,42px);letter-spacing:-1.7px}.panel{padding:20px}.stage{min-height:270px}.viewer{padding-block:26px}}
 @media(max-width:420px){.content{padding-inline:15px}.topbar{padding-inline:15px}.heading h1{font-size:34px}.panel{padding:17px}.stage{min-height:250px}}
+
+
+/* Cloudflare Studio surfaces mapped to the actual recording/editor markup. */
+.workspace-summary{padding:13px 0 25px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.workspace-summary .status-dot{background:#8cc63f;box-shadow:0 0 0 4px #8cc63f20}
+.record-setup{border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
+.record-setup>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 21px;min-height:58px;font-size:13px;font-weight:700;cursor:pointer}
+.record-setup>summary::-webkit-details-marker{display:none}
+.record-setup>summary:after{content:'＋';font-size:18px;color:#759d35}
+.record-setup[open]>summary:after{content:'−'}
+.record-setup[open]>summary{border-bottom:1px solid var(--line)}
+.record-setup>.record-grid{padding:22px}
+.compact-recorder{grid-template-columns:minmax(0,1.35fr) minmax(250px,.9fr);gap:18px}
+.record-options{border:1px solid var(--line);border-radius:7px;background:var(--panel);padding:22px}
+.recorder-intro{padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.recorder-intro>svg{color:#7ba52e}
+.record-guide{border:0;border-radius:7px;background:#edf3e6;padding:25px;color:#1b281b}
+:root[data-theme=dark] .record-guide{background:#202c23;color:#edf3e9}
+.record-guide .guide-icon{border-radius:6px;background:#c1f36b;color:#142015}
+.record-guide h2{font-size:24px;letter-spacing:-1px}
+.record-guide ol{gap:13px}
+.record-guide li strong{font-weight:750}
+.record-guide .btn{border-color:#b8c7ac;background:transparent;color:inherit}
+.capture-frame{border-radius:7px;border:1px solid #35473a;background:#0c140f;min-height:210px}
+.capture-frame video{max-height:60vh}
+.capture-frame canvas{border-radius:7px}
+.recording{border:1px solid var(--line);border-radius:8px;padding:18px;background:var(--panel)}
+.recording .capture-frame{margin-bottom:16px}
+.recording .tool-controls{display:flex;flex-wrap:wrap;gap:10px}
+.recording .tool-controls .btn{min-height:42px}
+.setup-note{max-width:900px;color:var(--muted);font-size:12px}
+.countdown{color:var(--text);font-variant-numeric:tabular-nums}
+.library-section{padding-top:10px}
+.library-heading .eyebrow{color:#718f38}
+.clip-card{border-radius:7px}
+.clip-art{background:linear-gradient(135deg,#dce6d2,#f0f2ec);color:#52674b}
+:root[data-theme=dark] .clip-art{background:linear-gradient(135deg,#25352a,#1a241d);color:#c1f36b}
+.clip-card:hover{transform:translateY(-2px);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.clip-badge{border-radius:3px;letter-spacing:.5px}
+.card-play{border-radius:5px}
+.editor-grid{grid-template-columns:minmax(0,1.45fr) minmax(280px,.8fr)}
+.editor-preview,.editor-tools,.trim-panel,.panel.reply-panel{border-radius:7px}
+.video-panel{border-radius:7px}
+.viewer-top{border-bottom:1px solid var(--line)}
+.viewer{padding-top:32px}
+.viewer .video-panel{box-shadow:0 12px 34px #07110920}
+.reply-panel{border:1px solid var(--line);background:var(--panel)}
+.privacy,.help-grid{max-width:880px}
+@media(max-width:1024px){
+ .compact-recorder{grid-template-columns:minmax(0,1fr) minmax(220px,.8fr)}
+ .editor-grid{grid-template-columns:minmax(0,1fr) 260px}
+ .clip-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:767px){
+ .record-setup>.record-grid{padding:14px}
+ .compact-recorder,.editor-grid{grid-template-columns:minmax(0,1fr)}
+ .record-options,.record-guide{padding:18px}
+ .recording{padding:12px}
+ .capture-frame{min-height:160px}
+ .capture-frame video{max-height:48vh}
+ .record-guide{order:2}
+ .workspace-summary{font-size:11px;gap:8px}
+ .workspace-summary .text-button{margin-left:0}
+ .clip-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+ .clip-body{padding:13px}
+ .viewer-grid{grid-template-columns:minmax(0,1fr)}
+ .viewer-media{position:static}
+}
+@media(max-width:420px){
+ .clip-grid{grid-template-columns:minmax(0,1fr)}
+ .record-setup>summary{padding-inline:15px}
+ .record-setup>.record-grid{padding:10px}
+ .record-options,.record-guide{padding:15px}
+ .record-defaults{grid-template-columns:minmax(0,1fr)}
+ .editor-actions,.dialog-actions{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){.clip-card:hover{transform:none;transition:none}}
