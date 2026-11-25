@@ -229,3 +229,12 @@
 
 .offline-banner{display:flex;align-items:center;gap:9px;padding:10px clamp(14px,3vw,34px);background:#f4e4cb;color:#634b2b;border-bottom:1px solid #e3c99d;font-size:12px;line-height:1.45}
 [data-theme="dark"] .offline-banner{background:#3a3021;color:#f0d9b5;border-color:#57452b}
+
+
+.upload-resume-note{margin:0;color:var(--muted,#73776f);font-size:11px;line-height:1.5}
+.publish-progress{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line,#d9d8cf);border-radius:8px;background:var(--paper,#f3f1e9)}
+.publish-progress>div{display:flex;justify-content:space-between;gap:10px;font-size:11px}
+.publish-progress strong{font-variant-numeric:tabular-nums}
+.publish-progress progress{width:100%;height:8px;accent-color:#a8c52f}
+.publish-status{margin:0;padding:10px;border-radius:7px;background:rgba(185,91,62,.1);color:inherit;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+[data-theme="dark"] .publish-progress{background:#171c17;border-color:#41483e}
