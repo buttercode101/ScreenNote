@@ -217,6 +217,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       const captions = Array.isArray(body.details.captions) ? body.details.captions : [];
       const chapters = Array.isArray(body.details.chapters) ? body.details.chapters : [];
       const annotations = Array.isArray(body.details.annotations) ? body.details.annotations : [];
+      if (body.details.reviewStatus !== undefined && !["needs-feedback","changes-requested","approved"].includes(String(body.details.reviewStatus))) return fail("Choose a valid review status.", 400);
       if (captions.length > 100 || chapters.length > 20 || annotations.length > 40) return fail("Video context exceeds the supported item limits.", 400);
       for (const cue of captions as any[]) if (!cue || !Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.start < 0 || cue.end <= cue.start || cue.end > share.duration_seconds + .05 || typeof cue.text !== "string" || cue.text.length > 500) return fail("Shared captions contain an invalid cue.", 400);
       for (const chapter of chapters as any[]) if (!chapter || !Number.isFinite(chapter.time) || chapter.time < 0 || chapter.time >= share.duration_seconds || typeof chapter.title !== "string" || !chapter.title.trim() || chapter.title.length > 80) return fail("Shared chapters contain an invalid entry.", 400);
