@@ -119,6 +119,7 @@ export class ScreenRecorder {
       displayTrack.addEventListener("ended", this.displayEndedHandler, { once: true });
       if (displayTrack.readyState === "ended") queueMicrotask(this.displayEndedHandler);
     } catch (error) {
+      this.cleanup();
       cleanupVideo?.(); [display, ...(microphone ? [microphone] : []), ...(camera ? [camera] : []), ...(composite ? [composite] : [])].forEach(source => source.getTracks().forEach(track => track.stop()));
       await audioContext?.close().catch(() => undefined); throw error;
     }
