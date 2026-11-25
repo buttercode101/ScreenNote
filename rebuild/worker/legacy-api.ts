@@ -64,14 +64,14 @@ async function transitionStatus(env:LegacyEnv,record:ClipRecord,clip:any,nextSta
 async function ownerMatches(value:unknown,expected:string){return typeof value==="string"&&value.length>=40&&value.length<=100&&safeEqual(await digest(value),expected)}
 async function requireOwner(clip:any,owner:unknown){if(!await ownerMatches(owner,clip.ownerHash))throw fail("This browser does not have permission to manage the link.",403)}
 function available(clip:any){if(clip.status!=="published"||clip.expiresAt<=Date.now())throw fail("This link has expired or is no longer shared.",404)}
-async function passwordRecord(password:unknown){
+export async function passwordRecord(password:unknown){
  if(password===undefined||password==="")return {};
  if(typeof password!=="string"||password.length<8||password.length>128)throw fail("Use a sharing password of 8–128 characters.");
  const salt=randomToken(16),key=await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveBits"]);
  const bits=await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt:encoder.encode(salt),iterations:150000},key,256);
  return{passwordSalt:salt,passwordHash:hex(new Uint8Array(bits)),passwordAlgorithm:"pbkdf2-sha256"};
 }
-async function checkPassword(clip:any,password:unknown){
+export async function checkPassword(clip:any,password:unknown){
  if(!clip.passwordHash)return true;
  if(typeof password!=="string"||password.length>128||clip.passwordAlgorithm!=="pbkdf2-sha256")return false;
  const key=await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveBits"]);
@@ -126,7 +126,7 @@ async function cleanupPending(env:LegacyEnv,record:ClipRecord){
  await removeClipMedia(env,record);
 }
 function rootOf(comments:any[],comment:any){const seen=new Set<string>();let current=comment;while(current.parentId){if(seen.has(current.id))throw fail("This thread is unavailable.",409);seen.add(current.id);const parent=comments.find(x=>x.id===current.parentId);if(!parent)break;current=parent}return current}
-async function applyComment(env:LegacyEnv,clip:any,op:string,body:any){
+export async function applyComment(env:LegacyEnv,clip:any,op:string,body:any){
  if(clip.status!=="published"||clip.expiresAt<Date.now())throw fail("This link has expired or is no longer shared.",404);
  clip.comments||=[];const creator=await ownerMatches(body.owner,clip.ownerHash);
  if(op==="comment"){
