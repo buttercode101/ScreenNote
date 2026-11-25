@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Camera, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Scissors, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
+import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Camera, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Scissors, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, WifiOff, X } from "lucide-react";
 import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listFullClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
 // @ts-expect-error Shared browser-safe backup helper has no declaration file.
 import { makeLibraryBackup, readLibraryBackup } from "../legacy/lib/library-backup.js";
@@ -55,6 +55,7 @@ function App() {
   const countdownTimer = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
   const [dark, setDark] = useState(() => { try { return localStorage.getItem("screennote-theme") === "dark"; } catch { return false; } });
   const [query, setQuery] = useState("");
   const [previewClip, setPreviewClip] = useState<Clip | null>(null);
@@ -82,6 +83,11 @@ function App() {
     setRecoverable(nextRecoverable);
   };
   useEffect(() => { refresh().catch(() => setMessage("Your browser's local storage is unavailable.")); }, []);
+  useEffect(() => {
+    const onlineNow = () => setOnline(true), offlineNow = () => setOnline(false);
+    window.addEventListener("online", onlineNow); window.addEventListener("offline", offlineNow);
+    return () => { window.removeEventListener("online", onlineNow); window.removeEventListener("offline", offlineNow); };
+  }, []);
   useEffect(() => { document.documentElement.dataset.theme = dark ? "dark" : "light"; try { localStorage.setItem("screennote-theme", dark ? "dark" : "light"); } catch { /* Appearance remains usable when storage is blocked. */ } }, [dark]);
   useEffect(() => {
     if ("serviceWorker" in navigator && window.isSecureContext) {
@@ -280,6 +286,7 @@ function App() {
   }
 
   async function shareClip(id: string) {
+    if (!online) { setMessage("Sharing needs an internet connection. Your local recording is still available to preview, edit and download."); return; }
     const clip = await getClip(id);
     if (clip?.share && clip.share.expiresAt * 1000 > Date.now()) {
       const url = new URL(clip.share.url, location.origin).toString();
@@ -290,6 +297,7 @@ function App() {
   }
 
   async function publishSelected() {
+    if (!online) { setMessage("Connect to the internet before publishing. Your original remains safely stored on this device."); return; }
     if (!publishId) return;
     setPublishing(true); setMessage("");
     try {
@@ -403,6 +411,7 @@ function App() {
     </aside>
 
     <main className="main-content">
+      {!online && <div className="offline-banner" role="status"><WifiOff size={15}/> Offline mode — your local library, preview, editing and downloads remain available. Publishing and shared discussions need a connection.</div>}
       <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> Overview</div><div className="top-actions"><span className="secure-label"><ShieldCheck size={14}/> Private by default</span><button className="icon-button" aria-label="Toggle appearance" onClick={() => setDark(!dark)}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><span className="avatar small" aria-label="Guest workspace">S</span></div></header>
       <div className="page-wrap">
         <section className="welcome-row"><div><div className="eyebrow">YOUR CREATIVE WORKSPACE</div><h1>Make it clear.<br/><span>Show what you mean.</span></h1><p className="intro">Capture a moment, explain an idea, and bring everyone onto the same page.</p></div><div className="welcome-art" aria-hidden="true"><div className="art-window"><div className="art-bar"><i/><i/><i/></div><div className="art-screen"><div className="art-sidebar"/><div className="art-content"><div/><div/><div/><div/></div><div className="art-cursor"/></div><div className="art-play"><Play size={15} fill="currentColor"/></div></div><div className="art-caption">A clearer way to communicate</div></div></section>
