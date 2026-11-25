@@ -221,6 +221,10 @@ test("temporary share viewer and privacy route use the independent responsive de
   await expect(page.getByText("Needs feedback",{exact:true})).toBeVisible();
   await reviewPanel.getByRole("button",{name:"Mark changes requested"}).click();
   await expect(page.getByText("Changes requested",{exact:true})).toBeVisible();
+  const packetDownloadPromise=page.waitForEvent("download");
+  await reviewPanel.getByRole("button",{name:"Download review packet"}).click();
+  const packetDownload=await packetDownloadPromise;
+  expect(packetDownload.suggestedFilename()).toBe("screennote-review-packet.md");
   await expect(page.locator(".share-video-wrap")).toBeVisible();
   await expect(page.locator(".share-discussion")).toBeVisible();
   await expect(page.getByRole("button",{name:/Introduction/i})).toBeVisible();
