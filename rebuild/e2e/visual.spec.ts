@@ -165,13 +165,14 @@ test("real legacy share viewer and privacy route remain contained across widths 
       id,title:"A very long ScreenNote title that must wrap naturally without forcing the viewer outside the available screen width",
       reviewStatus:"needs-feedback",width:1280,height:720,start:0,end:95,duration:95,
       createdAt:Date.now(),expiresAt:Date.now()+86400000,passwordProtected:false,
-      discussionRevision:0,captions:[],chapters:[],report:null,comments:[],
+      discussionRevision:0,captions:[],chapters:[],report:null,comments:[{id:"comment-1",name:"Guest reviewer",text:"Please inspect this very long note and its reference https://example.com/".repeat(6),time:12,createdAt:Date.now(),parentId:null,editedAt:null,deleted:false,resolved:false,creator:false}],
       reactions:{like:0,thanks:0,idea:0},mediaUrl:"/sample.webm"
     }});
   });
   await page.goto("/v/"+id);
   await expect(page.locator(".viewer-grid")).toBeVisible();
   await expect(page.locator(".reply-panel")).toContainText("Talk about this moment.");
+  await expect(page.locator(".reply-panel")).toContainText("Guest reviewer");
   for(const theme of ["light","dark"]){
     await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
     for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
