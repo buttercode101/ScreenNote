@@ -39,3 +39,6 @@ CREATE INDEX IF NOT EXISTS share_password_attempts_window
 
 
 -- Persistent R2 orphan scan cursor is defined in migrations/0006_legacy_cleanup_cursor.sql.
+
+
+-- Native deleted/expired share tombstones are defined in migrations/0007_legacy_clip_tombstones.sql.

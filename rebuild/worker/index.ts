@@ -432,8 +432,8 @@ export default {
       }
       // Native 0.5.0 API retention: expired/revoked uploads are deleted from R2 and D1 metadata remains for owner status.
       const nowMs = Date.now();
-      const legacyExpired = await env.DB.prepare("SELECT id,status,object_key,data,expires_at FROM legacy_clip_records WHERE (status='pending' AND upload_until<=?) OR (status='published' AND (expires_at<=? OR json_extract(data,'$.cleanupComplete') IS NOT 1)) OR (status IN ('revoked','deleted','expired') AND json_extract(data,'$.cleanupComplete') IS NOT 1) LIMIT 100")
-        .bind(nowMs,nowMs).all<{id:string;status:string;object_key:string;data:string;expires_at:number}>();
+      const legacyExpired = await env.DB.prepare("SELECT id,status,object_key,data,expires_at,owner_hash FROM legacy_clip_records WHERE (status='pending' AND upload_until<=?) OR (status='published' AND (expires_at<=? OR json_extract(data,'$.cleanupComplete') IS NOT 1)) OR status IN ('revoked','deleted','expired') LIMIT 100")
+        .bind(nowMs,nowMs).all<{id:string;status:string;object_key:string;data:string;expires_at:number;owner_hash:string}>();
       for (const row of legacyExpired.results) {
         const clip = JSON.parse(row.data);
         // A successful publish can still leave multipart chunks if cleanup was interrupted.
@@ -451,19 +451,27 @@ export default {
           const allocation = previousStatus === "pending" ? 2 * Number(clip.size || 0) : Number(clip.size || 0);
           clip.status = "expired";
           clip.cleanupComplete = false;
-          await env.DB.batch([
+          const transition = await env.DB.batch([
             env.DB.prepare("UPDATE legacy_capacity SET reserved_bytes=MAX(0,reserved_bytes-?),reserved_count=MAX(0,reserved_count-1) WHERE id=1 AND EXISTS(SELECT 1 FROM legacy_clip_records WHERE id=? AND status=? AND data=?)").bind(allocation,row.id,previousStatus,row.data),
             env.DB.prepare("UPDATE legacy_clip_records SET status='expired',data=?,media_token_hash=NULL,media_token_expires=NULL WHERE id=? AND status=? AND data=?").bind(JSON.stringify(clip),row.id,previousStatus,row.data)
           ]);
+          if (transition[1].meta.changes !== 1) continue;
         }
         await env.MEDIA.delete(row.object_key);
         const legacyParts = await env.DB.prepare("SELECT object_key FROM legacy_clip_parts WHERE clip_id=?").bind(row.id).all<{object_key:string}>();
         for (const part of legacyParts.results) await env.MEDIA.delete(part.object_key);
         await env.DB.prepare("DELETE FROM legacy_clip_parts WHERE clip_id=?").bind(row.id).run();
         clip.cleanupComplete = true;
-        await env.DB.prepare("UPDATE legacy_clip_records SET data=?,media_token_hash=NULL,media_token_expires=NULL WHERE id=?").bind(JSON.stringify(clip),row.id).run();
+        const reason = row.status === "pending" || row.status === "published" ? "expired" : row.status;
+        await env.DB.batch([
+          env.DB.prepare("INSERT INTO legacy_clip_tombstones(id,owner_hash,deleted_at,reason) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET owner_hash=excluded.owner_hash,deleted_at=excluded.deleted_at,reason=excluded.reason").bind(row.id,row.owner_hash,nowMs,reason),
+          env.DB.prepare("DELETE FROM legacy_clip_password_attempts WHERE clip_id=?").bind(row.id),
+          env.DB.prepare("DELETE FROM legacy_clip_parts WHERE clip_id=?").bind(row.id),
+          env.DB.prepare("DELETE FROM legacy_clip_records WHERE id=?").bind(row.id)
+        ]);
       }
       await env.DB.prepare("DELETE FROM legacy_clip_password_attempts WHERE window_started<=? OR locked_until<=?").bind(now-3600,now).run();
+      await env.DB.prepare("DELETE FROM legacy_clip_tombstones WHERE deleted_at<=?").bind(nowMs-365*86400000).run();
       // Reclaim orphaned native R2 objects only after a one-hour grace period.
       const legacyClipRows = await env.DB.prepare("SELECT object_key FROM legacy_clip_records").bind().all<{object_key:string}>();
       const legacyPartRows = await env.DB.prepare("SELECT object_key FROM legacy_clip_parts").bind().all<{object_key:string}>();
