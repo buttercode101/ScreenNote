@@ -49,15 +49,15 @@ Status meanings:
 | Resolve/reopen moderation | Release verdict | Documented | All creator/author permission combinations |
 | Playback bubbles and timeline markers | Root README | Documented | Seek accuracy, keyboard access, fullscreen/PiP boundaries |
 | Frame-point annotations | Not established as a named shipped capability in root README | Frame-point annotations documented | Verify actual UI editing, persistence, export and mobile usability |
-| Captions SRT/VTT import/export | Technical notes document owner-supplied captions | Not listed in rebuild implementation | Port and test parser, timestamps, malformed files, download |
-| Searchable transcript | Technical notes document searchable timestamp transcript | Not listed; rebuild explicitly says no extracted transcript | Port owner-supplied transcript search; do not imply AI transcription |
-| Chapters | Technical notes list chapters | Not listed in rebuild README | Port creation, navigation, seek and export |
-| Advanced annotation/redaction/mask tools | Technical notes list rectangles, arrows, highlights, opaque masks and blur; marked copies | Not listed as equivalent in rebuild README | Port full editor and rendered-copy pipeline or explicitly remove from parity scope only with owner decision |
+| Captions SRT/VTT import/export | Technical notes document owner-supplied captions | Implemented in `legacy/lib/enrichment.js` and `legacy/public/extras-ui.js`; Playwright imports, saves and exports VTT | Verify malformed/edge-case parser coverage and shared persistence on live Worker |
+| Searchable transcript | Technical notes document searchable timestamp transcript | Implemented as search over owner-supplied caption cues in `extras-ui.js`; no automatic transcription | Verify cue ordering, empty search, Unicode/case handling and seek behavior; do not imply AI transcription |
+| Chapters | Technical notes list chapters | Implemented in `enrichment.js` and `extras-ui.js`; chapter navigation is rendered in viewer | Verify malformed timestamps, ordering, boundary conditions and live persistence |
+| Advanced annotation/redaction/mask tools | Technical notes list rectangles, arrows, highlights, opaque masks and blur; marked copies | `markup.js` and editor UI implement rectangle, arrow, highlight, opaque redaction and blur marks; marks are frame-normalized | Verify mark persistence, export/trim rendering, blur/redaction correctness, keyboard/touch usability and output pixel evidence |
 | Structured coding-agent handoff | Not established in root README | Recursive discussion JSON documented; explicitly lacks extracted transcript/keyframes | Schema compatibility, export/import, escaping, large discussion |
-| Bug reports | Technical notes list structured reports and Markdown download | Not listed | Port local report workflow and privacy controls |
+| Bug reports | Technical notes list structured reports and Markdown download | Implemented in `enrichment.js` and `extras-ui.js`; owner-supplied fields, optional explicit user-agent inclusion and Markdown export | Verify URL credential rejection, long text, shared visibility warning and live persistence |
 | Recovery keys | Release verdict confirms management restore (not video backup) | Portable key export/import documented | Restore in a separate browser/profile, wrong key, partial restore and revocation |
-| Offline behavior | Release verdict confirms offline banner/publish gate | Not established in rebuild README | Offline local workflows, queue/retry and clear publish gating |
-| Upload resume/retry | Release verdict confirms per-part retry and resume | Live upload flow documented; equivalent resume semantics not established | Interrupt network mid-upload and resume without duplicate/corrupt chunks |
+| Offline behavior | Release verdict confirms offline banner/publish gate | Offline/online events update the connection banner; service-worker offline library E2E exists | Verify all routes/assets cached, offline editing/import/trim, stale API failures and retry/reconnect behavior |
+| Upload resume/retry | Release verdict confirms per-part retry and resume | `app.js` resumes from `upload-state`, skips acknowledged chunks and retries transfers | Verify real interrupted network resume, duplicate part idempotency, expiry/re-reservation and orphan cleanup under live R2/D1 |
 | Storage/capacity handling | 50 MB per clip; 10 min; 1 GB budget; 100 comments | 100 MB per upload; 10 min; 200 comments; dev R2/D1 | Confirm actual quotas, atomic reservations, concurrency, cleanup and abuse cost |
 | Accessibility | 44px targets, focus, skip link, aria-live documented for Vercel | Manual keyboard/screen-reader review remains open | WCAG-oriented keyboard, focus, names, contrast, announcements, reduced motion |
 | Responsive visual QA | 11-viewport re-run explicitly outstanding in Vercel verdict | 320/375/768/1120/1440 visual tests documented | Add missing breakpoints/orientations/heights and verify screenshots on candidate |
@@ -67,7 +67,7 @@ Status meanings:
 ## 3. Immediate parity blockers
 
 1. The Cloudflare candidate README does not claim parity for captions/SRT/VTT, searchable transcripts, chapters, structured bug reports, offline behavior, upload resume, or the full mask/annotation workflow.
-2. The candidate explicitly says its agent handoff export lacks extracted transcript and generated keyframes.
+2. The candidate does not implement automatic transcript extraction or generated keyframes; transcript search is over owner-supplied captions. Structured agent handoff is not present as a named product workflow and needs a precise scope decision against the reference implementation.
 3. True frame-by-frame drawing and native desktop capture are explicitly roadmap items.
 4. Recovery-key restore in a separate browser, real elapsed-time expiry, independent security review, manual accessibility, and physical-device QA remain open.
 5. Candidate upload/comment limits differ from Vercel. Limits must be intentionally chosen and tested, not treated as automatic improvements.
