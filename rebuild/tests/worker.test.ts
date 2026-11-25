@@ -135,6 +135,9 @@ describe("ScreenNote temporary sharing API",()=>{
   it("creates guest sessions and rejects cross-origin writes",async()=>{
     const res=await worker.fetch(new Request("https://screennote.test/api/session",{headers:{origin:"https://evil.test"}}),state.env as any,{} as any);
     expect(res.status).toBe(403);expect(state.DB.sessions.size).toBe(0);
+    const s=await session(state.env);
+    const noOrigin=await worker.fetch(new Request("https://screennote.test/api/recordings",{method:"POST",headers:{cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({title:"Blocked",mimeType:"video/webm",size:4,duration:12})}),state.env as any,{} as any);
+    expect(noOrigin.status).toBe(403);expect(state.DB.recordings.size).toBe(0);
   });
   it("streams an owned upload to R2 and publishes an expiring share",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie);

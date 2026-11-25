@@ -81,7 +81,10 @@ function safeEqual(a: string, b: string): boolean {
 }
 function sameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
+  if (origin) return origin === new URL(request.url).origin;
+  // Modern browsers send Origin on unsafe fetches. Reject origin-less writes as well,
+  // while leaving safe navigations and media reads compatible with ordinary clients.
+  return ["GET", "HEAD", "OPTIONS"].includes(request.method.toUpperCase());
 }
 function sessionCookie(token: string): string {
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${SESSION_SECONDS}`;
