@@ -77,13 +77,39 @@ Verified by the rebuild workflow:
 
 The frontend is independent; the service is not yet fully Vercel-independent. A compatibility fallback remains for the old `/api/clip` contract so existing legacy shares are not silently abandoned. The new React frontend uses Cloudflare's Worker API for new sharing flows.
 
+## 3A. 25 November implementation update — pending full acceptance
+
+The Cloudflare branch has moved beyond the earlier primary-flow-only UI. The following capabilities are now surfaced in the independent React application. They are **implemented in the branch**, but must not be marked release-accepted until the current Worker build, live D1/R2 smoke, Playwright evidence and failure-path tests pass.
+
+| Capability | Current implementation | Remaining proof |
+|---|---|---|
+| Separate Preview and Edit | Dedicated playback preview and editing workspace; recording cards expose both actions; post-publish toast has Open preview and Copy link | Deployed navigation, keyboard and viewport checks |
+| Local editing | Editable title, trim-to-new-copy, preserve-original behavior | Verify source/output playback, audio, duration and metadata retention |
+| Markup | Rectangle, arrow, highlight, blur and opaque redaction; undo/clear; annotated-copy export | Verify actual encoded pixels, blur/redaction boundaries, audio continuity and long-video behavior |
+| Captions/transcript | Owner-supplied SRT/VTT import, cue validation, local search and timestamp seeking | Live share round-trip, Unicode and malformed-file acceptance |
+| Chapters | Timestamped chapter editing and viewer navigation | Live share round-trip and edge cases |
+| Bug reports | Structured fields and Markdown export; explicit shared-visibility notice | URL and long-text security cases; live viewer acceptance |
+| Review status | Needs feedback / changes requested / approved stored in local clip and shared context | Live D1 persistence and viewer permissions |
+| Shared context | Owner-key protected Worker endpoint; viewer displays captions, transcript search, chapters, annotations and report | Real deployed D1 migration and password-gated read/write checks |
+| Portable library backup | ZIP export/restore includes local media, editing metadata and private share-management keys; duplicate-safe restore | Device storage/quota, corrupt archive, large archive and separate-profile restore |
+| Recording setup | 720p saver / 1080p balanced / up-to-1440p clear profiles, microphone source refresh/selection, system audio, camera bubble size/corner, 3-second cancellable countdown, pause/resume | Real device/source picker tests; unsupported mobile browser behavior |
+| Offline behavior | Connection banner; local preview/edit/download remain available; publishing is blocked offline | Offline reload/cache behavior and reconnect/resume |
+| Resumable share upload | 2 MiB chunks, D1 part state, R2 part objects, bounded streaming assembly, retry helper, local pending-reservation state and progress | Live interrupted-network resume, duplicate part idempotency, expired reservation, cleanup and storage-abuse tests |
+
+Important distinctions:
+- Captions are owner-supplied. There is no automatic speech-to-text transcription.
+- The current markup tools apply spatial marks to the video image; they are not a frame-by-frame keyframe editor.
+- Camera placement currently offers four corners and size selection; drag-to-position is not yet restored.
+- Resumable upload uses application-level R2 part objects and a streamed final assembly, not R2's native multipart API.
+- Browser viewport emulation is not physical Android/iOS acceptance.
+
 ## 4. Immediate parity blockers
 
-1. The new React frontend currently exposes the primary capture, local library, import, preview, trim and temporary-share flows. Advanced legacy enrichment and review capabilities (captions/SRT/VTT, searchable owner-supplied transcript, chapters, structured bug reports, detailed annotations/redaction, and some recovery/offline workflows) still need to be surfaced and reimplemented in the new UI; keeping their source in `legacy/` is not feature parity.
-2. The candidate does not implement automatic transcript extraction or generated keyframes; transcript search is over owner-supplied captions. Structured agent handoff is not present as a named product workflow and needs a precise scope decision against the reference implementation.
-3. True frame-by-frame drawing and native desktop capture are explicitly roadmap items.
-4. Recovery-key restore in a separate browser, real elapsed-time expiry, independent security review, manual accessibility, and physical-device QA remain open.
-5. Candidate upload/comment limits differ from Vercel. Limits must be intentionally chosen and tested, not treated as automatic improvements.
+1. The advanced editing and context surfaces have now been added to the React frontend, but their deployed integration and output correctness are still being verified. The new features must not be called complete until the live workflow and artifact checks pass.
+2. Automatic transcript extraction, generated keyframes and frame-by-frame keyframe editing are not implemented. Transcript search is over owner-supplied captions only.
+3. Camera bubble drag positioning is not yet restored; only size and four-corner placement are available. Native desktop capture remains browser/platform-dependent.
+4. Recovery-key restore in a separate browser, real elapsed-time expiry, independent security review, manual accessibility and physical-device QA remain open.
+5. Candidate upload/comment limits differ from Vercel. Resumable uploads now exist in the new Worker API, but interruption/retry/expiry and storage-abuse acceptance remain open.
 6. Existing production data must not be copied, migrated, deleted, or invalidated as part of development smoke tests.
 
 ## 5. Required engineering sequence
