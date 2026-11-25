@@ -46,13 +46,13 @@ export async function trimVideoElement(video: HTMLVideoElement, requestedRange: 
       activeRecorder.onstop = () => resolve(new Blob(chunks, { type: activeRecorder.mimeType || "video/webm" }));
     });
     stopAtEnd = () => { if (video.currentTime >= range.end && activeRecorder.state !== "inactive") activeRecorder.stop(); };
-    stopAtMediaEnd = () => { if (recorder!.state !== "inactive") recorder!.stop(); };
+    stopAtMediaEnd = () => { if (activeRecorder.state !== "inactive") activeRecorder.stop(); };
     video.addEventListener("timeupdate", stopAtEnd);
     video.addEventListener("ended", stopAtMediaEnd);
     activeRecorder.start(200);
     await video.play();
     // A hard ceiling protects against stalled media or a missing timeupdate event.
-    stopTimer = window.setTimeout(() => { if (recorder?.state !== "inactive") recorder.stop(); }, Math.min(660_000, Math.ceil(range.duration * 1000) + 15_000));
+    stopTimer = window.setTimeout(() => { if (activeRecorder.state !== "inactive") activeRecorder.stop(); }, Math.min(660_000, Math.ceil(range.duration * 1000) + 15_000));
     const blob = await result;
     if (video.currentTime < range.end - 0.25 && !video.ended) throw new Error("The video stalled before the selected end. Try again; the original is unchanged.");
     if (!blob.size) throw new Error("The trimmed video was empty. Try a different range.");
