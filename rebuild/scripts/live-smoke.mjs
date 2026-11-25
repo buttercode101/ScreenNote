@@ -84,7 +84,8 @@ const sharedDetails = {
   annotations: [{ kind: "redact", x: .1, y: .1, w: .2, h: .2 }],
   captions: [{ start: 1, end: 2, text: "Owner-supplied live caption" }],
   chapters: [{ time: 1, title: "Live chapter" }],
-  report: { url: "https://example.com/checkout", steps: "Open checkout", expected: "Payment appears", actual: "Payment is missing", environment: "GitHub Actions" }
+  report: { url: "https://example.com/checkout", steps: "Open checkout", expected: "Payment appears", actual: "Payment is missing", environment: "GitHub Actions" },
+  reviewStatus: "changes-requested"
 };
 const detailsSaved = await request(sharePath + "/details", {
   method: "PUT", headers: { origin, "content-type": "application/json" },
