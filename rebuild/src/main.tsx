@@ -11,6 +11,8 @@ import ShareViewer from "./ShareViewer";
 import PrivacyPage from "./PrivacyPage";
 import EditorWorkspace from "./EditorWorkspace";
 import PreviewWorkspace from "./PreviewWorkspace";
+import ClipThumbnail from "./ClipThumbnail";
+import { createVideoThumbnail } from "./media";
 // @ts-expect-error Shared browser-safe media validation helper has no declaration file.
 import { importMedia } from "../legacy/lib/import-media.js";
 import "./styles.css";
@@ -159,7 +161,8 @@ function App() {
       duration: result.duration,
       size: result.blob.size,
       mimeType: result.mimeType,
-      blob: result.blob
+      blob: result.blob,
+      thumbnail: await createVideoThumbnail(result.blob)
     };
     if (activeSessionId.current) await finalizeRecordingSession(id, clip);
     else await saveClip(clip);
@@ -233,7 +236,7 @@ function App() {
       const media = await importMedia(file);
       const duration = await readVideoDuration(media.blob);
       if (!duration) throw new Error("This video has no readable duration.");
-      const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\\.[^.]+$/, ""), createdAt: Date.now(), duration, size: media.blob.size, mimeType: media.type, blob: media.blob };
+      const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\\.[^.]+$/, ""), createdAt: Date.now(), duration, size: media.blob.size, mimeType: media.type, blob: media.blob, thumbnail: await createVideoThumbnail(media.blob) };
       await saveClip(clip); await refresh(); setMessage("Video added to your private library.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this file. Check available device storage."); }
     if (fileRef.current) fileRef.current.value = "";
@@ -244,6 +247,7 @@ function App() {
     const clip = await getClip(id);
     if (!clip) { setMessage("This recording is no longer available on this device."); return; }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (!clip.thumbnail) { const thumbnail = await createVideoThumbnail(clip.blob); if (thumbnail) { clip.thumbnail = thumbnail; await saveClip(clip); await refresh(); } }
     setPreviewClip(clip);
     setTrimStart(0); setTrimEnd(clip.duration);
     setPreviewUrl(URL.createObjectURL(clip.blob));
@@ -355,7 +359,7 @@ function App() {
     try {
       const existing = new Set((await listClips()).map(clip => clip.id));
       const result = await readLibraryBackup(file, existing);
-      for (const clip of result.clips as Clip[]) await saveClip(clip);
+      for (const clip of result.clips as Clip[]) await saveClip({ ...clip, thumbnail: await createVideoThumbnail(clip.blob) });
       await refresh();
       setMessage(`Restored ${result.clips.length} recording(s). ${result.duplicates} duplicate(s) were skipped.`);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not restore this library backup."); }
@@ -439,7 +443,7 @@ function App() {
 
         <section className="library-section" id="library">
           <div className="section-heading"><div><div className="eyebrow">YOUR LIBRARY</div><h2>Recent recordings <span className="count-badge">{clips.length}</span></h2></div><div className="library-tools"><label className="search-box"><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a recording" aria-label="Search recordings"/></label><button className="button secondary import-button" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import</button></div></div>
-          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><div className="thumb-lines"><span/><span/><span/></div><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions"><button className="button secondary clip-text-action" onClick={() => openPreview(clip.id)}><Play size={14}/> Preview</button><button className="button secondary clip-text-action" onClick={() => openEditor(clip.id)}><Scissors size={14}/> Edit</button>{clip.share && clip.share.expiresAt * 1000 > Date.now() && <button className="icon-button" onClick={() => stopSharing(clip.id)} aria-label={`Stop sharing ${clip.title}`} title="Stop sharing"><ShieldCheck size={16}/></button>}<button className="icon-button" onClick={() => shareClip(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
+          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><ClipThumbnail thumbnail={clip.thumbnail} title={clip.title}/><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions"><button className="button secondary clip-text-action" onClick={() => openPreview(clip.id)}><Play size={14}/> Preview</button><button className="button secondary clip-text-action" onClick={() => openEditor(clip.id)}><Scissors size={14}/> Edit</button>{clip.share && clip.share.expiresAt * 1000 > Date.now() && <button className="icon-button" onClick={() => stopSharing(clip.id)} aria-label={`Stop sharing ${clip.title}`} title="Stop sharing"><ShieldCheck size={16}/></button>}<button className="icon-button" onClick={() => shareClip(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
         </section>
 
         <section className="bottom-note"><div className="note-icon"><Sparkles size={18}/></div><div><strong>A little more clarity goes a long way.</strong><p>Record locally. Share temporarily. Keep the conversation tied to the exact moment—and let it end when you do.</p></div><span className="build-label"><Activity size={13}/> TEMPORARY BY DESIGN</span></section>
