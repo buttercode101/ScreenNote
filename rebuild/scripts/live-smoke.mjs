@@ -54,13 +54,17 @@ const recording = await json(await request("/api/recordings", {
 }));
 recordingId = recording.id;
 const bytes = new Uint8Array([0x1a,0x45,0xdf,0xa3,0x93,0x42,0x86,0x81,0x01,0x42,0xf7,0x81]);
-const uploaded = await request(recording.uploadUrl, {
-  method: "PUT", headers: { ...headers, "content-type": "video/webm", "content-length": String(bytes.byteLength) }, body: bytes
+const part = await request(`/api/recordings/${recording.id}/parts/0`, {
+  method: "PUT", headers: { ...headers, "content-type": "application/octet-stream" }, body: bytes
 });
+assert.equal(part.status, 200, "R2 upload part succeeds");
+const uploadState = await json(await request(`/api/recordings/${recording.id}/upload-state`, { headers }));
+assert.deepEqual(uploadState.parts.map(item => item.part), [0], "uploaded part is available for resume");
+const uploaded = await request(`/api/recordings/${recording.id}/complete`, { method:"POST", headers, body:"{}" });
 if (uploaded.status !== 200) {
   await request("/api/recordings/" + recording.id, { method:"DELETE", headers, body:JSON.stringify({ ownerKey }) }).catch(() => undefined);
 }
-assert.equal(uploaded.status, 200, "real R2 upload succeeds");
+assert.equal(uploaded.status, 200, "resumable R2 upload assembles successfully");
 assert.equal((await json(uploaded)).status, "ready");
 
 const publishResponse = await request(`/api/recordings/${recording.id}/publish`, {
@@ -158,7 +162,7 @@ assert.equal(stopped.status, 200, "owner can stop share and delete shared object
 assert.equal((await request(sharePath)).status, 404, "stopped share is no longer available");
 shareToken = null;
 recordingId = null;
-console.log("Live ScreenNote acceptance passed: assets, guest session, real D1/R2 upload, password gate and lockout, byte-range media, comments/replies/edit/delete, resolve, and stop-share deletion.");
+console.log("Live ScreenNote acceptance passed: assets, guest session, resumable D1/R2 upload, password gate and lockout, byte-range media, comments/replies/edit/delete, resolve, and stop-share deletion.");
 } catch (error) {
   if (shareToken) {
     await request(`/api/share/${shareToken}/manage`, { method:"DELETE", headers:{origin,"content-type":"application/json"}, body:JSON.stringify({ownerKey}) }).catch(() => undefined);
