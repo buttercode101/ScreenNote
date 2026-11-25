@@ -334,8 +334,21 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     const part = Number(uploadPartMatch[2]), count = Math.ceil(row.byte_size / UPLOAD_PART_BYTES);
     if (!Number.isSafeInteger(part) || part < 0 || part >= count) return fail("Choose a valid upload part.", 400);
     const expected = Math.min(UPLOAD_PART_BYTES, row.byte_size - part * UPLOAD_PART_BYTES);
-    const bytes = new Uint8Array(await request.arrayBuffer());
-    if (bytes.byteLength !== expected) return fail("This upload part has an unexpected size.", 400);
+    const declaredLength = request.headers.get("content-length");
+    if (declaredLength && Number(declaredLength) !== expected) return fail("This upload part has an unexpected size.", 400);
+    if (!request.body) return fail("This upload part is empty.", 400);
+    const reader = request.body.getReader(), chunks: Uint8Array[] = [];
+    let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > expected) { await reader.cancel(); return fail("This upload part is larger than its reserved size.", 413); }
+      chunks.push(value);
+    }
+    if (received !== expected) return fail("This upload part is incomplete.", 400);
+    const bytes = new Uint8Array(expected); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
     if (part === 0 && !(await validMediaHeader(new Response(bytes).body!, row.mime_type))) return fail("The uploaded file does not match its declared video format.", 415);
     const objectKey = `recording-parts/${uploadPartMatch[1]}/${part}`;
     await env.MEDIA.put(objectKey, bytes, { httpMetadata: { contentType: "application/octet-stream" } });
