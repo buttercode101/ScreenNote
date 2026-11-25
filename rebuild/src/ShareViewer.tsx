@@ -3,10 +3,13 @@ import { createRoot } from "react-dom/client";
 import { Check, Clock3, LockKeyhole, MessageCircle, Send, ShieldCheck, Video } from "lucide-react";
 import { findShareByToken } from "./library";
 import { shareRequest } from "./sharing";
+// @ts-expect-error Shared browser-safe enrichment module has no declaration file.
+import { captionsVTT } from "../legacy/lib/enrichment.js";
 import "./styles.css";
 
 type Comment = { isMine?:boolean; anchorX:number|null; anchorY:number|null; id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
 type Share = { title:string; mimeType:string; size:number; duration:number; expiresAt:number; passwordRequired:boolean };
+type ShareDetails = { annotations?:{kind:string;x:number;y:number;w:number;h:number}[]; captions?:{start:number;end:number;text:string}[]; chapters?:{time:number;title:string}[]; report?:{url:string;steps:string;expected:string;actual:string;environment:string}|null };
 function identity(token:string) {
   const key = "screennote-author-" + token;
   let value = localStorage.getItem(key);
@@ -17,7 +20,8 @@ const timeLabel=(n:number)=>{const m=Math.floor(n/60),s=Math.floor(n%60);return 
 const dateLabel=(n:number)=>new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).format(n*1000);
 function ShareViewer({token}:{token:string}) {
   const [share,setShare]=useState<Share|null>(null),[comments,setComments]=useState<Comment[]>([]),[password,setPassword]=useState(""),[locked,setLocked]=useState(false),[error,setError]=useState(""),[loading,setLoading]=useState(true);
-  const [text,setText]=useState(""),[replyTo,setReplyTo]=useState<string|null>(null),[time,setTime]=useState(0),[ownerKey,setOwnerKey]=useState<string|null>(null),[annotateMode,setAnnotateMode]=useState(false),[annotation,setAnnotation]=useState<{x:number;y:number}|null>(null);
+  const [text,setText]=useState(""),[replyTo,setReplyTo]=useState<string|null>(null),[time,setTime]=useState(0),[ownerKey,setOwnerKey]=useState<string|null>(null),[annotateMode,setAnnotateMode]=useState(false),[annotation,setAnnotation]=useState<{x:number;y:number}|null>(null),[details,setDetails]=useState<ShareDetails>({}),[transcriptQuery,setTranscriptQuery]=useState("");
+  const [captionUrl,setCaptionUrl]=useState<string|null>(null);
   const video=useRef<HTMLVideoElement>(null);
   const authorKey=useMemo(()=>identity(token),[token]);
   async function load() {
@@ -25,6 +29,7 @@ function ShareViewer({token}:{token:string}) {
     try {
       const data=await shareRequest<Share>(token);setShare(data);setLocked(false);
       const discussion=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(discussion.comments);
+      const context=await shareRequest<{details:ShareDetails}>(token,"/details");setDetails(context.details||{});
       const local=await findShareByToken(token);setOwnerKey(local?.share?.ownerKey??localStorage.getItem("screennote-recovery-"+token));
     } catch(e) {
       if ((e as {status?:number}).status===401) setLocked(true);
@@ -32,6 +37,7 @@ function ShareViewer({token}:{token:string}) {
     } finally {setLoading(false);}
   }
   useEffect(()=>{void load();},[token]);
+  useEffect(()=>{if(!details.captions?.length){setCaptionUrl(null);return}const url=URL.createObjectURL(new Blob([captionsVTT(details.captions)],{type:"text/vtt"}));setCaptionUrl(url);return()=>URL.revokeObjectURL(url)},[details.captions]);
   async function unlock(event:React.FormEvent) {
     event.preventDefault();setError("");
     try {await shareRequest(token,"/access",{method:"POST",body:JSON.stringify({password})});await load();}
@@ -118,8 +124,13 @@ function ShareViewer({token}:{token:string}) {
   return <main className="share-page">
     <header className="share-topbar"><div className="share-brand"><span className="brand-mark"><Video size={17}/></span> screen<span>note</span></div><span className="temporary-label"><Clock3 size={14}/> Temporary share</span><div className="share-header-actions"><button className="text-action" onClick={exportHandoff}>Export handoff</button><button className="text-action" onClick={downloadVideo}>Download video</button>{ownerKey&&<button className="text-action" onClick={stopShare}>Stop sharing</button>}</div></header>
     <div className="share-layout"><section className="share-main"><div className="share-heading"><span className="eyebrow">A MOMENT, SHARED</span><h1>{share.title}</h1><p>Watch the clip. Leave a note at the exact moment that matters.</p></div>
-      <div className={"share-video-wrap "+(annotateMode?"annotate-mode":"")} onClick={placeAnnotation}><video ref={video} src={"/api/share/"+token+"/media"} controls playsInline preload="metadata" onTimeUpdate={e=>setTime(e.currentTarget.currentTime)}/>{comments.filter(c=>c.anchorX!==null&&c.anchorX!==undefined&&c.anchorY!==null&&Math.abs(c.time-time)<1.5&&!c.deletedAt).map(c=><button key={"pin-"+c.id} className="frame-annotation-pin" style={{left:(c.anchorX!*100)+"%",top:(c.anchorY!*100)+"%"}} title={c.body} onClick={e=>{e.stopPropagation();seek(c.time);}}/>)}{annotation&&<span className="pending-annotation-pin" style={{left:(annotation.x*100)+"%",top:(annotation.y*100)+"%"}}/>}{annotateMode&&<button className="annotation-layer" aria-label="Choose a point on the video frame" onClick={e=>{e.preventDefault();e.stopPropagation();placeAnnotation(e as unknown as React.MouseEvent<HTMLDivElement>);}}/>}{activeBubbles.map((c,i)=><button key={c.id} className="playback-bubble" style={{bottom:(20+Math.min(3,i)*52)+"px"}} onClick={()=>seek(c.time)}><MessageCircle size={14}/>{c.body.slice(0,90)}</button>)}</div>
+      <div className={"share-video-wrap "+(annotateMode?"annotate-mode":"")} onClick={placeAnnotation}><video ref={video} src={"/api/share/"+token+"/media"} controls playsInline preload="metadata" onTimeUpdate={e=>setTime(e.currentTarget.currentTime)}>{captionUrl&&<track kind="captions" src={captionUrl} srcLang="en" label="Owner captions" default/>}</video>{comments.filter(c=>c.anchorX!==null&&c.anchorX!==undefined&&c.anchorY!==null&&Math.abs(c.time-time)<1.5&&!c.deletedAt).map(c=><button key={"pin-"+c.id} className="frame-annotation-pin" style={{left:(c.anchorX!*100)+"%",top:(c.anchorY!*100)+"%"}} title={c.body} onClick={e=>{e.stopPropagation();seek(c.time);}}/>)}{annotation&&<span className="pending-annotation-pin" style={{left:(annotation.x*100)+"%",top:(annotation.y*100)+"%"}}/>}{annotateMode&&<button className="annotation-layer" aria-label="Choose a point on the video frame" onClick={e=>{e.preventDefault();e.stopPropagation();placeAnnotation(e as unknown as React.MouseEvent<HTMLDivElement>);}}/>}{activeBubbles.map((c,i)=><button key={c.id} className="playback-bubble" style={{bottom:(20+Math.min(3,i)*52)+"px"}} onClick={()=>seek(c.time)}><MessageCircle size={14}/>{c.body.slice(0,90)}</button>)}</div>
       <div className="share-video-meta"><span>{timeLabel(share.duration)} · {Math.ceil(share.size/1024/1024)} MB</span><span>Available until {new Date(share.expiresAt*1000).toLocaleString()}</span></div>
+      {(details.chapters?.length||details.captions?.length||details.report)?<section className="shared-context" aria-label="Video context">
+        {details.chapters?.length?<div><span className="eyebrow">CHAPTERS</span><div className="shared-chapters">{details.chapters.map((chapter,i)=><button key={i} onClick={()=>seek(chapter.time)}><span>{timeLabel(chapter.time)}</span>{chapter.title}</button>)}</div></div>:null}
+        {details.captions?.length?<div><span className="eyebrow">SEARCH THE TRANSCRIPT</span><input value={transcriptQuery} onChange={e=>setTranscriptQuery(e.target.value)} placeholder="Find a word or phrase"/><div className="shared-transcript">{details.captions.filter(cue=>cue.text.toLocaleLowerCase().includes(transcriptQuery.toLocaleLowerCase())).map((cue,i)=><button key={i} onClick={()=>seek(cue.start)}><span>{timeLabel(cue.start)}</span>{cue.text}</button>)}</div></div>:null}
+        {details.report?<div className="shared-report"><span className="eyebrow">BUG REPORT</span>{details.report.url&&<p><strong>Page</strong> {details.report.url}</p>}{details.report.steps&&<p><strong>Reproduction steps</strong><br/>{details.report.steps}</p>}{details.report.expected&&<p><strong>Expected</strong><br/>{details.report.expected}</p>}{details.report.actual&&<p><strong>Actual</strong><br/>{details.report.actual}</p>}{details.report.environment&&<p><strong>Environment</strong><br/>{details.report.environment}</p>}</div>:null}
+      </section>:null}
       <form className="share-comment-form" onSubmit={send}><div className="comment-composer-title">{replyTo?"Reply to this moment":"Add a timestamped note"} <span>at {timeLabel(Math.floor(video.current?.currentTime??time))}</span></div><div className="annotation-controls"><button type="button" className={"text-action "+(annotateMode?"active":"")} onClick={()=>{setAnnotateMode(!annotateMode);setAnnotation(null);}}>{annotateMode?"Cancel frame point":"Pin a point on the frame"}</button>{annotation&&<span>Frame point attached</span>}</div><textarea value={text} onChange={e=>setText(e.target.value)} placeholder="What should the team notice here?" rows={3}/><div className="comment-composer-actions">{replyTo&&<button type="button" className="text-action" onClick={()=>setReplyTo(null)}>Cancel reply</button>}<button className="button primary" type="submit" disabled={!text.trim()}><Send size={15}/> Post comment</button></div></form>
       {error&&<p className="share-error">{error}</p>}
     </section><aside className="share-discussion"><div className="discussion-title"><div><span className="eyebrow">THE CONVERSATION</span><h2>{comments.filter(c=>!c.deletedAt).length} comments</h2></div><span className="discussion-mark"><MessageCircle size={17}/></span></div><div className="discussion-list">{comments.length?thread(comments):<div className="discussion-empty"><MessageCircle size={22}/><strong>No comments yet.</strong><p>Start the conversation at the moment that matters.</p></div>}</div></aside></div>
