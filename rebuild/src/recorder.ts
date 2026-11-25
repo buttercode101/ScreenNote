@@ -1,7 +1,7 @@
 export type QualityPreset = "saver" | "balanced" | "clear";
 export type CameraBubble = { x: number; y: number; size: number };
 export type CaptureOptions = { microphone: boolean; systemAudio: boolean; camera: boolean; quality?: QualityPreset; microphoneId?: string; cameraBubble?: CameraBubble };
-export type RecordingResult = { blob: Blob; duration: number; mimeType: string };
+export type RecordingResult = { blob: Blob; duration: number; mimeType: string; recoveryWarning?: boolean };
 export type ChunkWriter = (blob: Blob, index: number) => Promise<void>;
 export type RecordingProfile = { width: number; height: number; fps: number; videoBitsPerSecond: number; audioBitsPerSecond: number };
 
@@ -142,13 +142,14 @@ export class ScreenRecorder {
     return new Promise((resolve, reject) => {
       recorder.onerror = () => { this.cleanup(); reject(new Error("The browser could not finish this recording.")); };
       recorder.onstop = async () => {
-        await Promise.allSettled(this.pendingWrites);
+        const writes = await Promise.allSettled(this.pendingWrites);
+        const recoveryWarning = writes.some(result => result.status === "rejected");
         const blob = new Blob(this.chunks, { type: recorder.mimeType || "video/webm" });
         const activePause = wasPaused ? Date.now() - pausedAt : 0;
         const duration = Math.max(0, Math.floor((Date.now() - this.startedAt - this.pausedDuration - activePause) / 1000));
         this.cleanup();
         if (!blob.size) reject(new Error("The recording was empty. Please try again."));
-        else resolve({ blob, duration, mimeType: blob.type });
+        else resolve({ blob, duration, mimeType: blob.type, recoveryWarning });
       };
       recorder.stop();
     });
