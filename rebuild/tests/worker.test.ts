@@ -130,6 +130,25 @@ describe("ScreenNote temporary sharing API",()=>{
     const view=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}`),state.env as any,{} as any);
     expect(view.status).toBe(200);expect(await view.json()).toMatchObject({title:"Bug walkthrough",passwordRequired:false});
   });
+  it("resumes a missing upload part and assembles the private recording in order",async()=>{
+    const s=await session(state.env),headers={origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"};
+    const size=2*1024*1024+4;
+    const created=await worker.fetch(new Request("https://screennote.test/api/recordings",{method:"POST",headers,body:JSON.stringify({title:"Resumable upload",mimeType:"video/webm",size,duration:12})}),state.env as any,{} as any);
+    expect(created.status).toBe(201);const reservation=await created.json() as any;
+    const first=new Uint8Array(2*1024*1024);first.set([0x1a,0x45,0xdf,0xa3]);
+    const part0=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/parts/0",{method:"PUT",headers:{origin,"content-type":"application/octet-stream"},body:first}),state.env as any,{} as any);
+    expect(part0.status).toBe(200);
+    const stateAfterPart=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/upload-state",{headers:{origin,cookie:s.cookie}}),state.env as any,{} as any);
+    expect(await stateAfterPart.json()).toMatchObject({status:"uploading",parts:[{part:0,size:2*1024*1024}]});
+    const incomplete=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/complete",{method:"POST",headers,body:"{}"}),state.env as any,{} as any);
+    expect(incomplete.status).toBe(409);expect(await incomplete.json()).toMatchObject({missingParts:[1]});
+    const part1=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/parts/1",{method:"PUT",headers:{origin,"content-type":"application/octet-stream"},body:new Uint8Array([1,2,3,4])}),state.env as any,{} as any);
+    expect(part1.status).toBe(200);
+    const complete=await worker.fetch(new Request("https://screennote.test/api/recordings/"+reservation.id+"/complete",{method:"POST",headers,body:"{}"}),state.env as any,{} as any);
+    expect(complete.status).toBe(200);expect(await complete.json()).toMatchObject({status:"ready"});
+    const stored=state.objects.get("shared/"+reservation.id);expect(stored?.bytes.length).toBe(size);
+    expect(state.objects.has("recording-parts/"+reservation.id+"/0")).toBe(false);
+  });
   it("persists share context behind the owner key and exposes it to viewers",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie),key="c".repeat(64);
     const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:1,password:"context-password",ownerKey:key})}),state.env as any,{} as any);
