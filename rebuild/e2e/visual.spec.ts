@@ -181,5 +181,14 @@ test("temporary share viewer remains contained with long discussion content on m
       await contained(page,width);
     }
   }
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading",{name:"Your original stays with you."})).toBeVisible();
+  for(const theme of ["light","dark"]){
+    await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
+    for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
+      await page.setViewportSize({width,height:900});
+      await contained(page,width);
+    }
+  }
 });
 
