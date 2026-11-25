@@ -38,6 +38,15 @@ async function getClip(env:LegacyEnv,id:string):Promise<ClipRecord|null>{
  const row=await env.DB.prepare("SELECT * FROM legacy_clip_records WHERE id=?").bind(id).first<ClipRow>();
  return row?{row,clip:JSON.parse(row.data)}:null;
 }
+async function getTombstone(env:LegacyEnv,id:string){if(!validId(id))return null;return env.DB.prepare("SELECT id,owner_hash,deleted_at,reason FROM legacy_clip_tombstones WHERE id=?").bind(id).first<{id:string;owner_hash:string;deleted_at:number;reason:string}>()}
+async function purgeRecord(env:LegacyEnv,record:ClipRecord,reason:string){
+ await env.DB.batch([
+  env.DB.prepare("INSERT INTO legacy_clip_tombstones(id,owner_hash,deleted_at,reason) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET owner_hash=excluded.owner_hash,deleted_at=excluded.deleted_at,reason=excluded.reason").bind(record.row.id,record.row.owner_hash,Date.now(),reason),
+  env.DB.prepare("DELETE FROM legacy_clip_password_attempts WHERE clip_id=?").bind(record.row.id),
+  env.DB.prepare("DELETE FROM legacy_clip_parts WHERE clip_id=?").bind(record.row.id),
+  env.DB.prepare("DELETE FROM legacy_clip_records WHERE id=?").bind(record.row.id)
+ ]);
+}
 async function saveClip(env:LegacyEnv,record:ClipRecord,clip:any,patch:Record<string,unknown>={}){
  const row=record.row;
  const saved=await env.DB.prepare("UPDATE legacy_clip_records SET status=?,expires_at=?,upload_until=?,data=?,media_token_hash=?,media_token_expires=? WHERE id=? AND data=?").bind(clip.status,clip.expiresAt,clip.uploadUntil,JSON.stringify(clip),patch.mediaTokenHash===undefined?row.media_token_hash:patch.mediaTokenHash,patch.mediaTokenExpires===undefined?row.media_token_expires:patch.mediaTokenExpires,row.id,row.data).run();
@@ -161,7 +170,7 @@ export async function applyComment(env:LegacyEnv,clip:any,op:string,body:any){
 }
 async function handleMedia(request:Request,env:LegacyEnv,url:URL){
  const id=url.searchParams.get("id")||"",token=url.searchParams.get("token")||"",record=await getClip(env,id);
- if(!record)return null;
+ if(!record){const tombstone=await getTombstone(env,id);return tombstone?response({error:"This share was deleted or expired."},404):null}
  const row=record.row,c=record.clip;
  if(c.status!=="published"||c.expiresAt<=Date.now()||!token||!row.media_token_hash||(row.media_token_expires ?? 0)<=Date.now()||!safeEqual(await digest(token),row.media_token_hash))return response({error:"This media link has expired."},404);
  const head=request.method==="HEAD",range=request.headers.get("range"),object=await env.MEDIA.head(row.object_key);
@@ -193,13 +202,14 @@ export async function handleLegacyClip(request:Request,env:LegacyEnv):Promise<Re
  if(request.method==="GET"&&op==="media")return handleMedia(request,env,url);
  if(request.method!=="GET"&&request.method!=="POST")return null;
  if(request.method==="GET"&&op!=="view")return null;
- if(op==="upload")return null; // Vercel Blob token operation remains on the legacy fallback until the native upload path is retired.
+ if(op==="upload"){const tombstone=await getTombstone(env,id);return tombstone?response({error:"This share was deleted or expired."},404):null} // Vercel Blob token operation remains on the legacy fallback until the native upload path is retired.
  if(request.method==="POST"&&request.headers.get("origin")&&request.headers.get("origin")!==url.origin)return response({error:"Use the ScreenNote page to make this request."},403);
  const body=request.method==="POST"?await parseBody(request):{};
  const clipId=id||body.id||"";
  if(op==="reserve"&&request.method==="POST"){
   const input=clipInput(body);
   if(!validId(body.id)||typeof body.owner!=="string"||body.owner.length<40||body.owner.length>100)throw fail("Invalid recording identity.");
+  if(await getTombstone(env,body.id))throw fail("This share identity was deleted. Create a new recording identity.",409);
   const existing=await getClip(env,body.id);
   if(existing){
    await requireOwner(existing.clip,body.owner);
@@ -219,7 +229,7 @@ export async function handleLegacyClip(request:Request,env:LegacyEnv):Promise<Re
   if(reservation[1].meta.changes!==1)throw fail("Shared storage is full. Download locally, delete a share you own, or try after expired uploads are reclaimed.",429);
   return response({id:clip.id,status:clip.status},201);
  }
- const record=await getClip(env,clipId);if(!record)return null;
+ const record=await getClip(env,clipId);if(!record){const tombstone=await getTombstone(env,clipId);if(!tombstone)return null;const owns=await ownerMatches(body.owner,tombstone.owner_hash);if(owns&&op==="delete")return response({deleted:true});if(owns&&op==="revoke")return response({revoked:true});if(owns&&op==="manage")return response({status:tombstone.reason,deleted:true,cleanupComplete:true});return response({error:"This share was deleted or expired."},404)}
  const c=record.clip;
  if(op==="upload-state"){await requireOwner(c,body.owner);if(c.status!=="pending")return response({parts:[]});const rows=await env.DB.prepare("SELECT part FROM legacy_clip_parts WHERE clip_id=? ORDER BY part").bind(c.id).all<{part:number}>();return response({parts:rows.results.map(x=>x.part)})}
  if(op==="view"){
@@ -262,8 +272,8 @@ export async function handleLegacyClip(request:Request,env:LegacyEnv):Promise<Re
   try{await clearParts(env,c.id);c.cleanupComplete=true;await saveClip(env,record,c)}catch{}
   return response(publicClip(c));
  }
- if(op==="revoke"){await requireOwner(c,body.owner);c.cleanupComplete=false;await transitionStatus(env,record,c,"revoked",{mediaTokenHash:null,mediaTokenExpires:null});await cleanupPending(env,record);c.cleanupComplete=true;await saveClip(env,record,c);return response({revoked:true})}
- if(op==="delete"){await requireOwner(c,body.owner);c.cleanupComplete=false;await transitionStatus(env,record,c,"deleted",{mediaTokenHash:null,mediaTokenExpires:null});await cleanupPending(env,record);c.cleanupComplete=true;await saveClip(env,record,c);return response({deleted:true})}
+ if(op==="revoke"){await requireOwner(c,body.owner);c.cleanupComplete=false;await transitionStatus(env,record,c,"revoked",{mediaTokenHash:null,mediaTokenExpires:null});await cleanupPending(env,record);c.cleanupComplete=true;await saveClip(env,record,c);await purgeRecord(env,record,"revoked");return response({revoked:true})}
+ if(op==="delete"){await requireOwner(c,body.owner);c.cleanupComplete=false;await transitionStatus(env,record,c,"deleted",{mediaTokenHash:null,mediaTokenExpires:null});await cleanupPending(env,record);c.cleanupComplete=true;await saveClip(env,record,c);await purgeRecord(env,record,"deleted");return response({deleted:true})}
  await passwordGate(request,env,record,body.accessPassword);
  if(!validId(body.viewer))throw fail("Refresh this page before replying.");
  if(["comment","edit-comment","delete-comment","resolve-thread"].includes(op)){
