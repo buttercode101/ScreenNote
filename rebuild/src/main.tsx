@@ -305,10 +305,7 @@ function App() {
       const clip = await getClip(publishId);
       if (!clip) throw new Error("This local recording is no longer available.");
       if (!clip.duration || clip.duration > 600) throw new Error("This clip needs a valid duration of 10 minutes or less before it can be shared.");
-      if (clip.share) {
-        const stopped = await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
-        if (!stopped.ok) throw new Error("The previous share could not be ended. Your existing link and local recording are unchanged.");
-      }
+      const previousShare = clip.share;
       const ownerKey = newOwnerKey();
       setUploadProgress(0);
       const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey, setUploadProgress);
@@ -320,12 +317,17 @@ function App() {
       }
       const next = { ...clip, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt } };
       await saveClip(next); await refresh();
+      let previousShareWarning = "";
+      if (previousShare && previousShare.token !== result.token) {
+        const stopped = await fetch("/api/share/" + previousShare.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: previousShare.ownerKey }) }).catch(() => null);
+        if (stopped && !stopped.ok && stopped.status !== 404) previousShareWarning = " The previous link could not be revoked and may remain active until it expires.";
+      }
       const fullUrl = new URL(result.url, location.origin).toString();
       setShareLink(fullUrl);
       setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey: resolvedOwnerKey, recordingId: result.id, expiresAt: result.expiresAt }, null, 2));
       await navigator.clipboard?.writeText(fullUrl).catch(() => undefined);
       setPublishId(null); setSharePassword("");
-      setMessage("Your temporary link is ready. The link has been copied if clipboard access is available.");
+      setMessage("Your temporary link is ready. The link has been copied if clipboard access is available."+previousShareWarning);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't publish this recording."); }
     finally { setPublishing(false); setUploadProgress(0); }
   }
