@@ -10,12 +10,14 @@ import "./styles.css";
 type Comment = { isMine?:boolean; anchorX:number|null; anchorY:number|null; id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
 type Share = { title:string; mimeType:string; size:number; duration:number; expiresAt:number; passwordRequired:boolean };
 type ShareDetails = { annotations?:{kind:string;x:number;y:number;w:number;h:number}[]; captions?:{start:number;end:number;text:string}[]; chapters?:{time:number;title:string}[]; report?:{url:string;steps:string;expected:string;actual:string;environment:string}|null; reviewStatus?:"needs-feedback"|"changes-requested"|"approved" };
-function voterIdentity(token:string) { const key="screennote-voter-"+token;try{let value=localStorage.getItem(key);if(!value){value=newOwnerKey();localStorage.setItem(key,value)}return value}catch{return newOwnerKey()} }
+const memoryIdentities = new Map<string,string>();
+function storedIdentity(key:string,create:()=>string) {
+  try { let value=localStorage.getItem(key);if(!value){value=create();localStorage.setItem(key,value)}return value; }
+  catch { let value=memoryIdentities.get(key);if(!value){value=create();memoryIdentities.set(key,value)}return value; }
+}
+function voterIdentity(token:string) { return storedIdentity("screennote-voter-"+token,newOwnerKey); }
 function identity(token:string) {
-  const key = "screennote-author-" + token;
-  let value = localStorage.getItem(key);
-  if (!value) { const bytes=crypto.getRandomValues(new Uint8Array(32)); value=btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,""); localStorage.setItem(key,value); }
-  return value;
+  return storedIdentity("screennote-author-"+token,()=>{const bytes=crypto.getRandomValues(new Uint8Array(32));return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")});
 }
 const timeLabel=(n:number)=>{const m=Math.floor(n/60),s=Math.floor(n%60);return m+":"+String(s).padStart(2,"0");};
 const dateLabel=(n:number)=>new Intl.DateTimeFormat(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).format(n*1000);
