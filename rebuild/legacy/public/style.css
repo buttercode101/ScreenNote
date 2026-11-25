@@ -148,3 +148,8 @@ table th,table td{overflow-wrap:anywhere;word-break:normal}
 .discussion-heading,.comment-head,.compose-meta{flex-wrap:wrap}
 @media(max-width:767px){.viewer-grid{grid-template-columns:minmax(0,1fr)}.viewer-top{gap:12px}.viewer-top>.btn{flex:0 1 auto}.viewer{padding-inline:clamp(12px,4vw,20px)}.reply-panel{max-height:none;overflow:visible}}
 @media(max-width:420px){.viewer-top{padding-inline:12px}.viewer-top>.btn{width:auto}.viewer h1{overflow-wrap:anywhere}.reactions .btn{flex:1 1 100%;justify-content:flex-start}.discussion-toolbar>*{min-width:0;max-width:100%}}
+
+
+/* Keep full-screen backdrops full-screen; constrain only the dialog surface. */
+.modal-backdrop{width:100vw;max-width:100vw;max-height:100dvh;inset:0}
+.modal-backdrop>[role="dialog"],.modal-backdrop .modal,.modal-backdrop .preview-modal,.modal-backdrop .publish-modal{width:min(100%,920px);max-width:calc(100vw - 20px)}
