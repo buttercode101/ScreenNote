@@ -20,7 +20,7 @@ const viewports = [
 
 async function contained(page: import("@playwright/test").Page, width:number) {
   const m=await page.evaluate(()=>{
-    const selectors=".button,.btn,button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.share-layout,.share-discussion,.viewer,.viewer-top,.viewer-grid,.viewer-media,.reply-panel,.modal,.preview-modal,.publish-modal,[role=dialog]";
+    const selectors=".button,.btn,button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.share-layout,.share-discussion,.viewer,.viewer-top,.viewer-grid,.viewer-media,.reply-panel,.help-grid,.help-grid>.panel,.modal,.preview-modal,.publish-modal,[role=dialog]";
     const offenders=[...document.querySelectorAll<HTMLElement>(selectors)].filter(el=>{
       const style=getComputedStyle(el),r=el.getBoundingClientRect();
       return style.display!=="none"&&style.visibility!=="hidden"&&r.width>0&&(r.left < -1 || r.right > innerWidth+1);
@@ -194,3 +194,22 @@ test("real legacy share viewer and privacy route remain contained across widths 
     }
   }
 });
+
+
+test("help and settings guidance remains readable and contained at every breakpoint",async({page})=>{
+  await page.goto("/");
+  await page.locator('.top-actions [data-action="help"]').click();
+  await expect(page.getByRole("heading",{name:/Show the problem/})).toBeVisible();
+  await expect(page.locator(".help-grid")).toBeVisible();
+  for(const theme of ["light","dark"]){
+    await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
+    for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
+      await page.setViewportSize({width,height:900});
+      await contained(page,width);
+    }
+  }
+  await page.locator('.help-grid [data-action="privacy"]').click();
+  await expect(page.getByRole("heading",{name:"Your screen. Your call."})).toBeVisible();
+  await expect(page.getByText(/private Cloudflare R2 bucket/)).toBeVisible();
+});
+
