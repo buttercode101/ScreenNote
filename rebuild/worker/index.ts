@@ -163,7 +163,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
   if (path === "/api/health" && request.method === "GET") return json({ status: "ok", service: "screennote", version: "1.0.0" });
   if (path === "/api/session" && request.method === "GET") return ensureSession(request, env);
 
-  const shareMatch = path.match(/^\/api\/share\/([A-Za-z0-9_-]{32,64})(?:\/(media|access|manage|details|reactions|comments|comments\/([a-f0-9-]{36})(?:\/(resolve))?))?$/i);
+  const shareMatch = path.match(/^\/api\/share\/([A-Za-z0-9_-]{32,64})(?:\/(media|access|manage|details|reactions|reviews|comments|comments\/([a-f0-9-]{36})(?:\/(resolve))?))?$/i);
   if (shareMatch) {
     const token = shareMatch[1], action = shareMatch[2] ?? "";
     const share = await getShare(env, token);
@@ -265,6 +265,36 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       const counts = { like: 0, thanks: 0, idea: 0 };
       for (const item of results) if (item.reaction in counts) counts[item.reaction as keyof typeof counts] = item.count;
       return json({ counts, myReaction: body.reaction || "" });
+    }
+    if (action === "reviews" && request.method === "GET") {
+      const { results } = await env.DB.prepare(
+        "SELECT reviewer_label AS reviewerLabel, decision, comment, time_seconds AS time, created_at AS createdAt, updated_at AS updatedAt FROM share_reviews WHERE share_id = ? ORDER BY updated_at DESC LIMIT 100"
+      ).bind(share.id).all();
+      const reviewerKey = request.headers.get("x-reviewer-key") || "";
+      const reviewerHash = /^[a-f0-9]{64}$/.test(reviewerKey) ? await digest(reviewerKey) : null;
+      const myReview = reviewerHash ? await env.DB.prepare(
+        "SELECT reviewer_label AS reviewerLabel, decision, comment, time_seconds AS time, created_at AS createdAt, updated_at AS updatedAt FROM share_reviews WHERE share_id = ? AND reviewer_hash = ?"
+      ).bind(share.id, reviewerHash).first() : null;
+      return json({ reviews: results, myReview });
+    }
+    if (action === "reviews" && request.method === "POST") {
+      const body = await request.json<{ reviewerKey?: string; reviewerLabel?: string; decision?: string; comment?: string; time?: number }>().catch(() => null);
+      if (!body || typeof body.reviewerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.reviewerKey)) return fail("A private review identity is required.", 400);
+      if (!["approved","changes-requested","question"].includes(body.decision || "")) return fail("Choose a valid review decision.", 400);
+      if (typeof body.comment !== "string" || body.comment.length > 500) return fail("Review notes must be 500 characters or fewer.", 400);
+      if (body.decision !== "approved" && !body.comment.trim()) return fail("Add a note for questions or requested changes.", 400);
+      if (!Number.isFinite(body.time) || body.time! < 0 || body.time! > share.duration_seconds) return fail("Choose a timestamp within this video.", 400);
+      const reviewerHash = await digest(body.reviewerKey);
+      const existing = await env.DB.prepare("SELECT created_at FROM share_reviews WHERE share_id = ? AND reviewer_hash = ?").bind(share.id, reviewerHash).first<{ created_at: number }>();
+      if (!existing) {
+        const total = await env.DB.prepare("SELECT COUNT(*) AS total FROM share_reviews WHERE share_id = ?").bind(share.id).first<{ total: number }>();
+        if ((total?.total || 0) >= 100) return fail("This review has reached its response limit.", 429);
+      }
+      const reviewerLabel = (typeof body.reviewerLabel === "string" ? body.reviewerLabel : "Guest").replace(/[\\u0000-\\u001f\\u007f]/g, "").trim().slice(0, 40) || "Guest";
+      const now = Math.floor(Date.now() / 1000);
+      await env.DB.prepare("INSERT OR REPLACE INTO share_reviews (share_id, reviewer_hash, reviewer_label, decision, comment, time_seconds, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(share.id, reviewerHash, reviewerLabel, body.decision, body.comment.trim(), body.time, existing?.created_at ?? now, now).run();
+      return json({ saved: true });
     }
     if (action === "details" && request.method === "GET") {
       const row = await env.DB.prepare("SELECT payload FROM share_details WHERE share_id = ?").bind(share.id).first<{ payload: string }>();

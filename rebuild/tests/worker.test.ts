@@ -34,6 +34,7 @@ class FakeD1 {
   details = new Map<string, string>();
   uploadParts: any[] = [];
   reactions = new Map<string, any>();
+  reviews = new Map<string, any>();
   prepare(sql: string) {
     const db = this;
     return { bind(...v: any[]) {
@@ -55,6 +56,8 @@ class FakeD1 {
           if (sql.includes("FROM comments") && sql.includes("COUNT(*)")) return { total: db.comments.size };
           if (sql.includes("FROM comments")) return db.comments.get(v[0]) ?? null;
           if (sql.includes("FROM share_details")) return db.details.has(v[0]) ? { payload: db.details.get(v[0]) } : null;
+          if (sql.includes("FROM share_reviews") && sql.includes("COUNT(*)")) return { total:[...db.reviews.values()].filter(r=>r.share_id===v[0]).length };
+          if (sql.includes("FROM share_reviews")) return db.reviews.get(v[0]+":"+v[1]) ?? null;
           if (sql.includes("FROM share_reactions") && sql.includes("COUNT(*)")) return { total:[...db.reactions.values()].filter(r=>r.share_id===v[0]).length };
           if (sql.includes("FROM share_reactions")) return db.reactions.get(v[0]+":"+v[1]) ?? null;
           if (sql.includes("FROM share_password_attempts")) return db.passwordAttempts.get(`${v[0]}:${v[1]}`) ?? null;
@@ -71,6 +74,7 @@ class FakeD1 {
           if (sql.startsWith("INSERT INTO shares")) db.shares.set(v[0], { id:v[0], recording_id:v[1], owner_token_hash:v[2], owner_key_hash:v[3], token_hash:v[4], expires_at:v[5], password_salt:v[6], password_hash:v[7], revoked_at:null });
           if (sql.startsWith("INSERT OR REPLACE INTO share_details")) db.details.set(v[0], v[1]);
           if (sql.startsWith("INSERT OR REPLACE INTO share_reactions")) db.reactions.set(v[0]+":"+v[1],{share_id:v[0],voter_hash:v[1],reaction:v[2],created_at:v[3]});
+          if (sql.startsWith("INSERT OR REPLACE INTO share_reviews")) db.reviews.set(v[0]+":"+v[1],{share_id:v[0],reviewer_hash:v[1],reviewer_label:v[2],decision:v[3],comment:v[4],time_seconds:v[5],created_at:v[6],updated_at:v[7]});
           if (sql.startsWith("DELETE FROM share_reactions")) db.reactions.delete(v[0]+":"+v[1]);
           if (sql.startsWith("INSERT OR REPLACE INTO share_password_attempts")) db.passwordAttempts.set(`${v[0]}:${v[1]}`, { share_id:v[0], ip_hash:v[1], window_started:v[2], attempts:v[3], locked_until:v[4] });
           if (sql.startsWith("DELETE FROM share_password_attempts")) {
@@ -86,6 +90,7 @@ class FakeD1 {
         },
         async all() {
           if (sql.includes("FROM recording_upload_parts")) return { results:db.uploadParts.filter(p=>p.recording_id===v[0]).sort((a,b)=>a.part-b.part).map(p=>({part:p.part,size:p.size,objectKey:p.object_key,object_key:p.object_key})) };
+          if (sql.includes("FROM share_reviews")) return {results:[...db.reviews.values()].filter(r=>r.share_id===v[0]).sort((a,b)=>b.updated_at-a.updated_at).map(r=>({reviewerLabel:r.reviewer_label,decision:r.decision,comment:r.comment,time:r.time_seconds,createdAt:r.created_at,updatedAt:r.updated_at}))};
           if (sql.includes("FROM share_reactions")) { const grouped=new Map<string,number>(); for(const r of db.reactions.values())if(r.share_id===v[0])grouped.set(r.reaction,(grouped.get(r.reaction)||0)+1);return {results:[...grouped].map(([reaction,count])=>({reaction,count}))}; }
           if (sql.includes("FROM comments WHERE share_id")) return { results:[...db.comments.values()].filter(c=>c.share_id===v[0]) };
           if (sql.includes("FROM recordings r LEFT JOIN shares") && sql.includes("status = 'ready'")) {
@@ -185,6 +190,23 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(access.status).toBe(200);
     const read=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`,{headers:{cookie:access.headers.get("set-cookie")!.split(";")[0]}}),state.env as any,{} as any);
     expect(read.status).toBe(200);expect(await read.json()).toMatchObject({details});
+  });
+  it("supports account-free review decisions and lets a guest update their response",async()=>{
+    const s=await session(state.env),u=await upload(state.env,s.cookie),ownerKey="a".repeat(64),reviewerKey="1".repeat(64);
+    const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:1,ownerKey})}),state.env as any,{} as any);
+    const share=await pub.json() as any,url=`https://screennote.test/api/share/${share.token}/reviews`;
+    const initial=await worker.fetch(new Request(url,{headers:{"x-reviewer-key":reviewerKey}}),state.env as any,{} as any);
+    expect(await initial.json()).toMatchObject({reviews:[],myReview:null});
+    const missing=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reviewerKey,decision:"changes-requested",comment:"",time:5})}),state.env as any,{} as any);
+    expect(missing.status).toBe(400);
+    const saved=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reviewerKey,reviewerLabel:"Luke",decision:"changes-requested",comment:"Payment state is unclear",time:5})}),state.env as any,{} as any);
+    expect(saved.status).toBe(200);expect(await saved.json()).toMatchObject({saved:true});
+    const listed=await worker.fetch(new Request(url,{headers:{"x-reviewer-key":reviewerKey}}),state.env as any,{} as any);
+    expect(await listed.json()).toMatchObject({myReview:{reviewerLabel:"Luke",decision:"changes-requested",comment:"Payment state is unclear",time:5},reviews:[{reviewerLabel:"Luke",decision:"changes-requested"}]});
+    const updated=await worker.fetch(new Request(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reviewerKey,reviewerLabel:"Luke",decision:"approved",comment:"",time:6})}),state.env as any,{} as any);
+    expect(updated.status).toBe(200);
+    const final=await worker.fetch(new Request(url,{headers:{"x-reviewer-key":reviewerKey}}),state.env as any,{} as any);
+    expect(await final.json()).toMatchObject({myReview:{decision:"approved",comment:"",time:6},reviews:[{decision:"approved"}]});
   });
   it("requires a password before serving protected media",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie),key="b".repeat(64);

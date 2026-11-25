@@ -120,6 +120,12 @@ const viewerHeaders = { origin, cookie: accessCookie, "content-type": "applicati
 const share = await json(await request(sharePath, { headers: viewerHeaders }));
 const contextResponse = await json(await request(sharePath + "/details", { headers: viewerHeaders }));
 assert.deepEqual(contextResponse.details, sharedDetails, "authorized viewers receive the saved shared context");
+const reviewerKey = randomBytes(32).toString("hex");
+const reviewSaved = await request(sharePath + "/reviews", { method:"POST", headers:viewerHeaders, body:JSON.stringify({reviewerKey,reviewerLabel:"Live guest",decision:"changes-requested",comment:"Payment state needs correction",time:4}) });
+assert.equal(reviewSaved.status,200,"guest review decision is stored without an account");
+const reviewList = await json(await request(sharePath + "/reviews",{headers:{cookie:accessCookie,"x-reviewer-key":reviewerKey}}));
+assert.equal(reviewList.myReview.decision,"changes-requested");
+assert.equal(reviewList.myReview.comment,"Payment state needs correction");
 const voterKey = randomBytes(32).toString("hex");
 const reaction = await json(await request(sharePath + "/reactions", {
   method: "POST", headers: { origin, cookie: accessCookie, "content-type": "application/json" },

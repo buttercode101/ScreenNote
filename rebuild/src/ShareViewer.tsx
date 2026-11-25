@@ -9,6 +9,8 @@ import "./styles.css";
 
 type Comment = { isMine?:boolean; anchorX:number|null; anchorY:number|null; id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; resolved:number; deletedAt:number|null };
 type Share = { title:string; mimeType:string; size:number; duration:number; expiresAt:number; passwordRequired:boolean };
+type ReviewDecision = "approved" | "changes-requested" | "question";
+type GuestReview = { reviewerLabel:string; decision:ReviewDecision; comment:string; time:number; createdAt:number; updatedAt:number };
 type ShareDetails = { reviewBrief?:{purpose?:string;focus?:string;expectedOutcome?:string;requestedAction?:"review"|"approve"|"reproduce"|"fix"}|null; annotations?:{kind:string;x:number;y:number;w:number;h:number}[]; captions?:{start:number;end:number;text:string}[]; chapters?:{time:number;title:string}[]; report?:{url:string;steps:string;expected:string;actual:string;environment:string}|null; reviewStatus?:"needs-feedback"|"changes-requested"|"approved" };
 const memoryIdentities = new Map<string,string>();
 function storedIdentity(key:string,create:()=>string) {
@@ -16,6 +18,8 @@ function storedIdentity(key:string,create:()=>string) {
   catch { let value=memoryIdentities.get(key);if(!value){value=create();memoryIdentities.set(key,value)}return value; }
 }
 function voterIdentity(token:string) { return storedIdentity("screennote-voter-"+token,newOwnerKey); }
+function reviewerIdentity(token:string) { return storedIdentity("screennote-reviewer-"+token,newOwnerKey); }
+const reviewDecisionLabel=(decision:ReviewDecision)=>decision==="approved"?"Looks good":decision==="changes-requested"?"Needs changes":"Question";
 function identity(token:string) {
   return storedIdentity("screennote-author-"+token,()=>{const bytes=crypto.getRandomValues(new Uint8Array(32));return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")});
 }
@@ -27,6 +31,7 @@ function ShareViewer({token}:{token:string}) {
   const [captionUrl,setCaptionUrl]=useState<string|null>(null);
   const [reactions,setReactions]=useState({like:0,thanks:0,idea:0});
   const [myReaction,setMyReaction]=useState("");
+  const [reviews,setReviews]=useState<GuestReview[]>([]),[myReview,setMyReview]=useState<GuestReview|null>(null),[reviewDecision,setReviewDecision]=useState<ReviewDecision>("question"),[reviewComment,setReviewComment]=useState(""),[reviewLabel,setReviewLabel]=useState(""),[reviewBusy,setReviewBusy]=useState(false),[reviewMessage,setReviewMessage]=useState("");
   const video=useRef<HTMLVideoElement>(null);
   const authorKey=useMemo(()=>identity(token),[token]);
   async function load() {
@@ -36,6 +41,7 @@ function ShareViewer({token}:{token:string}) {
       const discussion=await shareRequest<{comments:Comment[]}>(token,"/comments",{headers:{"x-sn-author-key":authorKey}});setComments(discussion.comments);
       const context=await shareRequest<{details:ShareDetails}>(token,"/details");setDetails(context.details||{});
       const votes=await shareRequest<{counts:{like:number;thanks:number;idea:number};myReaction:string}>(token,"/reactions",{headers:{"x-voter-key":voterIdentity(token)}});setReactions(votes.counts);setMyReaction(votes.myReaction);
+      const reviewData=await shareRequest<{reviews:GuestReview[];myReview:GuestReview|null}>(token,"/reviews",{headers:{"x-reviewer-key":reviewerIdentity(token)}});setReviews(reviewData.reviews||[]);setMyReview(reviewData.myReview||null);setReviewDecision(reviewData.myReview?.decision||"question");setReviewComment(reviewData.myReview?.comment||"");setReviewLabel(reviewData.myReview?.reviewerLabel==="Guest"?"":reviewData.myReview?.reviewerLabel||"");
       const local=await findShareByToken(token);setOwnerKey(local?.share?.ownerKey??localStorage.getItem("screennote-recovery-"+token));
     } catch(e) {
       if ((e as {status?:number}).status===401) setLocked(true);
@@ -58,6 +64,17 @@ function ShareViewer({token}:{token:string}) {
   async function react(reaction:"like"|"thanks"|"idea"|""){
     try{const result=await shareRequest<{counts:{like:number;thanks:number;idea:number};myReaction:string}>(token,"/reactions",{method:"POST",body:JSON.stringify({voterKey:voterIdentity(token),reaction})});setReactions(result.counts);setMyReaction(result.myReaction)}
     catch(e){setError(e instanceof Error?e.message:"Could not save your reaction.")}
+  }
+  async function submitReview(event:React.FormEvent) {
+    event.preventDefault();
+    if(reviewDecision!=="approved"&&!reviewComment.trim())return;
+    setReviewBusy(true);setReviewMessage("");
+    try {
+      await shareRequest(token,"/reviews",{method:"POST",body:JSON.stringify({reviewerKey:reviewerIdentity(token),reviewerLabel:reviewLabel.trim(),decision:reviewDecision,comment:reviewComment.trim(),time:Math.floor(video.current?.currentTime??time)})});
+      const next=await shareRequest<{reviews:GuestReview[];myReview:GuestReview|null}>(token,"/reviews",{headers:{"x-reviewer-key":reviewerIdentity(token)}});
+      setReviews(next.reviews||[]);setMyReview(next.myReview||null);setReviewMessage("Your review decision has been saved.");
+    } catch(e){setError(e instanceof Error?e.message:"Couldn't save your review decision.");}
+    finally{setReviewBusy(false);}
   }
   async function send(event:React.FormEvent) {
     event.preventDefault();if(!text.trim())return;
@@ -155,7 +172,7 @@ function ShareViewer({token}:{token:string}) {
       </section>:null}
       <form className="share-comment-form" onSubmit={send}><div className="comment-composer-title">{replyTo?"Reply to this moment":"Add a timestamped note"} <span>at {timeLabel(Math.floor(video.current?.currentTime??time))}</span></div><div className="annotation-controls"><button type="button" className={"text-action "+(annotateMode?"active":"")} onClick={()=>{setAnnotateMode(!annotateMode);setAnnotation(null);}}>{annotateMode?"Cancel frame point":"Pin a point on the frame"}</button>{annotation&&<span>Frame point attached</span>}</div><textarea value={text} onChange={e=>setText(e.target.value)} placeholder="What should the team notice here?" rows={3}/><div className="comment-composer-actions">{replyTo&&<button type="button" className="text-action" onClick={()=>setReplyTo(null)}>Cancel reply</button>}<button className="button primary" type="submit" disabled={!text.trim()}><Send size={15}/> Post comment</button></div></form>
       {error&&<p className="share-error">{error}</p>}
-    </section><aside className="share-discussion"><div className="discussion-title"><div><span className="eyebrow">THE CONVERSATION</span><h2>{comments.filter(c=>!c.deletedAt).length} comments</h2></div><span className="discussion-mark"><MessageCircle size={17}/></span></div><div className="discussion-list">{comments.length?thread(comments):<div className="discussion-empty"><MessageCircle size={22}/><strong>No comments yet.</strong><p>Start the conversation at the moment that matters.</p></div>}</div></aside></div>
+    </section><aside className="share-discussion"><div className="discussion-title"><div><span className="eyebrow">THE CONVERSATION</span><h2>{comments.filter(c=>!c.deletedAt).length} comments</h2></div><span className="discussion-mark"><MessageCircle size={17}/></span></div><section className="guest-review-panel" aria-label="Review decision"><div className="guest-review-panel-head"><span className="eyebrow">REVIEW RESPONSE</span><strong>{myReview?"Update your decision":"Help close the loop"}</strong></div><p className="review-panel-intro">Choose a response and keep your note tied to this moment in the video.</p><div className="review-decision-options"><button type="button" aria-pressed={reviewDecision==="approved"} onClick={()=>setReviewDecision("approved")}>Looks good</button><button type="button" aria-pressed={reviewDecision==="changes-requested"} onClick={()=>setReviewDecision("changes-requested")}>Needs changes</button><button type="button" aria-pressed={reviewDecision==="question"} onClick={()=>setReviewDecision("question")}>Ask a question</button></div><form className="guest-review-form" onSubmit={submitReview}><label className="field-label">Name shown to reviewers<input aria-label="Reviewer display name" maxLength={40} value={reviewLabel} onChange={e=>setReviewLabel(e.target.value)} placeholder="Guest"/></label><label className="field-label">Review note<textarea aria-label="Review note" maxLength={500} rows={3} value={reviewComment} onChange={e=>setReviewComment(e.target.value)} placeholder={reviewDecision==="approved"?"Optional note":"Add a note to explain your response"} /></label><button className="button primary" type="submit" disabled={reviewBusy||(reviewDecision!=="approved"&&!reviewComment.trim())}>{reviewBusy?"Saving…":myReview?"Update decision":"Save decision"}</button>{reviewMessage&&<p className="review-save-status" role="status">{reviewMessage}</p>}</form>{reviews.length>0&&<div className="review-response-list"><h3>Guest responses</h3>{reviews.map((review,i)=><article key={review.createdAt+"-"+i}><div><strong>{review.reviewerLabel}</strong><span>{reviewDecisionLabel(review.decision)}</span></div>{review.comment&&<p>{review.comment}</p>}<button type="button" className="review-time" onClick={()=>seek(review.time)}>{timeLabel(review.time)}</button></article>)}</div>}</section><div className="discussion-list">{comments.length?thread(comments):<div className="discussion-empty"><MessageCircle size={22}/><strong>No comments yet.</strong><p>Start the conversation at the moment that matters.</p></div>}</div></aside></div>
     <footer className="share-footer"><span><ShieldCheck size={14}/> No account required to watch.</span><span>This link ends automatically.</span></footer>
   </main>;
 }
