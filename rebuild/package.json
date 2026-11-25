@@ -15,7 +15,6 @@
     "lucide-react": "^0.468.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "@vercel/blob": "2.8.2",
     "fix-webm-duration": "1.0.6",
     "mediabunny": "1.62.1",
     "fflate": "0.8.2"
