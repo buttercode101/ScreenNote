@@ -1,3 +1,4 @@
+import { randomBytes, randomUUID } from "node:crypto";
 import { Input, BufferSource, WEBM } from "mediabunny";
 import assert from "node:assert/strict";
 
@@ -166,8 +167,8 @@ const sampleInput=new Input({source:new BufferSource(sampleBytes),formats:[WEBM]
 const sampleVideo=await sampleInput.getPrimaryVideoTrack(),sampleDuration=await sampleInput.getDurationFromMetadata();
 assert.ok(sampleVideo&&sampleDuration&&sampleDuration>1&&sampleDuration<=600);
 const sampleWidth=sampleVideo.displayWidth,sampleHeight=sampleVideo.displayHeight;sampleInput.dispose();
-const nativeId = crypto.randomUUID();
-const nativeOwner = crypto.randomBytes(32).toString("hex");
+const nativeId = randomUUID();
+const nativeOwner = randomBytes(32).toString("hex");
 const nativePassword = "cloudflare-native-live-check";
 let nativeReserved = false;
 const nativeHeaders = {origin,"content-type":"application/json"};
@@ -205,15 +206,15 @@ try {
   assert.equal(range.status,206,"native R2 media supports byte ranges");
   assert.equal(range.headers.get("content-range"),"bytes 0-63/"+sampleBytes.length);
   assert.equal((await range.arrayBuffer()).byteLength,64);
-  const viewer=crypto.randomUUID(),authorKey=crypto.randomBytes(32).toString("hex"),eventId=crypto.randomUUID();
+  const viewer=randomUUID(),authorKey=randomBytes(32).toString("hex"),eventId=randomUUID();
   const posted=await json(await nativeApi("comment",{id:nativeId,owner:nativeOwner,viewer,eventId,authorKey,name:"Live QA",text:"Native comment",time:2}));
   const root=posted.comments.find(x=>x.id===eventId);assert.ok(root);
-  const replyId=crypto.randomUUID();
-  const replied=await json(await nativeApi("comment",{id:nativeId,viewer:crypto.randomUUID(),eventId:replyId,authorKey:crypto.randomBytes(24).toString("hex"),name:"Guest",text:"Nested reply",time:2,parentId:eventId}));
+  const replyId=randomUUID();
+  const replied=await json(await nativeApi("comment",{id:nativeId,viewer:randomUUID(),eventId:replyId,authorKey:crypto.randomBytes(24).toString("hex"),name:"Guest",text:"Nested reply",time:2,parentId:eventId}));
   assert.equal(replied.comments.find(x=>x.id===replyId).parentId,eventId);
   await json(await nativeApi("edit-comment",{id:nativeId,viewer,authorKey,commentId:eventId,expectedVersion:root.createdAt,text:"Edited native comment"}));
   await json(await nativeApi("resolve-thread",{id:nativeId,viewer,owner:nativeOwner,commentId:eventId,resolved:true}));
-  await json(await nativeApi("reaction",{id:nativeId,viewer:crypto.randomUUID(),reaction:"thanks",accessPassword:nativePassword}));
+  await json(await nativeApi("reaction",{id:nativeId,viewer:randomUUID(),reaction:"thanks",accessPassword:nativePassword}));
   const title=await json(await nativeApi("title",{id:nativeId,owner:nativeOwner,title:"Native parity verified"}));assert.equal(title.title,"Native parity verified");
   const status=await json(await nativeApi("review-status",{id:nativeId,owner:nativeOwner,reviewStatus:"approved"}));assert.equal(status.reviewStatus,"approved");
   const manage=await json(await nativeApi("manage",{id:nativeId,owner:nativeOwner}));assert.equal(manage.status,"published");
