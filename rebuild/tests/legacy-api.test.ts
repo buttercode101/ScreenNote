@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyComment, passwordRecord, checkPassword } from "../worker/legacy-api";
 
 const digest=async(value:string)=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,"0")).join("");
-const owner="a".repeat(64),authorKey="b".repeat(48),replyKey="c".repeat(48);
+const owner="a".repeat(64),authorKey="b".repeat(64),replyKey="c".repeat(64);
 const uuid=()=>crypto.randomUUID();
 async function clip(){
  return {id:uuid(),ownerHash:await digest(owner),status:"published",expiresAt:Date.now()+86400000,start:0,end:30,duration:30,title:"Unit clip",comments:[] as any[],votes:{} as Record<string,string>,discussionRevision:0};

@@ -200,7 +200,7 @@ try {
   assert.equal(range.status,206,"native R2 media supports byte ranges");
   assert.equal(range.headers.get("content-range"),"bytes 0-63/"+sampleBytes.length);
   assert.equal((await range.arrayBuffer()).byteLength,64);
-  const viewer=crypto.randomUUID(),authorKey=crypto.randomBytes(24).toString("hex"),eventId=crypto.randomUUID();
+  const viewer=crypto.randomUUID(),authorKey=crypto.randomBytes(32).toString("hex"),eventId=crypto.randomUUID();
   const posted=await json(await nativeApi("comment",{id:nativeId,owner:nativeOwner,viewer,eventId,authorKey,name:"Live QA",text:"Native comment",time:2}));
   const root=posted.comments.find(x=>x.id===eventId);assert.ok(root);
   const replyId=crypto.randomUUID();
