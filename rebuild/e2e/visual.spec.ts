@@ -104,6 +104,21 @@ test("preferences export and restore a portable local library backup",async({pag
   await expect(page.getByRole("status").filter({hasText:/duplicate\(s\) were skipped/i})).toBeVisible();
   await page.getByRole("button",{name:/Close preferences/i}).click();
 });
+test("offline mode preserves local preview and editing while preventing publishing",async({page})=>{
+  await page.goto("/");
+  await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
+  await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
+  await page.context().setOffline(true);
+  await expect(page.getByText(/Offline mode/i)).toBeVisible();
+  await page.getByRole("button",{name:/Preview/i}).click();
+  await expect(page.locator(".preview-workspace video")).toBeVisible();
+  await page.getByRole("button",{name:/Open editor/i}).click();
+  await expect(page.locator(".editor-workspace")).toBeVisible();
+  await page.getByRole("button",{name:"Close editor"}).click();
+  await page.getByRole("button",{name:/Share sample/i}).click();
+  await expect(page.getByRole("status").filter({hasText:/Sharing needs an internet connection/i})).toBeVisible();
+  await page.context().setOffline(false);
+});
 test("new frontend contains no legacy stylesheet or legacy app script requests",async({page})=>{
   const requested:string[]=[];
   page.on("request",request=>requested.push(new URL(request.url()).pathname));
