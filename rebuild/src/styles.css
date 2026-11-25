@@ -108,6 +108,7 @@
 .editor-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:17px;border:1px solid var(--line,#d9d8cf);border-radius:11px;background:var(--surface,#fffefa)}
 .editor-card .eyebrow{font:700 10px ui-monospace,monospace;letter-spacing:.12em;color:var(--muted,#73776f)}
 .editor-card h3{font-size:16px;line-height:1.25;margin:0}
+.annotation-list{display:flex;flex-direction:column;gap:6px;max-height:180px;overflow:auto}.annotation-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}.annotation-row button{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;border:1px solid var(--line,#d9d8cf);border-radius:7px;padding:8px 9px;background:transparent;color:inherit;font:600 11px inherit;cursor:pointer}.annotation-row button:first-child span{overflow:hidden;text-overflow:ellipsis;text-transform:capitalize}.annotation-row time{font:10px ui-monospace,monospace;color:var(--muted,#73776f);white-space:nowrap}.annotation-row button:last-child{justify-content:center;padding:8px}
 .editor-card p{font-size:12px;line-height:1.55;color:var(--muted,#73776f);margin:0}
 .editor-card label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:650}
 .editor-card input,.editor-card textarea,.context-editor input,.context-editor textarea{width:100%;min-width:0;max-width:100%;border:1px solid var(--line,#d9d8cf);border-radius:7px;background:var(--paper,#f3f1e9);color:inherit;padding:10px;font:13px inherit}
