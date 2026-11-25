@@ -48,3 +48,13 @@ CREATE TABLE IF NOT EXISTS share_details (share_id TEXT PRIMARY KEY REFERENCES s
 ALTER TABLE recordings ADD COLUMN upload_until INTEGER NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS recording_upload_parts (recording_id TEXT NOT NULL REFERENCES recordings(id) ON DELETE CASCADE, part_number INTEGER NOT NULL, object_key TEXT NOT NULL UNIQUE, byte_size INTEGER NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (recording_id, part_number));
 CREATE INDEX IF NOT EXISTS recording_upload_parts_recording ON recording_upload_parts(recording_id, part_number);
+
+
+CREATE TABLE IF NOT EXISTS share_reactions (
+  share_id TEXT NOT NULL REFERENCES shares(id) ON DELETE CASCADE,
+  voter_hash TEXT NOT NULL,
+  reaction TEXT NOT NULL CHECK (reaction IN ('like','thanks','idea')),
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (share_id, voter_hash)
+);
+CREATE INDEX IF NOT EXISTS share_reactions_share ON share_reactions(share_id, reaction);
