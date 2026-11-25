@@ -53,7 +53,7 @@ test("import, title, captions, chapters and bug-report context persist locally",
   await page.getByRole("button",{name:"Save title"}).click();
   await expect(page.locator("#title-status")).toHaveText("Title saved.");
   await page.getByText("Captions, chapters & bug report",{exact:true}).click();
-  await page.locator("#captions-text").fill("WEBVTT\\n\\n00:00:00.000 --> 00:00:01.500\\nReview this step.");
+  await page.locator("#captions-text").fill("WEBVTT\n\n00:00:00.000 --> 00:00:01.500\nReview this step.");
   await page.locator("#chapters-text").fill("0:01 Opening");
   await page.locator("#report-url").fill("https://example.com/checkout");
   await page.locator("#report-steps").fill("Open the checkout and select the payment method.");
@@ -65,7 +65,7 @@ test("import, title, captions, chapters and bug-report context persist locally",
   const download=page.waitForEvent("download");
   await page.locator("#export-report").click();
   expect((await download).suggestedFilename()).toContain("bug-report");
-  await page.getByRole("button",{name:"My recordings"}).click();
+  await page.locator("#main").getByRole("button",{name:"My recordings"}).click();
   await expect(page.getByRole("heading",{name:title})).toBeVisible();
   await page.locator("#library-search").fill("payment method");
   await expect(page.getByText("1 of 1 recordings")).toBeVisible();
