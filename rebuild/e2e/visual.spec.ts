@@ -100,7 +100,8 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:/Share a reviewed copy/i}).click();
   await expect(page.getByRole("heading",{name:"Make a temporary link"})).toBeVisible();
   await expect(page.getByText(/Only this shared copy is uploaded/i)).toBeVisible();
-  await page.getByText("Set a review brief (optional)",{exact:true}).click();
+  await page.locator(".review-brief-fields > summary").click({force:true});
+  await expect(page.locator(".review-brief-fields")).toHaveJSProperty("open",true);
   await page.getByLabel("Review purpose").fill("Check the checkout flow");
   await page.getByLabel("Review focus areas").fill("Watch the payment confirmation step");
   await page.getByLabel("Expected outcome").fill("A successful payment shows a receipt");
