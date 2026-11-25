@@ -437,9 +437,14 @@ export default {
       for (const row of legacyExpired.results) {
         const clip = JSON.parse(row.data);
         if (row.status === "pending" || row.status === "published") {
+          const previousStatus = row.status;
+          const allocation = previousStatus === "pending" ? 2 * Number(clip.size || 0) : Number(clip.size || 0);
           clip.status = "expired";
-          clip.cleanupComplete = true;
-          await env.DB.prepare("UPDATE legacy_clip_records SET status='expired',data=? WHERE id=?").bind(JSON.stringify(clip),row.id).run();
+          clip.cleanupComplete = false;
+          await env.DB.batch([
+            env.DB.prepare("UPDATE legacy_capacity SET reserved_bytes=MAX(0,reserved_bytes-?),reserved_count=MAX(0,reserved_count-1) WHERE id=1 AND EXISTS(SELECT 1 FROM legacy_clip_records WHERE id=? AND status=?)").bind(allocation,row.id,previousStatus),
+            env.DB.prepare("UPDATE legacy_clip_records SET status='expired',data=?,media_token_hash=NULL,media_token_expires=NULL WHERE id=? AND status=?").bind(JSON.stringify(clip),row.id,previousStatus)
+          ]);
         }
         await env.MEDIA.delete(row.object_key);
         const legacyParts = await env.DB.prepare("SELECT object_key FROM legacy_clip_parts WHERE clip_id=?").bind(row.id).all<{object_key:string}>();
