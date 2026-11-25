@@ -208,6 +208,31 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     }
     if (!(await shareAccess(request, env, share))) return fail("Enter the sharing password to continue.", 401);
     if (action === "media" && (request.method === "GET" || request.method === "HEAD")) return serveMedia(request, env, share);
+    if (action === "details" && request.method === "GET") {
+      const row = await env.DB.prepare("SELECT payload FROM share_details WHERE share_id = ?").bind(share.id).first<{ payload: string }>();
+      let details = {};
+      try { details = row?.payload ? JSON.parse(row.payload) : {}; } catch { return fail("Shared video context is unavailable.", 500); }
+      return json({ details });
+    }
+    if (action === "details" && request.method === "PUT") {
+      const body = await request.json<{ ownerKey?: string; details?: Record<string, unknown> }>().catch(() => null);
+      if (typeof body?.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.ownerKey)) return fail("The private share key is required.", 403);
+      const ownerRecord = await env.DB.prepare("SELECT owner_key_hash FROM shares WHERE id = ?").bind(share.id).first<{ owner_key_hash: string }>();
+      if (!ownerRecord || !safeEqual(await digest(body.ownerKey), ownerRecord.owner_key_hash)) return fail("This browser cannot update shared video context.", 403);
+      if (!body.details || typeof body.details !== "object" || Array.isArray(body.details)) return fail("Video context must be an object.", 400);
+      const payload = JSON.stringify(body.details);
+      if (payload.length > 40000) return fail("Keep shared video context under 40 KB.", 413);
+      const captions = Array.isArray(body.details.captions) ? body.details.captions : [];
+      const chapters = Array.isArray(body.details.chapters) ? body.details.chapters : [];
+      const annotations = Array.isArray(body.details.annotations) ? body.details.annotations : [];
+      if (captions.length > 100 || chapters.length > 20 || annotations.length > 40) return fail("Video context exceeds the supported item limits.", 400);
+      for (const cue of captions as any[]) if (!cue || !Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.start < 0 || cue.end <= cue.start || cue.end > share.duration_seconds + .05 || typeof cue.text !== "string" || cue.text.length > 500) return fail("Shared captions contain an invalid cue.", 400);
+      for (const chapter of chapters as any[]) if (!chapter || !Number.isFinite(chapter.time) || chapter.time < 0 || chapter.time >= share.duration_seconds || typeof chapter.title !== "string" || !chapter.title.trim() || chapter.title.length > 80) return fail("Shared chapters contain an invalid entry.", 400);
+      for (const mark of annotations as any[]) if (!mark || !["rectangle","arrow","highlight","blur","redact"].includes(mark.kind) || ![mark.x,mark.y,mark.w,mark.h].every(Number.isFinite) || mark.x < 0 || mark.y < 0 || mark.w < 0 || mark.h < 0 || mark.x + mark.w > 1 || mark.y + mark.h > 1) return fail("Shared annotations contain an invalid mark.", 400);
+      await env.DB.prepare("INSERT OR REPLACE INTO share_details (share_id, payload, updated_at) VALUES (?, ?, ?)").bind(share.id, payload, Math.floor(Date.now() / 1000)).run();
+      return json({ saved: true });
+    }
+
     if (action === "" && request.method === "GET") return json(publicShare(share));
     if (action === "comments" && request.method === "GET") {
       const { results } = await env.DB.prepare(
