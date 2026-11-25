@@ -32,6 +32,7 @@ class FakeD1 {
   access = new Set<string>();
   passwordAttempts = new Map<string, any>();
   details = new Map<string, string>();
+  uploadParts: any[] = [];
   prepare(sql: string) {
     const db = this;
     return { bind(...v: any[]) {
@@ -47,7 +48,8 @@ class FakeD1 {
           if (sql.includes("FROM shares") && sql.includes("recording_id = ?")) return [...db.shares.values()].find(s => s.recording_id === v[0]) ?? null;
           if (sql.includes("FROM shares") && sql.includes("id = ?")) return db.shares.get(v[0]) ?? null;
           if (sql.includes("FROM recordings") && sql.includes("id = ?")) {
-            const r = db.recordings.get(v[0]); return r && (!v[1] || r.owner_token_hash === v[1]) && (!sql.includes("status = 'ready'") || r.status === "ready") ? r : null;
+            const r = db.recordings.get(v[0]); if (!r || (v[1] && r.owner_token_hash !== v[1]) || (sql.includes("status = 'ready'") && r.status !== "ready") || (sql.includes("status = 'uploading'") && r.status !== "uploading")) return null;
+            return sql.includes("upload_until AS uploadUntil") ? { ...r, uploadUntil:r.upload_until } : r;
           }
           if (sql.includes("FROM comments") && sql.includes("COUNT(*)")) return { total: db.comments.size };
           if (sql.includes("FROM comments")) return db.comments.get(v[0]) ?? null;
@@ -58,8 +60,11 @@ class FakeD1 {
         },
         async run() {
           if (sql.startsWith("INSERT INTO guest_sessions")) db.sessions.add(v[0]);
-          if (sql.startsWith("INSERT INTO recordings")) db.recordings.set(v[0], { id:v[0], owner_token_hash:v[1], title:v[2], object_key:v[3], mime_type:v[4], byte_size:v[5], duration_seconds:v[6], status:"uploading" });
+          if (sql.startsWith("INSERT INTO recordings")) db.recordings.set(v[0], { id:v[0], owner_token_hash:v[1], title:v[2], object_key:v[3], mime_type:v[4], byte_size:v[5], duration_seconds:v[6], status:"uploading", upload_until:v[9] });
           if (sql.startsWith("UPDATE recordings SET status")) { const r=db.recordings.get(v[1]); if(r)r.status="ready"; }
+          if (sql.startsWith("UPDATE recordings SET upload_until")) { const r=db.recordings.get(v[2]); if(r){r.upload_until=v[0];r.updated_at=v[1];} }
+          if (sql.startsWith("INSERT OR REPLACE INTO recording_upload_parts")) { const [recording_id,part,object_key,size,created_at]=v; const old=db.uploadParts.findIndex(p=>p.recording_id===recording_id&&p.part===part); const item={recording_id,part,object_key,size,created_at}; if(old>=0)db.uploadParts[old]=item;else db.uploadParts.push(item); }
+          if (sql.startsWith("DELETE FROM recording_upload_parts")) db.uploadParts=db.uploadParts.filter(p=>p.recording_id!==v[0]);
           if (sql.startsWith("INSERT INTO shares")) db.shares.set(v[0], { id:v[0], recording_id:v[1], owner_token_hash:v[2], owner_key_hash:v[3], token_hash:v[4], expires_at:v[5], password_salt:v[6], password_hash:v[7], revoked_at:null });
           if (sql.startsWith("INSERT OR REPLACE INTO share_details")) db.details.set(v[0], v[1]);
           if (sql.startsWith("INSERT OR REPLACE INTO share_password_attempts")) db.passwordAttempts.set(`${v[0]}:${v[1]}`, { share_id:v[0], ip_hash:v[1], window_started:v[2], attempts:v[3], locked_until:v[4] });
@@ -75,6 +80,7 @@ class FakeD1 {
           return { success:true };
         },
         async all() {
+          if (sql.includes("FROM recording_upload_parts")) return { results:db.uploadParts.filter(p=>p.recording_id===v[0]).sort((a,b)=>a.part-b.part).map(p=>({part:p.part,size:p.size,objectKey:p.object_key,object_key:p.object_key})) };
           if (sql.includes("FROM comments WHERE share_id")) return { results:[...db.comments.values()].filter(c=>c.share_id===v[0]) };
           if (sql.includes("FROM recordings r LEFT JOIN shares") && sql.includes("status = 'ready'")) {
             return { results:[...db.recordings.values()].filter(r=>r.status==="ready"&&!([...db.shares.values()].some(s=>s.recording_id===r.id))).map(r=>({id:r.id,object_key:r.object_key})) };
@@ -92,6 +98,7 @@ const makeEnv = () => {
     async put(key:string, body:ReadableStream<Uint8Array>, options:any){const bytes=new Uint8Array(await new Response(body).arrayBuffer());objects.set(key,{bytes,type:options.httpMetadata.contentType,uploaded:new Date()});},
     async list(options:any={}){const keys=[...objects.keys()].filter(key=>key.startsWith(options.prefix??""));const limit=options.limit??1000;return {objects:keys.slice(0,limit).map(key=>({key,uploaded:objects.get(key)!.uploaded})),truncated:keys.length>limit};},
     async get(key:string, options?:any){const o=objects.get(key);if(!o)return null;const bytes=options?.range?o.bytes.slice(options.range.offset,options.range.offset+options.range.length):o.bytes;return {body:new Blob([bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer]).stream(),httpEtag:'etag'};},
+    async head(key:string){const o=objects.get(key);return o?{size:o.bytes.length,httpMetadata:{contentType:o.type}}:null;},
     async delete(key:string){objects.delete(key);deleted.push(key);}
   };
   return {env:{DB,MEDIA,STATIC:{get:async()=>null}},DB,objects,deleted};
