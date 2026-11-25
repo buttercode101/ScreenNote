@@ -42,7 +42,7 @@ function App() {
   const [systemAudio, setSystemAudio] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(() => { try { return localStorage.getItem("screennote-theme") === "dark"; } catch { return false; } });
   const [query, setQuery] = useState("");
   const [previewClip, setPreviewClip] = useState<Clip | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -66,7 +66,7 @@ function App() {
     setRecoverable(nextRecoverable);
   };
   useEffect(() => { refresh().catch(() => setMessage("Your browser's local storage is unavailable.")); }, []);
-  useEffect(() => { document.documentElement.dataset.theme = dark ? "dark" : "light"; }, [dark]);
+  useEffect(() => { document.documentElement.dataset.theme = dark ? "dark" : "light"; try { localStorage.setItem("screennote-theme", dark ? "dark" : "light"); } catch { /* Appearance remains usable when storage is blocked. */ } }, [dark]);
   useEffect(() => {
     if ("serviceWorker" in navigator && window.isSecureContext) {
       navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => setMessage("Offline support could not be enabled in this browser."));
