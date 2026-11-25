@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "cf build",
+    "build": "node scripts/build-legacy.mjs && cf build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests",
     "deploy": "cf deploy",
@@ -14,7 +14,10 @@
   "dependencies": {
     "lucide-react": "^0.468.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "@vercel/blob": "2.8.2",
+    "fix-webm-duration": "1.0.6",
+    "mediabunny": "1.62.1"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^2.0.0-rc.0",
@@ -28,6 +31,7 @@
     "vitest": "^3.2.0",
     "fake-indexeddb": "^6.2.0",
     "@playwright/test": "^1.56.0",
-    "@types/node": "^24.0.0"
+    "@types/node": "^24.0.0",
+    "esbuild": "0.28.2"
   }
 }

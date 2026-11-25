@@ -1,4 +1,20 @@
 type Bindings = { DB: D1Database; MEDIA: R2Bucket; STATIC: R2Bucket; ASSETS?: Fetcher };
+const LEGACY_API_ORIGIN = "https://screennote-woad.vercel.app";
+
+/** Temporary API compatibility bridge: preserves the complete 0.5.0 contract while native D1/R2 parity is implemented. */
+async function proxyLegacyClip(request: Request): Promise<Response> {
+  const incoming = new URL(request.url);
+  const upstream = new URL("/api/clip" + incoming.search, LEGACY_API_ORIGIN);
+  const headers = new Headers(request.headers);
+  headers.delete("host"); headers.delete("content-length"); headers.delete("cf-connecting-ip");
+  headers.set("origin", LEGACY_API_ORIGIN); headers.set("referer", LEGACY_API_ORIGIN + "/");
+  const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
+  const response = await fetch(upstream, { method:request.method, headers, body, redirect:"manual" });
+  const out = new Headers(response.headers);
+  out.delete("content-length"); out.delete("content-encoding"); out.set("cache-control","no-store"); out.set("x-content-type-options","nosniff");
+  return new Response(request.method === "HEAD" ? null : response.body, {status:response.status,statusText:response.statusText,headers:out});
+}
+
 const SESSION_COOKIE = "sn_guest";
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
@@ -364,6 +380,7 @@ export default {
   async fetch(request: Request, env: Bindings, ctx: ExecutionContext): Promise<Response> {
     try {
       const url = new URL(request.url);
+      if (url.pathname === "/api/clip") return await proxyLegacyClip(request);
       if (url.pathname.startsWith("/api/")) return await handleApi(request, env);
       return await serveStatic(request, env, ctx);
     } catch (error) {
