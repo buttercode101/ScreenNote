@@ -28,13 +28,19 @@ async function retryHealth() {
 }
 const health = await retryHealth();
 assert.equal(health.status, "ok");
-const page = await jsonText(await request("/"));
+const homeResponse = await request("/");
+assert.equal(homeResponse.headers.get("x-frame-options"), "DENY");
+assert.equal(homeResponse.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
+assert.match(homeResponse.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
+const page = await jsonText(homeResponse);
 assert.match(page, /<html/i);
 const jsPath = page.match(/src="([^"]+\.js)"/)?.[1];
 const cssPath = page.match(/href="([^"]+\.css)"/)?.[1];
 assert.ok(jsPath, "production JavaScript asset referenced by HTML");
 assert.ok(cssPath, "production CSS asset referenced by HTML");
-assert.ok((await request(jsPath)).ok, "production JavaScript asset responds");
+const jsResponse = await request(jsPath);
+assert.ok(jsResponse.ok, "production JavaScript asset responds");
+assert.equal(jsResponse.headers.get("x-content-type-options"), "nosniff");
 assert.ok((await request(cssPath)).ok, "production CSS asset responds");
 
 const ownerKey = "a".repeat(64);

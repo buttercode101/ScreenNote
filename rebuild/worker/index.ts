@@ -32,7 +32,7 @@ const SECURITY_HEADERS: Record<string,string> = {
   "x-frame-options": "DENY",
   "cross-origin-opener-policy": "same-origin",
   "permissions-policy": "camera=(self), microphone=(self), display-capture=(self), geolocation=(), clipboard-read=(), clipboard-write=(self)",
-  "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none"
+  "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 };
 function applySecurityHeaders(headers: Headers): Headers {
   for (const [name,value] of Object.entries(SECURITY_HEADERS)) headers.set(name,value);
