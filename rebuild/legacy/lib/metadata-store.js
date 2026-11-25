@@ -1,0 +1,8 @@
+// Metadata must use a strong storage revision, not a compressed response's weak ETag.
+const contention=()=>Object.assign(Error('Recording metadata changed. Please try again.'),{status:409});
+export function createMetadataStore({get,head,put,isConflict,delay=ms=>new Promise(r=>setTimeout(r,ms))}){
+ async function read(path){for(let attempt=0;attempt<3;attempt++){const r=await get(path,{access:'private',useCache:false,headers:{'Accept-Encoding':'identity'}});if(!r)return null;const data=await new Response(r.stream).json();let etag=r.blob.etag;if(etag?.startsWith('W/')&&head){const canonical=await head(path);if(canonical.etag&&!canonical.etag.startsWith('W/')&&etag.slice(2)===canonical.etag)etag=canonical.etag;else{if(attempt<2)await delay(100*2**attempt);continue}}if(!etag||etag.startsWith('W/'))throw contention();return{data,etag}}throw contention()}
+ async function write(path,data,etag){if(etag?.startsWith('W/'))throw contention();return put(path,JSON.stringify(data),{access:'private',addRandomSuffix:false,allowOverwrite:!!etag,contentType:'application/json',...(etag?{ifMatch:etag}:{}),cacheControlMaxAge:0})}
+ async function mutate(path,change,initial){for(let attempt=0;attempt<5;attempt++){const r=await read(path),data=r?structuredClone(r.data):initial?.();if(!data)throw Object.assign(Error('Clip not found.'),{status:404});const result=change(data);try{await write(path,data,r?.etag);return result??data}catch(e){if(!isConflict(e)&&!String(e.message).includes('already exists'))throw e;console.warn('ScreenNote metadata contention',JSON.stringify({attempt:attempt+1,name:e.name}));if(attempt<4)await delay(100*2**attempt)}}throw contention()}
+ return{read,write,mutate};
+}
