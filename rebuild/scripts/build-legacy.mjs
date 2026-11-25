@@ -11,7 +11,7 @@ await writeFile(`${output}/_headers`, `/index.html
 /sw.js
   Cache-Control: no-cache
 `);
-for (const file of ["sw.js", "icon.svg", "manifest.webmanifest"]) {
+for (const file of ["sw.js", "icon.svg", "manifest.webmanifest", "sample.webm"]) {
   try { await cp(`${source}/${file}`, `${output}/${file}`); } catch { /* optional static asset */ }
 }
 console.log("Prepared isolated Cloudflare public assets; legacy HTML, CSS and JS are excluded.");
