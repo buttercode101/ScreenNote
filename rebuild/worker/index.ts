@@ -206,14 +206,6 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
         .bind(await digest(tokenValue), share.id, Math.min(share.expires_at, now + 60 * 60 * 12)).run();
       return json({ access: true }, 200, { "set-cookie": accessCookie(share.id, tokenValue, token, Math.min(share.expires_at - now, 43200)) });
     }
-    if (!(await shareAccess(request, env, share))) return fail("Enter the sharing password to continue.", 401);
-    if (action === "media" && (request.method === "GET" || request.method === "HEAD")) return serveMedia(request, env, share);
-    if (action === "details" && request.method === "GET") {
-      const row = await env.DB.prepare("SELECT payload FROM share_details WHERE share_id = ?").bind(share.id).first<{ payload: string }>();
-      let details = {};
-      try { details = row?.payload ? JSON.parse(row.payload) : {}; } catch { return fail("Shared video context is unavailable.", 500); }
-      return json({ details });
-    }
     if (action === "details" && request.method === "PUT") {
       const body = await request.json<{ ownerKey?: string; details?: Record<string, unknown> }>().catch(() => null);
       if (typeof body?.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.ownerKey)) return fail("The private share key is required.", 403);
@@ -231,6 +223,14 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       for (const mark of annotations as any[]) if (!mark || !["rectangle","arrow","highlight","blur","redact"].includes(mark.kind) || ![mark.x,mark.y,mark.w,mark.h].every(Number.isFinite) || mark.x < 0 || mark.y < 0 || mark.w < 0 || mark.h < 0 || mark.x + mark.w > 1 || mark.y + mark.h > 1) return fail("Shared annotations contain an invalid mark.", 400);
       await env.DB.prepare("INSERT OR REPLACE INTO share_details (share_id, payload, updated_at) VALUES (?, ?, ?)").bind(share.id, payload, Math.floor(Date.now() / 1000)).run();
       return json({ saved: true });
+    }
+    if (!(await shareAccess(request, env, share))) return fail("Enter the sharing password to continue.", 401);
+    if (action === "media" && (request.method === "GET" || request.method === "HEAD")) return serveMedia(request, env, share);
+    if (action === "details" && request.method === "GET") {
+      const row = await env.DB.prepare("SELECT payload FROM share_details WHERE share_id = ?").bind(share.id).first<{ payload: string }>();
+      let details = {};
+      try { details = row?.payload ? JSON.parse(row.payload) : {}; } catch { return fail("Shared video context is unavailable.", 500); }
+      return json({ details });
     }
 
     if (action === "" && request.method === "GET") return json(publicShare(share));
