@@ -1,3 +1,5 @@
+// @ts-ignore - browser recovery helper tested as a runtime module
+import { recoveryDocument,recoveryKeys } from "../legacy/lib/recovery.js";
 import { readFile } from "node:fs/promises";
 import { Input, BufferSource, WEBM } from "mediabunny";
 import { inspectNativeMedia } from "../worker/validate-media";
@@ -21,6 +23,13 @@ describe("Cloudflare 0.5.0 API parity helpers",()=>{
   const result=await inspectNativeMedia(bytes,expected);
   expect(result.width).toBeGreaterThan(0);expect(result.height).toBeGreaterThan(0);
   await expect(inspectNativeMedia(new Uint8Array([1,2,3]),{type:"video/webm",size:3,duration:1})).rejects.toThrow(/valid video/);
+ });
+ it("allows recovery-key migration from official Vercel to Cloudflare only",()=>{
+  const clip={id:"c9c6d84f-0bd1-4f35-a3e9-3a8b6d14a122",owner:"a".repeat(64),title:"Migrated share",shared:true,expiresAt:Date.now()+86400000};
+  const source="https://screennote-woad.vercel.app",target="https://screennote-dev.buttercoder-dev.workers.dev";
+  const raw=recoveryDocument([clip],source),restored=recoveryKeys(raw,target);
+  expect(restored).toHaveLength(1);expect(restored[0].owner).toBe(clip.owner);
+  expect(()=>recoveryKeys(raw,"https://evil.example")).toThrow(/official ScreenNote/);
  });
  it("hashes passwords with PBKDF2 and rejects incorrect values",async()=>{
   const record=await passwordRecord("strong-screen-note-password");
