@@ -363,6 +363,14 @@ export default {
         await env.MEDIA.delete(row.object_key);
         await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
       }
+      // A completed upload that never reached publish must not become a hidden,
+      // permanent cloud library item if the client closes or loses its network.
+      const orphaned = await env.DB.prepare("SELECT r.id, r.object_key FROM recordings r LEFT JOIN shares s ON s.recording_id = r.id WHERE r.status = 'ready' AND s.id IS NULL AND r.created_at <= ? LIMIT 100")
+        .bind(now - 600).all<{ id: string; object_key: string }>();
+      for (const row of orphaned.results) {
+        await env.MEDIA.delete(row.object_key);
+        await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
+      }
       await env.DB.prepare("DELETE FROM guest_sessions WHERE expires_at <= ?").bind(now).run();
       await env.DB.prepare("DELETE FROM share_access_sessions WHERE expires_at <= ?").bind(now).run();
     })());
