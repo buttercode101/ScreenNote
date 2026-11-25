@@ -463,6 +463,8 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     if (!row) return fail("Recording not found.", 404);
     const share = await env.DB.prepare("SELECT id, owner_key_hash FROM shares WHERE recording_id = ?").bind(row.id).first<{ id: string; owner_key_hash: string }>();
     if (share && !safeEqual(share.owner_key_hash, await digest(body.ownerKey))) return fail("This browser cannot stop sharing this recording.", 403);
+    const parts = await env.DB.prepare("SELECT object_key FROM recording_upload_parts WHERE recording_id = ?").bind(row.id).all<{object_key:string}>();
+    await Promise.all(parts.results.map(part=>env.MEDIA.delete(part.object_key)));
     await env.MEDIA.delete(row.object_key);
     await env.DB.prepare("DELETE FROM recordings WHERE id = ? AND owner_token_hash = ?").bind(row.id, owner).run();
     return json({ deleted: true });
@@ -516,8 +518,10 @@ export default {
         await env.MEDIA.delete(row.object_key);
         await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
       }
-      const abandoned = await env.DB.prepare("SELECT id, object_key FROM recordings WHERE status = 'uploading' AND created_at <= ? LIMIT 100").bind(now - 600).all<{ id: string; object_key: string }>();
+      const abandoned = await env.DB.prepare("SELECT id, object_key FROM recordings WHERE status = 'uploading' AND upload_until <= ? LIMIT 100").bind(now).all<{ id: string; object_key: string }>();
       for (const row of abandoned.results) {
+        const parts = await env.DB.prepare("SELECT object_key FROM recording_upload_parts WHERE recording_id = ?").bind(row.id).all<{object_key:string}>();
+        await Promise.all(parts.results.map(part=>env.MEDIA.delete(part.object_key)));
         await env.MEDIA.delete(row.object_key);
         await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
       }
