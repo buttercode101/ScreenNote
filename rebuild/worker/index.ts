@@ -31,6 +31,29 @@ const json = (data: unknown, status = 200, headers: HeadersInit = {}) =>
   Response.json(data, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers } });
 const fail = (message: string, status = 400) => json({ error: message }, status);
 
+async function readJsonLimited<T>(request: Request, maxBytes = 64 * 1024): Promise<T | null> {
+  const declared = request.headers.get("content-length");
+  if (declared && Number.isFinite(Number(declared)) && Number(declared) > maxBytes) return null;
+  if (!request.body) return null;
+  const reader = request.body.getReader(), chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxBytes) { await reader.cancel(); return null; }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(total); let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+    return JSON.parse(new TextDecoder().decode(bytes)) as T;
+  } catch { return null; }
+}
+function cleanGuestLabel(value: unknown): string {
+  if (typeof value !== "string") return "Guest";
+  return value.split("").filter(character => { const code = character.charCodeAt(0); return code >= 32 && code !== 127; }).join("").trim().slice(0, 40) || "Guest";
+}
 function readCookie(request: Request, name: string): string | null {
   const raw = request.headers.get("cookie") ?? "";
   const entry = raw.split(";").map((part) => part.trim()).find((part) => part.startsWith(name + "="));
@@ -169,7 +192,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     const share = await getShare(env, token);
     if (!share || !active(share)) return fail("This ScreenNote has ended or is no longer available.", 404);
     if (action === "manage" && request.method === "DELETE") {
-      const body = await request.json<{ ownerKey?: string }>().catch(() => null);
+      const body = await readJsonLimited<{ ownerKey?: string }>(request, 2048);
       if (typeof body?.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.ownerKey)) return fail("The private recovery key is required.", 403);
       const ownerRecord = await env.DB.prepare("SELECT owner_key_hash FROM shares WHERE id = ?").bind(share.id).first<{ owner_key_hash: string }>();
       if (!ownerRecord || !safeEqual(await digest(body.ownerKey), ownerRecord.owner_key_hash)) return fail("This browser cannot stop sharing this recording.", 403);
@@ -179,7 +202,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     }
     if (action === "access" && request.method === "POST") {
       if (!share.password_hash) return json({ access: true });
-      const body = await request.json<{ password?: string }>().catch(() => null);
+      const body = await readJsonLimited<{ password?: string }>(request, 2048);
       if (!body || typeof body.password !== "string" || body.password.length > 128) return fail("Enter the sharing password.", 400);
       const now = Math.floor(Date.now() / 1000);
       // Store only a hash of Cloudflare's client IP; never persist the raw address.
@@ -208,7 +231,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       return json({ access: true }, 200, { "set-cookie": accessCookie(share.id, tokenValue, token, Math.min(share.expires_at - now, 43200)) });
     }
     if (action === "details" && request.method === "PUT") {
-      const body = await request.json<{ ownerKey?: string; details?: Record<string, unknown> }>().catch(() => null);
+      const body = await readJsonLimited<{ ownerKey?: string; details?: Record<string, unknown> }>(request, 48 * 1024);
       if (typeof body?.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.ownerKey)) return fail("The private share key is required.", 403);
       const ownerRecord = await env.DB.prepare("SELECT owner_key_hash FROM shares WHERE id = ?").bind(share.id).first<{ owner_key_hash: string }>();
       if (!ownerRecord || !safeEqual(await digest(body.ownerKey), ownerRecord.owner_key_hash)) return fail("This browser cannot update shared video context.", 403);
@@ -247,7 +270,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       return json({ counts, myReaction });
     }
     if (action === "reactions" && request.method === "POST") {
-      const body = await request.json<{voterKey?:string;reaction?:string}>().catch(() => null);
+      const body = await readJsonLimited<{voterKey?:string;reaction?:string}>(request, 2048);
       if (typeof body?.voterKey !== "string" || !/^[a-f0-9]{64}$/.test(body.voterKey)) return fail("A private browser reaction key is required.", 400);
       if (!["like","thanks","idea",""].includes(body.reaction || "")) return fail("Choose a listed reaction.", 400);
       const voterHash = await digest(body.voterKey);
@@ -278,7 +301,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       return json({ reviews: results, myReview });
     }
     if (action === "reviews" && request.method === "POST") {
-      const body = await request.json<{ reviewerKey?: string; reviewerLabel?: string; decision?: string; comment?: string; time?: number }>().catch(() => null);
+      const body = await readJsonLimited<{ reviewerKey?: string; reviewerLabel?: string; decision?: string; comment?: string; time?: number }>(request, 4096);
       if (!body || typeof body.reviewerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.reviewerKey)) return fail("A private review identity is required.", 400);
       if (!["approved","changes-requested","question"].includes(body.decision || "")) return fail("Choose a valid review decision.", 400);
       if (typeof body.comment !== "string" || body.comment.length > 500) return fail("Review notes must be 500 characters or fewer.", 400);
@@ -313,7 +336,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       return json({ comments: results.map((comment: any) => ({ ...comment, authorHash: undefined, isMine: !!authorHash && safeEqual(authorHash, comment.authorHash) })) });
     }
     if (action === "comments" && request.method === "POST") {
-      const body = await request.json<{ authorKey?: string; text?: string; time?: number; parentId?: string | null; viewerLabel?: string; anchorX?: number; anchorY?: number }>().catch(() => null);
+      const body = await readJsonLimited<{ authorKey?: string; text?: string; time?: number; parentId?: string | null; viewerLabel?: string; anchorX?: number; anchorY?: number }>(request, 8192);
       if (!body || typeof body.authorKey !== "string" || !/^[A-Za-z0-9_-]{32,64}$/.test(body.authorKey)) return fail("A valid comment identity is required.", 400);
       if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 2000) return fail("Comments must be between 1 and 2,000 characters.", 400);
       if (!Number.isFinite(body.time) || body.time! < 0 || body.time! > share.duration_seconds) return fail("Choose a timestamp within this video.", 400);
@@ -327,13 +350,13 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       }
       const id = crypto.randomUUID(), now = Math.floor(Date.now() / 1000);
       await env.DB.prepare("INSERT INTO comments (id, share_id, parent_id, author_hash, viewer_label, body, time_seconds, created_at, updated_at, anchor_x, anchor_y) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(id, share.id, body.parentId ?? null, await digest(body.authorKey), typeof body.viewerLabel === "string" ? body.viewerLabel.slice(0, 40) : "Guest", body.text.trim(), Number(body.time!.toFixed(3)), now, now, hasAnchor ? body.anchorX : null, hasAnchor ? body.anchorY : null).run();
+        .bind(id, share.id, body.parentId ?? null, await digest(body.authorKey), cleanGuestLabel(body.viewerLabel), body.text.trim(), Number(body.time!.toFixed(3)), now, now, hasAnchor ? body.anchorX : null, hasAnchor ? body.anchorY : null).run();
       return json({ id, createdAt: now }, 201);
     }
     const commentId = shareMatch[3];
     if (commentId && action.includes("comments/")) {
       if (action.endsWith("/resolve") && request.method === "PATCH") {
-        const body = await request.json<{ ownerKey?: string; resolved?: boolean }>().catch(() => null);
+        const body = await readJsonLimited<{ ownerKey?: string; resolved?: boolean }>(request, 2048);
         if (typeof body?.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.ownerKey)) return fail("The private share key is required.", 403);
         const keyHash = await digest(body.ownerKey);
         const allowed = await env.DB.prepare("SELECT id FROM shares WHERE id = ? AND owner_key_hash = ?").bind(share.id, keyHash).first();
@@ -343,7 +366,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
         return json({ resolved: !!body.resolved });
       }
       if (request.method === "PATCH" || request.method === "DELETE") {
-        const body = await request.json<{ authorKey?: string; text?: string }>().catch(() => null);
+        const body = await readJsonLimited<{ authorKey?: string; text?: string }>(request, 4096);
         if (typeof body?.authorKey !== "string") return fail("The comment's private edit key is required.", 403);
         const authorHash = await digest(body.authorKey), now = Math.floor(Date.now() / 1000);
         const comment = await env.DB.prepare("SELECT id FROM comments WHERE id = ? AND share_id = ? AND author_hash = ? AND deleted_at IS NULL")
@@ -370,7 +393,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     return json({ recordings: results });
   }
   if (path === "/api/recordings" && request.method === "POST") {
-    const body = await request.json<{ title?: string; mimeType?: string; size?: number; duration?: number }>().catch(() => null);
+    const body = await readJsonLimited<{ title?: string; mimeType?: string; size?: number; duration?: number }>(request, 4096);
     if (!body || typeof body.title !== "string" || !body.title.trim() || body.title.length > 120) return fail("A valid recording title is required.", 400);
     if (!Number.isSafeInteger(body.size) || !body.size || body.size! < 1 || body.size! > MAX_UPLOAD_BYTES) return fail("This clip exceeds the 100 MB sharing limit.", 413);
     if (!Number.isFinite(body.duration) || body.duration! < 0 || body.duration! > MAX_DURATION_SECONDS) return fail("ScreenNote clips must be 10 minutes or shorter.", 413);
@@ -515,7 +538,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     return json({ id: recordingMatch[1], status: "ready" });
   }
   if (recordingMatch && recordingMatch[2] === "publish" && request.method === "POST") {
-    const body = await request.json<{ expiresInDays?: number; password?: string; ownerKey?: string }>().catch(() => null);
+    const body = await readJsonLimited<{ expiresInDays?: number; password?: string; ownerKey?: string }>(request, 4096);
     if (!body || ![1, 3, 7].includes(body.expiresInDays ?? 0)) return fail("Choose an expiry of 1, 3 or 7 days.", 400);
     if (typeof body.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(body.ownerKey)) return fail("A private recovery key is required.", 400);
     if (body.password && (body.password.length < 8 || body.password.length > 128)) return fail("Sharing passwords must be 8–128 characters.", 400);
@@ -537,7 +560,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
     return json({ id: shareId, token, url: `/s/${token}`, expiresAt: now + body.expiresInDays! * 86400, passwordProtected: !!passwordHash }, 201);
   }
   if (recordingMatch && !recordingMatch[2] && request.method === "DELETE") {
-    const body = await request.json<{ ownerKey?: string }>().catch(() => null);
+    const body = await readJsonLimited<{ ownerKey?: string }>(request, 2048);
     if (typeof body?.ownerKey !== "string") return fail("The private recovery key is required.", 403);
     const row = await env.DB.prepare("SELECT id, object_key FROM recordings WHERE id = ? AND owner_token_hash = ?")
       .bind(recordingMatch[1], owner).first<{ id: string; object_key: string }>();

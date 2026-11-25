@@ -127,6 +127,11 @@ async function upload(env:any,cookie:string) {
 describe("ScreenNote temporary sharing API",()=>{
   let state:ReturnType<typeof makeEnv>;
   beforeEach(()=>{state=makeEnv();});
+  it("rejects oversized JSON before parsing or reserving upload state",async()=>{
+    const s=await session(state.env),huge=JSON.stringify({title:"Oversized",mimeType:"video/webm",size:4,duration:12,padding:"x".repeat(80*1024)});
+    const response=await worker.fetch(new Request("https://screennote.test/api/recordings",{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:huge}),state.env as any,{} as any);
+    expect(response.status).toBe(400);expect(state.DB.recordings.size).toBe(0);
+  });
   it("creates guest sessions and rejects cross-origin writes",async()=>{
     const res=await worker.fetch(new Request("https://screennote.test/api/session",{headers:{origin:"https://evil.test"}}),state.env as any,{} as any);
     expect(res.status).toBe(403);expect(state.DB.sessions.size).toBe(0);
