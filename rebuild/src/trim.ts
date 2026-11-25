@@ -10,12 +10,14 @@ export function clampTrimRange(start: number, end: number, duration: number): Tr
 function seekTo(video: HTMLVideoElement, time: number): Promise<void> {
   if (Math.abs(video.currentTime - time) < 0.05) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    const cleanup = () => { video.removeEventListener("seeked", onSeeked); video.removeEventListener("error", onError); };
+    let timer = 0;
+    const cleanup = () => { window.clearTimeout(timer); video.removeEventListener("seeked", onSeeked); video.removeEventListener("error", onError); };
     const onSeeked = () => { cleanup(); resolve(); };
     const onError = () => { cleanup(); reject(new Error("The video could not seek to the selected point.")); };
     video.addEventListener("seeked", onSeeked, { once: true });
     video.addEventListener("error", onError, { once: true });
-    video.currentTime = time;
+    timer = window.setTimeout(() => { cleanup(); reject(new Error("Seeking timed out. Try a different trim point.")); }, 10_000);
+    try { video.currentTime = time; } catch { cleanup(); reject(new Error("The video could not seek to the selected point.")); }
   });
 }
 export async function trimVideoElement(video: HTMLVideoElement, requestedRange: TrimRange): Promise<Blob> {
