@@ -125,14 +125,18 @@ describe("ScreenNote temporary sharing API",()=>{
   });
   it("persists share context behind the owner key and exposes it to viewers",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie),key="c".repeat(64);
-    const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:1,ownerKey:key})}),state.env as any,{} as any);
+    const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:1,password:"context-password",ownerKey:key})}),state.env as any,{} as any);
     const share=await pub.json() as any;
     const details={captions:[{start:1,end:2,text:"Opening"}],chapters:[{time:1,title:"Intro"}],annotations:[{kind:"redact",x:.1,y:.1,w:.2,h:.2}],report:{steps:"Reproduce"}};
     const denied=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`,{method:"PUT",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({ownerKey:"d".repeat(64),details})}),state.env as any,{} as any);
     expect(denied.status).toBe(403);
     const saved=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`,{method:"PUT",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({ownerKey:key,details})}),state.env as any,{} as any);
     expect(saved.status).toBe(200);
-    const read=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`),state.env as any,{} as any);
+    const locked=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`),state.env as any,{} as any);
+    expect(locked.status).toBe(401);
+    const access=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/access`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({password:"context-password"})}),state.env as any,{} as any);
+    expect(access.status).toBe(200);
+    const read=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/details`,{headers:{cookie:access.headers.get("set-cookie")!.split(";")[0]}}),state.env as any,{} as any);
     expect(read.status).toBe(200);expect(await read.json()).toMatchObject({details});
   });
   it("requires a password before serving protected media",async()=>{
