@@ -131,7 +131,7 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(view.status).toBe(200);expect(await view.json()).toMatchObject({title:"Bug walkthrough",passwordRequired:false});
   });
   it("resumes a missing upload part and assembles the private recording in order",async()=>{
-    const s=await session(state.env),headers={origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"};
+    const origin="https://screennote.test",s=await session(state.env),headers={origin,cookie:s.cookie,"content-type":"application/json"};
     const size=2*1024*1024+4;
     const created=await worker.fetch(new Request("https://screennote.test/api/recordings",{method:"POST",headers,body:JSON.stringify({title:"Resumable upload",mimeType:"video/webm",size,duration:12})}),state.env as any,{} as any);
     expect(created.status).toBe(201);const reservation=await created.json() as any;
