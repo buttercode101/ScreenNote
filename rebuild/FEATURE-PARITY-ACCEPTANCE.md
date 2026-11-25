@@ -101,7 +101,7 @@ The Cloudflare branch has moved beyond the earlier primary-flow-only UI. The fol
 Important distinctions:
 - Captions are owner-supplied. There is no automatic speech-to-text transcription.
 - The current markup tools apply spatial marks to the video image; they are not a frame-by-frame keyframe editor.
-- Camera placement currently offers four corners and size selection; drag-to-position is not yet restored.
+- Camera placement now offers four corners plus independent custom horizontal/vertical positioning sliders and size selection; direct drag-to-position remains a usability improvement.
 - Resumable upload uses application-level R2 part objects and a streamed final assembly, not R2's native multipart API.
 - Browser viewport emulation is not physical Android/iOS acceptance.
 
