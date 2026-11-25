@@ -119,6 +119,14 @@ const viewerHeaders = { origin, cookie: accessCookie, "content-type": "applicati
 const share = await json(await request(sharePath, { headers: viewerHeaders }));
 const contextResponse = await json(await request(sharePath + "/details", { headers: viewerHeaders }));
 assert.deepEqual(contextResponse.details, sharedDetails, "authorized viewers receive the saved shared context");
+const voterKey = randomBytes(32).toString("hex");
+const reaction = await json(await request(sharePath + "/reactions", {
+  method: "POST", headers: { origin, "content-type": "application/json" },
+  body: JSON.stringify({ voterKey, reaction: "thanks" })
+}));
+assert.equal(reaction.counts.thanks, 1, "anonymous viewer reaction is stored");
+const ownReaction = await json(await request(sharePath + "/reactions", { headers: { "x-voter-key": voterKey } }));
+assert.equal(ownReaction.myReaction, "thanks", "the same browser can retrieve its reaction");
 assert.equal(share.title, "Live acceptance check");
 assert.equal(share.passwordRequired, true);
 const media = await request(sharePath + "/media", { headers: { cookie: accessCookie, range: "bytes=2-7" } });
