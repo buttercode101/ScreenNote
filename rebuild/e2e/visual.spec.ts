@@ -75,7 +75,7 @@ test("import, title, captions, chapters and bug-report context persist locally",
   await page.locator("#export-report").click();
   expect((await download).suggestedFilename()).toContain("bug-report");
   await expect(page.locator("#recording-title-input")).toHaveValue(savedTitle);
-  for(const width of [320,375,768]){await page.setViewportSize({width,height:900});await contained(page,width);}
+  for(const theme of ["light","dark"]){await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);for(const v of viewports){await page.setViewportSize({width:v.width,height:v.height});await contained(page,v.width);if([320,375,768,1120,1440].includes(v.width))await page.screenshot({path:"test-results/screenshots/review-"+v.width+"-"+theme+".png",fullPage:true});}}
 });
 
 test("screen capture can pause, resume and save a private local recording",async({page})=>{
