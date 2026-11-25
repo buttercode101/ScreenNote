@@ -18,9 +18,18 @@ export async function publishRecording(clip: { title: string; mimeType: string; 
     await fetch("/api/recordings/" + reservation.id, { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey }) }).catch(() => undefined);
     throw new Error(uploaded.error || "The upload didn't finish. Your local video is still safe.");
   }
-  const publish = await fetch("/api/recordings/" + reservation.id + "/publish", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ expiresInDays: days, password: password || undefined, ownerKey }) });
+  let publish: Response;
+  try {
+    publish = await fetch("/api/recordings/" + reservation.id + "/publish", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ expiresInDays: days, password: password || undefined, ownerKey }) });
+  } catch (error) {
+    await fetch("/api/recordings/" + reservation.id, { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey }) }).catch(() => undefined);
+    throw error;
+  }
   const result = await publish.json().catch(() => ({})) as PublishResult & { error?: string };
-  if (!publish.ok) throw new Error(result.error || "Couldn't publish this link. Your local video is still safe.");
+  if (!publish.ok) {
+    await fetch("/api/recordings/" + reservation.id, { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey }) }).catch(() => undefined);
+    throw new Error(result.error || "Couldn't publish this link. Your local video is still safe.");
+  }
   return result;
 }
 export async function shareRequest<T>(token: string, path = "", init: RequestInit = {}): Promise<T> {
