@@ -1,6 +1,8 @@
 import { bindings, defineConfig, triggers } from "cf/config";
 import * as entrypoint from "./worker/index.ts" with { type: "cf-worker" };
 
+const workerFirstAll = process.env.SCREENNOTE_WORKER_FIRST_ALL === "1";
+
 export default defineConfig({
   worker: {
     name: "screennote-dev",
@@ -9,7 +11,7 @@ export default defineConfig({
     compatibilityFlags: ["nodejs_compat"],
     assets: {
       notFoundHandling: "single-page-application",
-      runWorkerFirst: ["/*"]
+      runWorkerFirst: workerFirstAll ? ["/*"] : ["/api/*"]
     },
     env: {
       DB: bindings.d1({ name: "screennote-dev", id: "44a5859b-6411-4513-bd17-3302fbbc0575" }),

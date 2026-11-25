@@ -43,6 +43,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+        env:
+          SCREENNOTE_WORKER_FIRST_ALL: "1"
       - run: npm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -69,6 +71,8 @@ jobs:
         run: node scripts/apply-migrations.mjs
       - name: Deploy isolated Cloudflare development Worker
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        env:
+          SCREENNOTE_WORKER_FIRST_ALL: "1"
         run: npm run deploy
       - name: Verify deployed app and real share lifecycle
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
