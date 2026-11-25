@@ -225,3 +225,7 @@
 .shared-review-status{display:inline-flex;align-self:flex-start;margin:8px 0;padding:5px 9px;border-radius:999px;background:rgba(168,197,47,.16);color:inherit;font-size:10px;font-weight:750;letter-spacing:.04em}
 .shared-review-status.changes-requested{background:rgba(222,133,82,.16)}
 .shared-review-status.needs-feedback{background:rgba(135,143,133,.16)}
+
+
+.offline-banner{display:flex;align-items:center;gap:9px;padding:10px clamp(14px,3vw,34px);background:#f4e4cb;color:#634b2b;border-bottom:1px solid #e3c99d;font-size:12px;line-height:1.45}
+[data-theme="dark"] .offline-banner{background:#3a3021;color:#f0d9b5;border-color:#57452b}
