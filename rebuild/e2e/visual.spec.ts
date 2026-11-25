@@ -43,6 +43,79 @@ test("light and dark layouts remain contained from 320px through desktop", async
   }
 });
 
+test("appearance preference survives reload", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Toggle appearance" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Toggle appearance" }).click();
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("password gate, comment ownership actions, and share revocation work in the viewer UI", async ({ page }) => {
+  const token = "PwGate0123456789_-PwGate0123456789_-PwGate01";
+  const base = "**/api/share/" + token;
+  const ownerKey = "a".repeat(64);
+  let unlocked = false;
+  let revoked = false;
+  const comment = { id:"comment-1", parentId:null, viewerLabel:"Guest", body:"Original note", time:5, createdAt:Math.floor(Date.now()/1000), updatedAt:Math.floor(Date.now()/1000), resolved:0, deletedAt:null, anchorX:null, anchorY:null, isMine:true };
+  await page.addInitScript(({ token, ownerKey }) => {
+    localStorage.setItem("screennote-recovery-" + token, ownerKey);
+    localStorage.setItem("screennote-author-" + token, "b".repeat(48));
+  }, { token, ownerKey });
+  await page.route(base, route => {
+    if (revoked) return route.fulfill({ status:404, contentType:"application/json", body:JSON.stringify({error:"Not found"}) });
+    if (!unlocked) return route.fulfill({ status:401, contentType:"application/json", body:JSON.stringify({error:"Password required"}) });
+    return route.fulfill({ status:200, contentType:"application/json", body:JSON.stringify({ title:"Private walkthrough", mimeType:"video/webm", size:4096, duration:42, expiresAt:Math.floor(Date.now()/1000)+86400, passwordRequired:true }) });
+  });
+  await page.route(base + "/access", async route => {
+    const body = route.request().postDataJSON();
+    if (body.password !== "correct horse") return route.fulfill({ status:401, contentType:"application/json", body:JSON.stringify({error:"That password didn't work."}) });
+    unlocked = true;
+    return route.fulfill({ status:200, headers:{"set-cookie":"sn-access=valid; HttpOnly; Path=/api/share/"+token+"; Secure; SameSite=Lax"}, contentType:"application/json", body:JSON.stringify({ok:true}) });
+  });
+  await page.route(base + "/media", route => route.fulfill({ status:200, contentType:"video/webm", body:Buffer.from([0x1a,0x45,0xdf,0xa3]) }));
+  await page.route(base + "/comments", async route => {
+    if (route.request().method() === "POST") return route.fulfill({status:201,contentType:"application/json",body:JSON.stringify({id:"new-comment",createdAt:Math.floor(Date.now()/1000)})});
+    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:comment.deletedAt?[{...comment}]:[{...comment}]})});
+  });
+  await page.route(base + "/comments/comment-1/resolve", async route => {
+    comment.resolved = route.request().postDataJSON().resolved ? 1 : 0;
+    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({ok:true})});
+  });
+  await page.route(base + "/comments/comment-1", async route => {
+    if (route.request().method() === "PATCH") comment.body = route.request().postDataJSON().text;
+    else if (route.request().method() === "DELETE") comment.deletedAt = Math.floor(Date.now()/1000);
+    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({ok:true})});
+  });
+  await page.route(base + "/manage", route => {
+    revoked = true;
+    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({ok:true})});
+  });
+  await page.goto("/s/" + token);
+  await expect(page.getByRole("heading", {name:"This ScreenNote is private."})).toBeVisible();
+  await page.getByPlaceholder("Enter sharing password").fill("wrong");
+  await page.getByRole("button", {name:"Unlock video"}).click();
+  await expect(page.getByText("That password didn't work.")).toBeVisible();
+  await page.getByPlaceholder("Enter sharing password").fill("correct horse");
+  await page.getByRole("button", {name:"Unlock video"}).click();
+  await expect(page.getByRole("heading", {name:"Private walkthrough"})).toBeVisible();
+  await expect(page.getByText("Original note")).toBeVisible();
+  await page.once("dialog", dialog => dialog.accept("Updated note"));
+  await page.getByRole("button", {name:"Edit", exact:true}).click();
+  await expect(page.getByText("Updated note")).toBeVisible();
+  await page.getByRole("button", {name:"Resolve", exact:true}).click();
+  await expect(page.getByText("Resolved")).toBeVisible();
+  await page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", {name:"Delete", exact:true}).click();
+  await expect(page.getByText("This comment was removed.")).toBeVisible();
+  await page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", {name:"Stop sharing", exact:true}).click();
+  await expect(page.getByRole("heading", {name:"This moment has ended."})).toBeVisible();
+});
+
 test("imported videos can be previewed and dismissed with Escape", async ({ page }) => {
   await page.goto("/");
   await page.locator('input[type="file"][accept*="video"]').setInputFiles({
