@@ -26,6 +26,7 @@ export class ScreenRecorder {
   private chunks: Blob[] = [];
   private pendingWrites: Promise<void>[] = [];
   private chunkIndex = 0;
+  private recoveryFailed = false;
   private startedAt = 0;
   private pausedAt = 0;
   private pausedDuration = 0;
@@ -98,11 +99,11 @@ export class ScreenRecorder {
       this.onTick = onTick; this.onSourceEnded = onSourceEnded;
       const mimeType = supportedMimeType();
       this.recorder = new MediaRecorder(this.stream, { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: profile.videoBitsPerSecond, audioBitsPerSecond: profile.audioBitsPerSecond });
-      this.chunks = []; this.pendingWrites = []; this.chunkIndex = 0;
+      this.chunks = []; this.pendingWrites = []; this.chunkIndex = 0; this.recoveryFailed = false;
       this.recorder.ondataavailable = (event) => {
         if (event.data.size) {
           this.chunks.push(event.data);
-          this.pendingWrites.push(writeChunk(event.data, this.chunkIndex++));
+          this.pendingWrites.push(writeChunk(event.data, this.chunkIndex++).catch(() => { this.recoveryFailed = true; }));
         }
       };
       this.displayEndedHandler = () => {
@@ -143,7 +144,7 @@ export class ScreenRecorder {
       recorder.onerror = () => { this.cleanup(); reject(new Error("The browser could not finish this recording.")); };
       recorder.onstop = async () => {
         const writes = await Promise.allSettled(this.pendingWrites);
-        const recoveryWarning = writes.some(result => result.status === "rejected");
+        const recoveryWarning = this.recoveryFailed || writes.some(result => result.status === "rejected");
         const blob = new Blob(this.chunks, { type: recorder.mimeType || "video/webm" });
         const activePause = wasPaused ? Date.now() - pausedAt : 0;
         const duration = Math.max(0, Math.floor((Date.now() - this.startedAt - this.pausedDuration - activePause) / 1000));
