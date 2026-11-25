@@ -80,6 +80,17 @@ assert.equal((await request(sharePath + "/access", {
   method: "POST", headers: { origin, "content-type": "application/json" },
   body: JSON.stringify({ password: "wrong-password" })
 })).status, 401, "wrong password rejected");
+const sharedDetails = {
+  annotations: [{ kind: "redact", x: .1, y: .1, w: .2, h: .2 }],
+  captions: [{ start: 1, end: 2, text: "Owner-supplied live caption" }],
+  chapters: [{ time: 1, title: "Live chapter" }],
+  report: { url: "https://example.com/checkout", steps: "Open checkout", expected: "Payment appears", actual: "Payment is missing", environment: "GitHub Actions" }
+};
+const detailsSaved = await request(sharePath + "/details", {
+  method: "PUT", headers: { origin, "content-type": "application/json" },
+  body: JSON.stringify({ ownerKey, details: sharedDetails })
+});
+assert.equal(detailsSaved.status, 200, "owner can save shared captions, chapters, annotations and bug report before viewer unlock");
 const accessResponse = await request(sharePath + "/access", {
   method: "POST", headers: { origin, "content-type": "application/json" },
   body: JSON.stringify({ password: "live-check-password" })
@@ -101,6 +112,8 @@ const lockedCorrect = await request(sharePath + "/access", {
 assert.equal(lockedCorrect.status, 429, "correct password is held during the temporary lockout");
 const viewerHeaders = { origin, cookie: accessCookie, "content-type": "application/json" };
 const share = await json(await request(sharePath, { headers: viewerHeaders }));
+const contextResponse = await json(await request(sharePath + "/details", { headers: viewerHeaders }));
+assert.deepEqual(contextResponse.details, sharedDetails, "authorized viewers receive the saved shared context");
 assert.equal(share.title, "Live acceptance check");
 assert.equal(share.passwordRequired, true);
 const media = await request(sharePath + "/media", { headers: { cookie: accessCookie, range: "bytes=2-7" } });
