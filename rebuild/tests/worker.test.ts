@@ -57,7 +57,7 @@ class FakeD1 {
           if (sql.includes("FROM comments")) return db.comments.get(v[0]) ?? null;
           if (sql.includes("FROM share_details")) return db.details.has(v[0]) ? { payload: db.details.get(v[0]) } : null;
           if (sql.includes("FROM share_reviews") && sql.includes("COUNT(*)")) return { total:[...db.reviews.values()].filter(r=>r.share_id===v[0]).length };
-          if (sql.includes("FROM share_reviews")) return db.reviews.get(v[0]+":"+v[1]) ?? null;
+          if (sql.includes("FROM share_reviews")) { const r=db.reviews.get(v[0]+":"+v[1]); return r?{reviewerLabel:r.reviewer_label,decision:r.decision,comment:r.comment,time:r.time_seconds,createdAt:r.created_at,updatedAt:r.updated_at}:null; }
           if (sql.includes("FROM share_reactions") && sql.includes("COUNT(*)")) return { total:[...db.reactions.values()].filter(r=>r.share_id===v[0]).length };
           if (sql.includes("FROM share_reactions")) return db.reactions.get(v[0]+":"+v[1]) ?? null;
           if (sql.includes("FROM share_password_attempts")) return db.passwordAttempts.get(`${v[0]}:${v[1]}`) ?? null;

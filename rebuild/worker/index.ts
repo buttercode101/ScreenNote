@@ -290,7 +290,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
         const total = await env.DB.prepare("SELECT COUNT(*) AS total FROM share_reviews WHERE share_id = ?").bind(share.id).first<{ total: number }>();
         if ((total?.total || 0) >= 100) return fail("This review has reached its response limit.", 429);
       }
-      const reviewerLabel = (typeof body.reviewerLabel === "string" ? body.reviewerLabel : "Guest").replace(/[\\u0000-\\u001f\\u007f]/g, "").trim().slice(0, 40) || "Guest";
+      const reviewerLabel = (typeof body.reviewerLabel === "string" ? body.reviewerLabel : "Guest").split("").filter(character => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127).join("").trim().slice(0, 40) || "Guest";
       const now = Math.floor(Date.now() / 1000);
       await env.DB.prepare("INSERT OR REPLACE INTO share_reviews (share_id, reviewer_hash, reviewer_label, decision, comment, time_seconds, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(share.id, reviewerHash, reviewerLabel, body.decision, body.comment.trim(), body.time, existing?.created_at ?? now, now).run();
