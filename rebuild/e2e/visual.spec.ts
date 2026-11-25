@@ -58,7 +58,8 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.goto("/");
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
-  await expect(page.locator(".clip-thumb")).toBeVisible();\n  await expect(page.locator(".clip-thumb img, .clip-thumb-fallback").first()).toBeVisible({timeout:10000});
+  await expect(page.locator(".clip-thumb")).toBeVisible();
+  await expect(page.locator(".clip-thumb img, .clip-thumb-fallback").first()).toBeVisible({timeout:10000});
   await expect(page.getByRole("button",{name:/Preview/i})).toBeVisible();
   await expect(page.getByRole("button",{name:/Edit/i})).toBeVisible();
   await page.getByRole("button",{name:/Preview/i}).click();
