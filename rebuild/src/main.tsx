@@ -7,6 +7,7 @@ import { newOwnerKey, publishRecording } from "./sharing";
 import { clampTrimRange, trimVideoElement } from "./trim";
 import ShareViewer from "./ShareViewer";
 import PrivacyPage from "./PrivacyPage";
+import EditorWorkspace from "./EditorWorkspace";
 import "./styles.css";
 
 const recorder = new ScreenRecorder();
@@ -327,13 +328,7 @@ function App() {
         <footer><span>© {new Date().getFullYear()} ScreenNote</span><span>Made for clear communication.</span><a href="/privacy">Privacy</a></footer>
       </div>
     </main>
-    {previewClip && previewUrl && <div className="modal-backdrop" role="presentation" onClick={closePreview}>
-      <section className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" onClick={(event) => event.stopPropagation()}>
-        <header className="preview-header"><div><h2 id="preview-title">{previewClip.title}</h2><p>{formatDate(previewClip.createdAt)} · {formatBytes(previewClip.size)}</p></div><button className="icon-button" aria-label="Close preview" onClick={closePreview}><X size={19}/></button></header>
-        <video ref={previewVideoRef} className="preview-video" src={previewUrl} controls playsInline preload="metadata"/>
-        <div className="trim-tools"><label>From (seconds)<input type="number" min="0" max={previewClip.duration} step="0.1" value={trimStart} onChange={e=>setTrimStart(Number(e.target.value))}/></label><label>To (seconds)<input type="number" min="0" max={previewClip.duration} step="0.1" value={trimEnd} onChange={e=>setTrimEnd(Number(e.target.value))}/></label><button className="button secondary" disabled={trimming || !previewClip.duration} onClick={saveTrimmedCopy}>{trimming?"Trimming locally…":"Save trimmed copy"}</button></div><div className="preview-actions"><button className="button secondary" onClick={() => shareClip(previewClip.id)}><Share2 size={16}/> Share temporarily</button><button className="button secondary" onClick={() => download(previewClip.id)}><Download size={16}/> Download</button><button className="button danger" onClick={async () => { await remove(previewClip.id); closePreview(); }}><Trash2 size={16}/> Delete</button></div>
-      </section>
-    </div>}
+    {previewClip && previewUrl && <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />}
     {publishId && <div className="modal-backdrop" role="presentation" onClick={() => !publishing && setPublishId(null)}><section className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
       <div className="publish-modal-head"><div><span className="eyebrow">SHARE A MOMENT</span><h2 id="publish-title">Make a temporary link</h2><p>Your original stays on this device. Only this shared copy is uploaded.</p></div><button className="icon-button" onClick={()=>setPublishId(null)} aria-label="Close share settings"><X size={18}/></button></div>
       <label className="field-label">Link expires after<select value={expiryDays} onChange={e=>setExpiryDays(Number(e.target.value))}><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option></select></label>
