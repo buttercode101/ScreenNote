@@ -78,6 +78,35 @@ test("import, title, captions, chapters and bug-report context persist locally",
   for(const theme of ["light","dark"]){await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);for(const v of viewports){await page.setViewportSize({width:v.width,height:v.height});await contained(page,v.width);if([320,375,768,1120,1440].includes(v.width))await page.screenshot({path:"test-results/screenshots/review-"+v.width+"-"+theme+".png",fullPage:true});}}
 });
 
+test("annotation editor supports drawing, tool switching, undo and clear on an imported recording",async({page})=>{
+  await page.goto("/");
+  await page.locator("#import-video").setInputFiles(path.resolve("legacy/public/sample.webm"));
+  await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
+  await page.getByText("Annotate or hide sensitive areas",{exact:true}).click();
+  const video=page.locator("#markup-video");
+  await expect.poll(()=>video.evaluate((el:HTMLVideoElement)=>el.readyState)).toBeGreaterThanOrEqual(1);
+  const canvas=page.locator("#markup-canvas");
+  await expect(canvas).toBeVisible();
+  await page.locator("#markup-tool").selectOption("redact");
+  const rect=await canvas.boundingBox();
+  if(!rect)throw new Error("Annotation canvas has no measurable bounds.");
+  await page.mouse.move(rect.x+rect.width*.2,rect.y+rect.height*.2);
+  await page.mouse.down();
+  await page.mouse.move(rect.x+rect.width*.55,rect.y+rect.height*.55,{steps:5});
+  await page.mouse.up();
+  await expect(page.locator("#markup-count")).toHaveText("1 marks");
+  await page.locator("#undo-markup").click();
+  await expect(page.locator("#markup-count")).toHaveText("0 marks");
+  await page.locator("#markup-tool").selectOption("blur");
+  await page.mouse.move(rect.x+rect.width*.3,rect.y+rect.height*.3);
+  await page.mouse.down();
+  await page.mouse.move(rect.x+rect.width*.7,rect.y+rect.height*.7,{steps:5});
+  await page.mouse.up();
+  await expect(page.locator("#markup-count")).toHaveText("1 marks");
+  await page.locator("#clear-markup").click();
+  await expect(page.locator("#markup-count")).toHaveText("0 marks");
+});
+
 test("screen capture can pause, resume and save a private local recording",async({page})=>{
   await page.addInitScript(()=>{
     const canvas=document.createElement("canvas");canvas.width=640;canvas.height=360;
