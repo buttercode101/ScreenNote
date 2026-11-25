@@ -11,4 +11,8 @@ describe("local trim range", () => {
     expect(() => clampTrimRange(0, 1, 0)).toThrow("readable duration");
     expect(() => clampTrimRange(0, 601, 601)).toThrow("10 minutes");
   });
+
+  it("clamps non-finite endpoints and keeps the range bounded", () => {
+    expect(clampTrimRange(Number.NaN, Number.POSITIVE_INFINITY, 12)).toEqual({ start: 0, end: 12, duration: 12 });
+  });
 });
