@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Camera, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Scissors, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, X } from "lucide-react";
-import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
+import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listFullClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
+// @ts-expect-error Shared browser-safe backup helper has no declaration file.
+import { makeLibraryBackup, readLibraryBackup } from "../legacy/lib/library-backup.js";
 import { ScreenRecorder, supportedMimeType, type RecordingResult } from "./recorder";
 import { newOwnerKey, publishRecording } from "./sharing";
 import { clampTrimRange, trimVideoElement } from "./trim";
@@ -54,6 +56,7 @@ function App() {
   const [trimEnd, setTrimEnd] = useState(0);
   const [trimming, setTrimming] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
   const [publishId, setPublishId] = useState<string | null>(null);
   const [expiryDays, setExpiryDays] = useState(3);
   const [sharePassword, setSharePassword] = useState("");
@@ -61,6 +64,7 @@ function App() {
   const [shareLink, setShareLink] = useState("");
   const [recoveryData, setRecoveryData] = useState("");
   const recoveryFileRef = useRef<HTMLInputElement>(null);
+  const backupFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refresh = async () => {
@@ -259,6 +263,33 @@ function App() {
     finally { setPublishing(false); }
   }
 
+  async function exportLibraryBackup() {
+    setBackupBusy(true); setMessage("");
+    try {
+      const all = await listFullClips();
+      if (!all.length) throw new Error("There are no local recordings to back up yet.");
+      const archive = await makeLibraryBackup(all);
+      const url = URL.createObjectURL(archive), anchor = document.createElement("a");
+      anchor.href = url; anchor.download = "screennote-library-backup.zip"; anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      setMessage("Your local library backup is ready. Keep it somewhere safe.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not create a library backup."); }
+    finally { setBackupBusy(false); }
+  }
+
+  async function restoreLibraryBackup(file?: File) {
+    if (!file) return;
+    setBackupBusy(true); setMessage("");
+    try {
+      const existing = new Set((await listClips()).map(clip => clip.id));
+      const result = await readLibraryBackup(file, existing);
+      for (const clip of result.clips as Clip[]) await saveClip(clip);
+      await refresh();
+      setMessage(`Restored ${result.clips.length} recording(s). ${result.duplicates} duplicate(s) were skipped.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not restore this library backup."); }
+    finally { setBackupBusy(false); if (backupFileRef.current) backupFileRef.current.value = ""; }
+  }
+
   async function importRecovery(file?: File) {
     if (!file) return;
     try {
@@ -342,6 +373,13 @@ function App() {
       </div>
     </main>
     {previewClip && previewUrl && (previewMode === "edit" ? <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} /> : <PreviewWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onEdit={() => setPreviewMode("edit")} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />)}
+    {showSettings && <div className="modal-backdrop" role="presentation" onClick={() => setShowSettings(false)}><section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()}>
+      <header><div><span className="eyebrow">YOUR SPACE</span><h2 id="settings-title">Preferences & backups</h2><p>Keep control of your recordings, appearance and recovery keys.</p></div><button className="icon-button" onClick={() => setShowSettings(false)} aria-label="Close preferences"><X size={18}/></button></header>
+      <div className="settings-section"><strong>Appearance</strong><p>Choose the workspace presentation.</p><button className="button secondary" onClick={() => setDark(!dark)}>{dark ? <Sun size={16}/> : <Moon size={16}/>} Switch to {dark ? "light" : "dark"} appearance</button></div>
+      <div className="settings-section"><strong>Local library backup</strong><p>Export your recordings and editing context to a portable ZIP file, or restore a backup. Existing recordings with matching IDs are skipped.</p><div className="settings-actions"><button className="button primary" disabled={backupBusy || !clips.length} onClick={exportLibraryBackup}><Download size={16}/>{backupBusy ? "Working…" : "Back up my library"}</button><button className="button secondary" disabled={backupBusy} onClick={() => backupFileRef.current?.click()}><ArrowDownToLine size={16}/> Restore a library backup</button></div></div>
+      <div className="settings-section"><strong>Share recovery key</strong><p>Import a private key to manage a share from this browser. Keep the key secret.</p><button className="button secondary" onClick={() => recoveryFileRef.current?.click()}><ShieldCheck size={16}/> Import share recovery key</button></div>
+      <div className="settings-footnote"><ShieldCheck size={15}/> Originals and backups stay on your device unless you explicitly share a video.</div>
+    </section></div>}
     {publishId && <div className="modal-backdrop" role="presentation" onClick={() => !publishing && setPublishId(null)}><section className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
       <div className="publish-modal-head"><div><span className="eyebrow">SHARE A MOMENT</span><h2 id="publish-title">Make a temporary link</h2><p>Your original stays on this device. Only this shared copy is uploaded.</p></div><button className="icon-button" onClick={()=>setPublishId(null)} aria-label="Close share settings"><X size={18}/></button></div>
       <label className="field-label">Link expires after<select value={expiryDays} onChange={e=>setExpiryDays(Number(e.target.value))}><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option></select></label>
@@ -350,7 +388,7 @@ function App() {
       <button className="button primary publish-submit" disabled={publishing || (sharePassword.length>0&&sharePassword.length<8)} onClick={publishSelected}>{publishing?"Uploading securely…":"Publish temporary link"} <ArrowUpRight size={16}/></button>
     </section></div>}
     {shareLink && <div className="share-link-toast" role="status"><div><strong>Temporary link ready</strong><span>{shareLink}</span></div><a className="button secondary" href={shareLink} target="_blank" rel="noopener noreferrer">Open preview</a><button className="button secondary" onClick={()=>navigator.clipboard?.writeText(shareLink)}>Copy link</button><button className="button secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([recoveryData],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="screennote-recovery.json";a.click();URL.revokeObjectURL(url);}}>Recovery key</button><button className="icon-button" onClick={()=>setShareLink("")} aria-label="Dismiss"><X size={16}/></button></div>}
-    <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => importFile(e.target.files?.[0])}/><input ref={recoveryFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => importRecovery(e.target.files?.[0])}/>
+    <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => importFile(e.target.files?.[0])}/><input ref={recoveryFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => importRecovery(e.target.files?.[0])}/><input ref={backupFileRef} type="file" accept=".zip,application/zip" hidden onChange={(e) => restoreLibraryBackup(e.target.files?.[0])}/>
   </div>;
 }
 
