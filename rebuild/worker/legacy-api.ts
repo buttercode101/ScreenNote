@@ -69,14 +69,14 @@ export async function passwordRecord(password:unknown){
  if(password===undefined||password==="")return {};
  if(typeof password!=="string"||password.length<8||password.length>128)throw fail("Use a sharing password of 8–128 characters.");
  const salt=randomToken(16),key=await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveBits"]);
- const bits=await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt:encoder.encode(salt),iterations:150000},key,256);
+ const bits=await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt:encoder.encode(salt),iterations:100000},key,256);
  return{passwordSalt:salt,passwordHash:hex(new Uint8Array(bits)),passwordAlgorithm:"pbkdf2-sha256"};
 }
 export async function checkPassword(clip:any,password:unknown){
  if(!clip.passwordHash)return true;
  if(typeof password!=="string"||password.length>128||clip.passwordAlgorithm!=="pbkdf2-sha256")return false;
  const key=await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveBits"]);
- const bits=await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt:encoder.encode(clip.passwordSalt),iterations:150000},key,256);
+ const bits=await crypto.subtle.deriveBits({name:"PBKDF2",hash:"SHA-256",salt:encoder.encode(clip.passwordSalt),iterations:100000},key,256);
  return safeEqual(hex(new Uint8Array(bits)),clip.passwordHash);
 }
 async function passwordGate(request:Request,env:LegacyEnv,record:ClipRecord,password:unknown){
