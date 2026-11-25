@@ -92,6 +92,7 @@ test("temporary share viewer and privacy route use the independent responsive de
     const dimensions=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));
     expect(dimensions.body).toBeLessThanOrEqual(width+1);
     expect(dimensions.doc).toBeLessThanOrEqual(width+1);
+    if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/share-${width}.png`,fullPage:true});
   }
   await page.goto("/privacy");
   await expect(page.getByRole("heading",{name:"Your original stays with you."})).toBeVisible();
