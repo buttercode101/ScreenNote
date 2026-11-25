@@ -163,7 +163,7 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
   if (path === "/api/health" && request.method === "GET") return json({ status: "ok", service: "screennote", version: "1.0.0" });
   if (path === "/api/session" && request.method === "GET") return ensureSession(request, env);
 
-  const shareMatch = path.match(/^\/api\/share\/([A-Za-z0-9_-]{32,64})(?:\/(media|access|manage|details|comments|comments\/([a-f0-9-]{36})(?:\/(resolve))?))?$/i);
+  const shareMatch = path.match(/^\/api\/share\/([A-Za-z0-9_-]{32,64})(?:\/(media|access|manage|details|reactions|comments|comments\/([a-f0-9-]{36})(?:\/(resolve))?))?$/i);
   if (shareMatch) {
     const token = shareMatch[1], action = shareMatch[2] ?? "";
     const share = await getShare(env, token);
