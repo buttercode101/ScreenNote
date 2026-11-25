@@ -7,7 +7,16 @@ export type Clip = {
   mimeType: string;
   blob: Blob;
   share?: { recordingId: string; token: string; url: string; ownerKey: string; expiresAt: number };
+  annotations?: Annotation[];
+  captions?: CaptionCue[];
+  chapters?: Chapter[];
+  report?: BugReport | null;
 };
+
+export type Annotation = { kind: "rectangle" | "arrow" | "highlight" | "blur" | "redact"; x: number; y: number; w: number; h: number };
+export type CaptionCue = { start: number; end: number; text: string };
+export type Chapter = { time: number; title: string };
+export type BugReport = { url: string; steps: string; expected: string; actual: string; environment: string };
 
 export type RecoverySession = {
   id: string;
