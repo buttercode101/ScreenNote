@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+// @ts-expect-error Shared browser JavaScript module has no declaration file.
 import { paintMarkup } from "../legacy/public/markup.js";
 
 function context() {
