@@ -134,3 +134,17 @@ table th,table td{overflow-wrap:anywhere;word-break:normal}
 .capture-actions .button,.record-controls .button{width:100%;grid-column:auto}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+/* Legacy share viewer containment: the shipped /v/:uuid route. */
+.viewer,.viewer-top,.viewer-grid,.viewer-media,.reply-panel,.video-panel,.player-tools,.reactions,.discussion-heading,.discussion-toolbar{min-width:0;max-width:100%}
+.viewer-grid{grid-template-columns:minmax(0,1.55fr) minmax(0,1fr)}
+.viewer-top{flex-wrap:wrap;align-items:center}
+.viewer-top>*{min-width:0;max-width:100%}
+.viewer .video-panel video{width:100%;max-width:100%;height:auto}
+.reply-panel{overflow-wrap:anywhere}
+.discussion-thread,.discussion-thread .comment,.comment-head,.comment-actions,.reply-context{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.discussion-thread .thread-reply{min-width:0;max-width:calc(100% - 8px)}
+.discussion-heading,.comment-head,.compose-meta{flex-wrap:wrap}
+@media(max-width:767px){.viewer-grid{grid-template-columns:minmax(0,1fr)}.viewer-top{gap:12px}.viewer-top>.btn{flex:0 1 auto}.viewer{padding-inline:clamp(12px,4vw,20px)}.reply-panel{max-height:none;overflow:visible}}
+@media(max-width:420px){.viewer-top{padding-inline:12px}.viewer-top>.btn{width:auto}.viewer h1{overflow-wrap:anywhere}.reactions .btn{flex:1 1 100%;justify-content:flex-start}.discussion-toolbar>*{min-width:0;max-width:100%}}
