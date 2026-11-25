@@ -570,6 +570,12 @@ export default {
         await env.MEDIA.delete(row.object_key);
         await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
       }
+      const completedWithParts = await env.DB.prepare("SELECT DISTINCT p.recording_id AS id FROM recording_upload_parts p JOIN recordings r ON r.id = p.recording_id WHERE r.status = 'ready' LIMIT 100").bind().all<{id:string}>();
+      for (const row of completedWithParts.results) {
+        const parts = await env.DB.prepare("SELECT object_key FROM recording_upload_parts WHERE recording_id = ?").bind(row.id).all<{object_key:string}>();
+        await Promise.allSettled(parts.results.map(part=>env.MEDIA.delete(part.object_key)));
+        await env.DB.prepare("DELETE FROM recording_upload_parts WHERE recording_id = ?").bind(row.id).run();
+      }
       // A completed upload that never reached publish must not become a hidden,
       // permanent cloud library item if the client closes or loses its network.
       const orphaned = await env.DB.prepare("SELECT r.id, r.object_key FROM recordings r LEFT JOIN shares s ON s.recording_id = r.id WHERE r.status = 'ready' AND s.id IS NULL AND r.created_at <= ? LIMIT 100")
