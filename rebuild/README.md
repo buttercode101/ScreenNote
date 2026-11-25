@@ -41,7 +41,7 @@ ScreenNote is a short-form async collaboration tool. Record or import a video, r
 - Browser capture requires HTTPS and a compatible desktop browser. Mobile browsers can import existing videos where screen capture is unavailable.
 - Local recording storage is browser/device storage, not a cloud backup. Export the original if you need a durable copy.
 - Playback bubbles are rendered in the page player and may not appear in native fullscreen or picture-in-picture.
-- Frame-level annotations, transcript/AI processing, structured agent export and native desktop capture remain subsequent product milestones.
+- The agent handoff JSON is implemented and includes the timestamped discussion and point annotations. It does not yet include extracted transcript or generated keyframes; true frame-by-frame drawing and native desktop capture remain roadmap items.
 
 ## Cloudflare development resources
 
@@ -67,13 +67,22 @@ npm run e2e
 
 For GitHub Actions deployment, configure a repository secret named `CLOUDFLARE_API_TOKEN` with narrowly scoped Workers Scripts, D1 and R2 edit permissions, then run **ScreenNote Cloudflare rebuild** on `rebuild/cloudflare-web-first`. The target development URL is `https://screennote-dev.buttercoder-dev.workers.dev` once the Worker is deployed and verified.
 
-## Acceptance gates still required
+## Acceptance status
 
-1. Successful CI typecheck, unit tests, production build and Playwright suite.
-2. Deployed Worker binding verification against the isolated D1/R2 resources.
-3. Real browser capture tests with permission denial, device changes, pause/resume and interrupted recording.
-4. Full share lifecycle test against deployed R2 and D1, including password lockout, seeking, replies, recovery, revocation and expiry cleanup.
-5. Mobile/desktop visual QA, accessibility and keyboard/touch acceptance.
-6. Independent security review and a final production cutover decision.
+Verified against the deployed Cloudflare development Worker on 2026-11-25:
 
-The development branch is not a production release until these gates are complete.
+- CI typecheck, unit tests, production build and Playwright suite passed before deployment.
+- Deployed D1 and R2 bindings were verified.
+- A live acceptance script exercised the real Worker and storage: guest session, real R2 upload, password-protected publication, incorrect-password rejection, successful unlock, byte-range playback, comments/replies, edit/delete, creator resolve, stop-share deletion and post-stop 404.
+- Test-created D1 rows and R2 objects were cleaned; the isolated development database and shared-media prefix were left empty.
+- Responsive visual tests cover 320, 375, 768, 1120 and 1440 px in light/dark mode. The 320 px hero overlap and touch target are now explicit regression assertions.
+
+## Remaining before production
+
+- Test screen/microphone/camera permission flows, device changes, pause/resume and interrupted capture on physical Android and desktop browsers; browser capture is not universally supported on mobile.
+- Verify recovery-key restore from a separate browser and scheduled expiry cleanup over real elapsed time.
+- Complete an independent security review, including password-attempt throttling and abuse controls.
+- Finish manual keyboard, screen-reader and real-device visual QA.
+- Configure a confirmed production domain and make a separate production cutover decision.
+
+The current URL is an isolated development deployment. It is live and its server-side share lifecycle is verified, but it is not yet a production-domain release.
