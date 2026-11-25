@@ -213,15 +213,16 @@ try {
   const status=await json(await nativeApi("review-status",{id:nativeId,owner:nativeOwner,reviewStatus:"approved"}));assert.equal(status.reviewStatus,"approved");
   const manage=await json(await nativeApi("manage",{id:nativeId,owner:nativeOwner}));assert.equal(manage.status,"published");
   const restored=await json(await nativeApi("restore-media",{id:nativeId,owner:nativeOwner}));assert.match(restored.mediaUrl,/op=media/);
+  await json(await nativeApi("delete-comment",{id:nativeId,viewer,authorKey,commentId:eventId,accessPassword:nativePassword}));
   for(let attempt=0;attempt<5;attempt++)assert.equal((await nativeApi("view",{id:nativeId,accessPassword:"wrong-password-again"})).status,401);
   assert.equal((await nativeApi("view",{id:nativeId,accessPassword:nativePassword})).status,429,"five failed attempts lock the native password gate");
-  await json(await nativeApi("delete-comment",{id:nativeId,viewer,authorKey,commentId:eventId}));
   await json(await nativeApi("revoke",{id:nativeId,owner:nativeOwner}));
   assert.equal((await request("/api/clip?op=view&id="+nativeId)).status,404,"revoked native share is unavailable");
   await json(await nativeApi("delete",{id:nativeId,owner:nativeOwner}));
   nativeReserved=false;
   const capacity=await json(await request("/api/clip?op=health"));
-  assert.ok(capacity.reservedBytes<=nativeHealth.reservedBytes+sampleBytes.length*2);
+  assert.equal(capacity.reservedBytes,nativeHealth.reservedBytes,"native storage reservation is released after delete");
+  assert.equal(capacity.reservedRecordings,nativeHealth.reservedRecordings,"native recording count is released after delete");
   console.log("Native Cloudflare acceptance passed: D1 reservation, chunk resume state, R2 publish/range, password lockout, captions/chapters/report, nested comments/edit/resolve/delete, reaction, owner metadata, revoke and cleanup.");
 } catch(error) {
   if(nativeReserved)await nativeApi("delete",{id:nativeId,owner:nativeOwner}).catch(()=>undefined);

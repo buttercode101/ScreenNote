@@ -39,8 +39,8 @@ async function getClip(env:LegacyEnv,id:string):Promise<ClipRecord|null>{
 }
 async function saveClip(env:LegacyEnv,record:ClipRecord,clip:any,patch:Record<string,unknown>={}){
  const row=record.row;
- await env.DB.prepare("UPDATE legacy_clip_records SET status=?,expires_at=?,upload_until=?,data=?,media_token_hash=?,media_token_expires=? WHERE id=?")
-  .bind(clip.status,clip.expiresAt,clip.uploadUntil,JSON.stringify(clip),patch.mediaTokenHash===undefined?row.media_token_hash:patch.mediaTokenHash,patch.mediaTokenExpires===undefined?row.media_token_expires:patch.mediaTokenExpires,row.id).run();
+ const saved=await env.DB.prepare("UPDATE legacy_clip_records SET status=?,expires_at=?,upload_until=?,data=?,media_token_hash=?,media_token_expires=? WHERE id=? AND data=?").bind(clip.status,clip.expiresAt,clip.uploadUntil,JSON.stringify(clip),patch.mediaTokenHash===undefined?row.media_token_hash:patch.mediaTokenHash,patch.mediaTokenExpires===undefined?row.media_token_expires:patch.mediaTokenExpires,row.id,row.data).run();
+ if(saved.meta.changes!==1)throw fail("Recording metadata changed. Refresh and try again.",409);
  record.clip=clip;row.status=clip.status;row.expires_at=clip.expiresAt;row.upload_until=clip.uploadUntil;row.data=JSON.stringify(clip);
  if(patch.mediaTokenHash!==undefined)row.media_token_hash=patch.mediaTokenHash as string|null;
  if(patch.mediaTokenExpires!==undefined)row.media_token_expires=patch.mediaTokenExpires as number|null;
@@ -54,8 +54,8 @@ async function transitionStatus(env:LegacyEnv,record:ClipRecord,clip:any,nextSta
  const tokenHash=patch.mediaTokenHash===undefined?record.row.media_token_hash:patch.mediaTokenHash;
  const tokenExpires=patch.mediaTokenExpires===undefined?record.row.media_token_expires:patch.mediaTokenExpires;
  const result=await env.DB.batch([
-  env.DB.prepare("UPDATE legacy_capacity SET reserved_bytes=MAX(0,reserved_bytes-?),reserved_count=MAX(0,reserved_count-?) WHERE id=1 AND EXISTS(SELECT 1 FROM legacy_clip_records WHERE id=? AND status=?)").bind(releaseBytes,releaseCount,id,oldStatus),
-  env.DB.prepare("UPDATE legacy_clip_records SET status=?,expires_at=?,upload_until=?,data=?,media_token_hash=?,media_token_expires=? WHERE id=? AND status=?").bind(nextStatus,clip.expiresAt,clip.uploadUntil,JSON.stringify(clip),tokenHash,tokenExpires,id,oldStatus)
+  env.DB.prepare("UPDATE legacy_capacity SET reserved_bytes=MAX(0,reserved_bytes-?),reserved_count=MAX(0,reserved_count-?) WHERE id=1 AND EXISTS(SELECT 1 FROM legacy_clip_records WHERE id=? AND status=? AND data=?)").bind(releaseBytes,releaseCount,id,oldStatus,row.data),
+  env.DB.prepare("UPDATE legacy_clip_records SET status=?,expires_at=?,upload_until=?,data=?,media_token_hash=?,media_token_expires=? WHERE id=? AND status=? AND data=?").bind(nextStatus,clip.expiresAt,clip.uploadUntil,JSON.stringify(clip),tokenHash,tokenExpires,id,oldStatus,row.data)
  ]);
  if(result[1].meta.changes!==1)throw fail("This clip changed. Refresh and try again.",409);
  record.row.status=nextStatus;record.row.expires_at=clip.expiresAt;record.row.upload_until=clip.uploadUntil;record.row.data=JSON.stringify(clip);
