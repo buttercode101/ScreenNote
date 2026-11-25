@@ -73,3 +73,9 @@ button:disabled{cursor:not-allowed}
   .toggle-option{font-size:13px}
   .empty-state p{font-size:13px;line-height:1.55}
 }
+
+@media(max-width:480px){
+  .toggle-option{min-height:44px;display:flex;align-items:center;gap:8px;padding-block:4px}
+  .icon-button{min-width:44px;min-height:44px}
+  .clip-actions .icon-button{min-width:40px;min-height:40px}
+}
