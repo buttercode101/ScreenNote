@@ -99,7 +99,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(page.getByText(/1 marks on this video/i)).toBeVisible();
   const frameDownloadPromise=page.waitForEvent("download");
   await page.getByRole("button",{name:/Capture annotated frame/i}).click();
-  expect((await frameDownloadPromise).suggestedFilename()).toMatch(/-frame-\\d+ms\\.png$/);
+  expect((await frameDownloadPromise).suggestedFilename()).toMatch(/-frame-\d+ms\.png$/);
   await expect(page.getByRole("status").filter({hasText:/Annotated frame saved as PNG/i})).toBeVisible();
   await page.getByRole("button",{name:/Export annotated copy/i}).click();
   await expect(page.getByRole("status").filter({hasText:/Annotated copy saved/i})).toBeVisible({timeout:30000});
