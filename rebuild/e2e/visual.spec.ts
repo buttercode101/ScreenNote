@@ -19,9 +19,17 @@ const viewports = [
 ];
 
 async function contained(page: import("@playwright/test").Page, width:number) {
-  const m=await page.evaluate(()=>({doc:document.documentElement.scrollWidth,body:document.body.scrollWidth,viewport:innerWidth}));
+  const m=await page.evaluate(()=>{
+    const selectors=".button,.btn,button,input,select,textarea,.clip-card,.clip-grid,.capture-panel,.share-layout,.share-discussion,.modal,.preview-modal,.publish-modal,[role=dialog]";
+    const offenders=[...document.querySelectorAll<HTMLElement>(selectors)].filter(el=>{
+      const style=getComputedStyle(el),r=el.getBoundingClientRect();
+      return style.display!=="none"&&style.visibility!=="hidden"&&r.width>0&&(r.left < -1 || r.right > innerWidth+1);
+    }).map(el=>({tag:el.tagName,selector:el.className?.toString?.()||el.id||"",left:Math.round(el.getBoundingClientRect().left),right:Math.round(el.getBoundingClientRect().right),width:Math.round(el.getBoundingClientRect().width)}));
+    return {doc:document.documentElement.scrollWidth,body:document.body.scrollWidth,viewport:innerWidth,offenders};
+  });
   expect(m.doc, `document horizontal overflow at ${width}px: ${JSON.stringify(m)}`).toBeLessThanOrEqual(width+1);
   expect(m.body, `body horizontal overflow at ${width}px: ${JSON.stringify(m)}`).toBeLessThanOrEqual(width+1);
+  expect(m.offenders, `visible controls or content panels escape the viewport at ${width}px`).toEqual([]);
 }
 
 test.beforeAll(async()=>{await mkdir("test-results/screenshots",{recursive:true});});
@@ -56,8 +64,8 @@ test("import, title, captions, chapters and bug-report context persist locally",
   await page.getByText("Captions, chapters & bug report",{exact:true}).click();
   await page.locator("#captions-text").fill("WEBVTT\n\n00:00:00.000 --> 00:00:01.500\nReview this step.");
   await page.locator("#chapters-text").fill("0:01 Opening");
-  await page.locator("#report-url").fill("https://example.com/checkout");
-  await page.locator("#report-steps").fill("Open the checkout and select the payment method.");
+  await page.locator("#report-url").fill("https://example.com/checkout/with/a/very/long/path/that/should-wrap-cleanly/".repeat(4));
+  await page.locator("#report-steps").fill("Open the checkout and select the payment method. ".repeat(8)+" unbroken-token-".repeat(35));
   await page.locator("#report-expected").fill("The payment option remains visible.");
   await page.locator("#report-actual").fill("The payment option disappears.");
   await page.locator("#extras-form button[type=submit]").click();
