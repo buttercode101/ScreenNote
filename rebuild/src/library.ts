@@ -6,6 +6,7 @@ export type Clip = {
   size: number;
   mimeType: string;
   blob: Blob;
+  thumbnail?: Blob;
   share?: { recordingId: string; token: string; url: string; ownerKey: string; expiresAt: number };
   annotations?: Annotation[];
   captions?: CaptionCue[];
