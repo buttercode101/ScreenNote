@@ -33,3 +33,6 @@ CREATE TABLE IF NOT EXISTS share_password_attempts (
 
 CREATE INDEX IF NOT EXISTS share_password_attempts_window
   ON share_password_attempts(window_started);
+
+
+-- Native 0.5.0 API tables are defined in migrations/0005_legacy_clip_api.sql.
