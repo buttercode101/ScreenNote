@@ -61,6 +61,9 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(page.getByRole("button",{name:/Preview/i})).toBeVisible();
   await expect(page.getByRole("button",{name:/Edit/i})).toBeVisible();
   await page.getByRole("button",{name:/Preview/i}).click();
+  await expect(page.locator(".preview-workspace")).toBeVisible();
+  await expect(page.locator(".preview-workspace video")).toBeVisible();
+  await page.getByRole("button",{name:/Open editor/i}).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
   await expect(page.locator(".editor-video-wrap video")).toBeVisible();
   await page.getByRole("button",{name:/Captions & context/i}).click();
