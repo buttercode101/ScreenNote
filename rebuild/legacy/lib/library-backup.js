@@ -28,7 +28,7 @@ export async function makeLibraryBackup(clips,onProgress=()=>{}){
  const total=clips.reduce((sum,c)=>sum+(c.blob?.size||0),0);if(total>MAX_VIDEO_TOTAL)throw Error("This library is larger than the 250 MB backup limit. Export large videos individually, then back up the remaining library.");
  let copied=0;
  const entries=clips.map(c=>{const {blob,...metadata}=c;const type=blob?.type||c.type||"";const ext=blob?(type.split(";")[0]==="video/mp4"?"mp4":type.split(";")[0]==="video/webm"?"webm":null):null;if(blob&&(!ext||blob.size>MAX_CLIP_BYTES))throw Error("A local video has an unsupported type or exceeds 50 MB.");const videoPath=blob?`videos/${c.id}.${ext}`:null;return{metadata,videoPath,videoSize:blob?.size||0,videoType:type}});
- const manifest={format:"screennote-library-backup",version:1,origin:location.origin,createdAt:new Date().toISOString(),clipCount:entries.length,totalVideoBytes:total,clips:entries};
+ const manifest={format:"screennote-library-backup",version:1,origin:globalThis.location?.origin||"local",createdAt:new Date().toISOString(),clipCount:entries.length,totalVideoBytes:total,clips:entries};
  const output=[];let resolveDone,rejectDone;const done=new Promise((resolve,reject)=>{resolveDone=resolve;rejectDone=reject});
  const zip=new Zip((error,chunk,final)=>{if(error){rejectDone(error);return}if(chunk?.length)output.push(chunk);if(final)resolveDone()});
  const manifestFile=new ZipPassThrough("manifest.json");zip.add(manifestFile);manifestFile.push(strToU8(JSON.stringify(manifest)),true);
