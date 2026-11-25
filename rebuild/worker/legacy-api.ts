@@ -1,3 +1,4 @@
+import { inspectNativeMedia } from "./validate-media";
 // Cloudflare-native implementation of ScreenNote 0.5.0's /api/clip contract.
 // Pure validation helpers are shared with the original application; storage and
 // authorization are implemented on D1/R2. Unknown IDs return null so old
@@ -254,8 +255,9 @@ export async function handleLegacyClip(request:Request,env:LegacyEnv):Promise<Re
   let info=await env.MEDIA.head(record.row.object_key);
   if(!info){await assemble(env,record);info=await env.MEDIA.head(record.row.object_key)}
   if(!info||info.size!==c.size||info.size>MAX_BYTES||!(info.httpMetadata?.contentType||"").startsWith(c.type))throw fail("The uploaded file does not match the video. Keep your local copy and try another file.");
-  const first=await env.MEDIA.get(record.row.object_key,{range:{offset:0,length:16}});if(!first||!isVideo(new Uint8Array(await first.arrayBuffer()),c.type))throw fail("This upload does not contain a valid video.");
-  c.width=Number(body.width)||c.width||0;c.height=Number(body.height)||c.height||0;c.expiresAt=Date.now()+(c.linkDays||7)*86400000;c.cleanupComplete=false;
+  const fullObject=await env.MEDIA.get(record.row.object_key);if(!fullObject)throw fail("The uploaded video could not be read. Keep your local copy and retry.",503);
+  const verified=await inspectNativeMedia(new Uint8Array(await fullObject.arrayBuffer()),{type:c.type,size:c.size,duration:c.duration});
+  c.width=verified.width;c.height=verified.height;c.duration=verified.duration;c.expiresAt=Date.now()+(c.linkDays||7)*86400000;c.cleanupComplete=false;
   await transitionStatus(env,record,c,"published",{mediaTokenHash:null,mediaTokenExpires:null});
   try{await clearParts(env,c.id);c.cleanupComplete=true;await saveClip(env,record,c)}catch{}
   return response(publicClip(c));

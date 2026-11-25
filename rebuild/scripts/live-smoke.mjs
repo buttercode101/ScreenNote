@@ -1,3 +1,4 @@
+import { Input, BufferSource, WEBM } from "mediabunny";
 import assert from "node:assert/strict";
 
 const base = process.env.SCREENNOTE_LIVE_URL || "https://screennote-dev.buttercoder-dev.workers.dev";
@@ -161,6 +162,10 @@ const sampleResponse = await request("/sample.webm");
 assert.equal(sampleResponse.status,200,"original sample video is served by Cloudflare assets");
 const sampleBytes = new Uint8Array(await sampleResponse.arrayBuffer());
 assert.ok(sampleBytes.length>4 && sampleBytes.length<=50_000_000);
+const sampleInput=new Input({source:new BufferSource(sampleBytes),formats:[WEBM]});
+const sampleVideo=await sampleInput.getPrimaryVideoTrack(),sampleDuration=await sampleInput.getDurationFromMetadata();
+assert.ok(sampleVideo&&sampleDuration&&sampleDuration>1&&sampleDuration<=600);
+const sampleWidth=sampleVideo.displayWidth,sampleHeight=sampleVideo.displayHeight;sampleInput.dispose();
 const nativeId = crypto.randomUUID();
 const nativeOwner = crypto.randomBytes(32).toString("hex");
 const nativePassword = "cloudflare-native-live-check";
@@ -169,9 +174,9 @@ const nativeHeaders = {origin,"content-type":"application/json"};
 const nativeApi = (op,body={},id=nativeId)=>request("/api/clip?op="+op+(id?"&id="+encodeURIComponent(id):""),{method:"POST",headers:nativeHeaders,body:JSON.stringify(body)});
 try {
   const reservation = await json(await nativeApi("reserve",{
-    id:nativeId,owner:nativeOwner,title:"Native Cloudflare parity smoke",type:"video/webm",duration:15,size:sampleBytes.length,
-    start:0,end:15,linkDays:1,password:nativePassword,reviewStatus:"needs-feedback",width:1280,height:720,
-    captions:[{start:0,end:1,text:"A live caption"}],chapters:[{time:1,title:"Live chapter"}],
+    id:nativeId,owner:nativeOwner,title:"Native Cloudflare parity smoke",type:"video/webm",duration:sampleDuration,size:sampleBytes.length,
+    start:0,end:sampleDuration,linkDays:1,password:nativePassword,reviewStatus:"needs-feedback",width:sampleWidth,height:sampleHeight,
+    captions:[{start:0,end:Math.min(1,sampleDuration),text:"A live caption"}],chapters:[{time:Math.min(1,sampleDuration/2),title:"Live chapter"}],
     report:{url:"https://example.com/live-smoke",steps:"Open the sample",expected:"Video loads",actual:"Video loads",environment:"GitHub Actions"}
   }));
   nativeReserved=true;
@@ -184,7 +189,7 @@ try {
   }
   const state=await json(await nativeApi("upload-state",{id:nativeId,owner:nativeOwner}));
   assert.deepEqual(state.parts,Array.from({length:Math.ceil(sampleBytes.length/partBytes)},(_,i)=>i));
-  const published=await json(await nativeApi("publish",{id:nativeId,owner:nativeOwner,width:1280,height:720}));
+  const published=await json(await nativeApi("publish",{id:nativeId,owner:nativeOwner,width:sampleWidth,height:sampleHeight}));
   assert.equal(published.passwordProtected,true);
   assert.equal(published.title,"Native Cloudflare parity smoke");
   const noPassword=await request("/api/clip?op=view&id="+nativeId);
