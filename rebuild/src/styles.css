@@ -218,3 +218,10 @@
 .record-countdown span{flex:1;min-width:160px;font-size:13px;color:var(--muted,#73776f)}
 [data-theme="dark"] .capture-settings-grid select{background:#171c17;border-color:#41483e;color:#f1f0e8}
 @media(max-width:620px){.capture-settings-grid{grid-template-columns:minmax(0,1fr)}.capture-settings-grid>.button{justify-self:stretch}.record-countdown{gap:10px}.record-countdown strong{font-size:30px}}
+
+
+.editor-card select{width:100%;min-width:0;max-width:100%;padding:10px;border:1px solid var(--line,#d9d8cf);border-radius:7px;background:var(--paper,#f3f1e9);color:inherit;font:13px inherit}
+[data-theme="dark"] .editor-card select{background:#171c17;border-color:#41483e;color:#f1f0e8}
+.shared-review-status{display:inline-flex;align-self:flex-start;margin:8px 0;padding:5px 9px;border-radius:999px;background:rgba(168,197,47,.16);color:inherit;font-size:10px;font-weight:750;letter-spacing:.04em}
+.shared-review-status.changes-requested{background:rgba(222,133,82,.16)}
+.shared-review-status.needs-feedback{background:rgba(135,143,133,.16)}
