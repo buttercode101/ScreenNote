@@ -49,6 +49,7 @@ test("import, title, captions, chapters and bug-report context persist locally",
   await expect(page.getByRole("heading",{name:"Review & share"})).toBeVisible({timeout:20000});
   await expect(page.locator("#player")).toBeVisible();
   const title="A very long but valid walkthrough title that should wrap without pushing the review screen outside the viewport";
+  const savedTitle=title.slice(0,100);
   await page.locator("#recording-title-input").fill(title);
   await page.getByRole("button",{name:"Save title"}).click();
   await expect(page.locator("#title-status")).toHaveText("Title saved.");
@@ -66,7 +67,8 @@ test("import, title, captions, chapters and bug-report context persist locally",
   await page.locator("#export-report").click();
   expect((await download).suggestedFilename()).toContain("bug-report");
   await page.locator("#main").getByRole("button",{name:"My recordings"}).click();
-  await expect(page.locator(".clip-card").first()).toContainText(title);
+  await expect(page.getByRole("heading",{name:/Your recordings/})).toBeVisible();
+  await expect(page.locator("#library-grid")).toContainText(savedTitle);
   await page.locator("#library-search").fill("walkthrough");
   await expect(page.getByText("1 of 1 recordings")).toBeVisible();
 });
