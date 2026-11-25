@@ -182,6 +182,8 @@ test("real legacy share viewer and privacy route remain contained across widths 
   await page.goto("/");
   await page.locator(".footer [data-action=privacy]").click();
   await expect(page.getByRole("heading",{name:"Your screen. Your call."})).toBeVisible();
+  await expect(page.getByText(/private Cloudflare R2 bucket/)).toBeVisible();
+  await expect(page.getByText(/served by Cloudflare Workers/)).toBeVisible();
   for(const theme of ["light","dark"]){
     await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
     for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
