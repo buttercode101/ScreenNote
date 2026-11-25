@@ -64,16 +64,29 @@ Status meanings:
 | Physical Android/iOS | Explicitly unverified in Vercel verdict | Explicitly outstanding | External device acceptance; no false certification |
 | Security review | Existing CSP, IDOR/storage gateway tests; remaining P2 items listed | Independent security review explicitly outstanding | Threat model, authz, CSRF/CORS, upload validation, abuse/rate limits, secrets, data deletion |
 
-## 3. Immediate parity blockers
+## 3. Independent frontend acceptance
 
-1. The Cloudflare candidate README does not claim parity for captions/SRT/VTT, searchable transcripts, chapters, structured bug reports, offline behavior, upload resume, or the full mask/annotation workflow.
+The Cloudflare application now has its own React 19 + TypeScript + Vite entrypoint and an independent design system. The build no longer bundles or serves the legacy Vercel HTML, CSS or browser JavaScript. The legacy source is retained only as a migration/reference corpus.
+
+Verified by the rebuild workflow:
+- React entrypoint is served from `/src/main.tsx` in development and the Vite-generated asset bundle in production.
+- The legacy `/app.js` and `/style.css` requests are absent from the new frontend.
+- Independent warm-paper / near-black / acid-lime visual language, Space Grotesk / Source Sans 3 / DM Mono typography, and custom recording/library composition.
+- Playwright responsive checks at 13 viewport widths, light and dark themes, import/preview/share journey, and no horizontal viewport overflow.
+- Build and deployed live API acceptance run separately; the existing Vercel production deployment is not modified.
+
+The frontend is independent; the service is not yet fully Vercel-independent. A compatibility fallback remains for the old `/api/clip` contract so existing legacy shares are not silently abandoned. The new React frontend uses Cloudflare's Worker API for new sharing flows.
+
+## 4. Immediate parity blockers
+
+1. The new React frontend currently exposes the primary capture, local library, import, preview, trim and temporary-share flows. Advanced legacy enrichment and review capabilities (captions/SRT/VTT, searchable owner-supplied transcript, chapters, structured bug reports, detailed annotations/redaction, and some recovery/offline workflows) still need to be surfaced and reimplemented in the new UI; keeping their source in `legacy/` is not feature parity.
 2. The candidate does not implement automatic transcript extraction or generated keyframes; transcript search is over owner-supplied captions. Structured agent handoff is not present as a named product workflow and needs a precise scope decision against the reference implementation.
 3. True frame-by-frame drawing and native desktop capture are explicitly roadmap items.
 4. Recovery-key restore in a separate browser, real elapsed-time expiry, independent security review, manual accessibility, and physical-device QA remain open.
 5. Candidate upload/comment limits differ from Vercel. Limits must be intentionally chosen and tested, not treated as automatic improvements.
 6. Existing production data must not be copied, migrated, deleted, or invalidated as part of development smoke tests.
 
-## 4. Required engineering sequence
+## 5. Required engineering sequence
 
 ### Gate A — source inventory
 Enumerate every route, screen, state, browser capability, API operation, data model, migration, background task, and user-visible promise in both implementations. Map each item to exact source files and tests. This ledger is a starting point, not a substitute for source-level inventory.
