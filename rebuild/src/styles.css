@@ -238,3 +238,8 @@
 .publish-progress progress{width:100%;height:8px;accent-color:#a8c52f}
 .publish-status{margin:0;padding:10px;border-radius:7px;background:rgba(185,91,62,.1);color:inherit;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
 [data-theme="dark"] .publish-progress{background:#171c17;border-color:#41483e}
+
+
+/* Keep annotation coordinates aligned to the actual source frame, including portrait and 4:3 media. */
+.editor-video-wrap,.share-video-wrap{aspect-ratio:auto}
+.editor-video-wrap video,.share-video-wrap video{display:block;width:100%;height:auto;max-height:72vh;object-fit:contain}
