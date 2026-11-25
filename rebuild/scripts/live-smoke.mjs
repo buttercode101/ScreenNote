@@ -225,7 +225,7 @@ try {
   await json(await nativeApi("revoke",{id:nativeId,owner:nativeOwner}));
   assert.equal((await request("/api/clip?op=view&id="+nativeId)).status,404,"revoked native share is unavailable");
   await json(await nativeApi("delete",{id:nativeId,owner:nativeOwner}));
-  const tombstone=await json(await nativeApi("manage",{id:nativeId,owner:nativeOwner}));assert.equal(tombstone.deleted,true);assert.equal(tombstone.status,"deleted");
+  const tombstone=await json(await nativeApi("manage",{id:nativeId,owner:nativeOwner}));assert.equal(tombstone.deleted,true);assert.equal(tombstone.status,"revoked","deleted records remain in the revoked state to prevent legacy-share resurrection");
   assert.equal((await nativeApi("view",{id:nativeId,accessPassword:nativePassword})).status,404,"deleted IDs cannot fall back to old Vercel shares");
   assert.equal((await nativeApi("delete",{id:nativeId,owner:nativeOwner})).status,200,"delete is idempotent");
   nativeReserved=false;
