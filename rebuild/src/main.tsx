@@ -377,7 +377,7 @@ function App() {
     if (!clip?.share) return;
     try {
       const response = await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
-      if (!response.ok) throw new Error("The shared copy could not be removed. Try again.");
+      if (!response.ok && response.status !== 404) throw new Error("The shared copy could not be removed. Try again.");
       const next = { ...clip }; delete next.share; await saveClip(next); await refresh();
       setMessage("Sharing stopped. The shared video and its discussion have been deleted. Your local original is still here.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't stop sharing."); }
