@@ -66,6 +66,9 @@ class FakeD1 {
         },
         async all() {
           if (sql.includes("FROM comments WHERE share_id")) return { results:[...db.comments.values()].filter(c=>c.share_id===v[0]) };
+          if (sql.includes("FROM recordings r LEFT JOIN shares") && sql.includes("status = 'ready'")) {
+            return { results:[...db.recordings.values()].filter(r=>r.status==="ready"&&!([...db.shares.values()].some(s=>s.recording_id===r.id))).map(r=>({id:r.id,object_key:r.object_key})) };
+          }
           if (sql.includes("FROM recordings WHERE owner_token_hash")) return { results:[...db.recordings.values()].filter(r=>r.owner_token_hash===v[0]) };
           return { results:[] };
         }
@@ -138,5 +141,17 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(media.status).toBe(206);expect(media.headers.get("content-range")).toBe("bytes 1-2/4");
     const del=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}`,{method:"DELETE",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({ownerKey:key})}),state.env as any,{} as any);
     expect(del.status).toBe(200);expect(state.objects.size).toBe(0);
+  });
+}  it("deletes completed uploads that were never published after the grace period",async()=>{
+    const s=await session(state.env),u=await upload(state.env,s.cookie);
+    expect(u.uploaded.status).toBe(200);
+    const row=state.DB.recordings.get(u.id);
+    row.created_at=Math.floor(Date.now()/1000)-601;
+    let task:Promise<void>|undefined;
+    await worker.scheduled({} as any,state.env,{waitUntil(p:Promise<void>){task=p;}} as any);
+    await task;
+    expect(state.DB.recordings.size).toBe(0);
+    expect(state.objects.size).toBe(0);
+    expect(state.deleted).toContain("shared/"+u.id);
   });
 });
