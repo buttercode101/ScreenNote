@@ -166,3 +166,17 @@
 [data-theme="dark"] .preview-workspace-content aside button{border-color:#41483e}
 @media(max-width:850px){.preview-workspace-content{grid-template-columns:minmax(0,1fr)}.preview-workspace-content video{max-height:none}.preview-workspace-content aside{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.preview-workspace-content aside .eyebrow,.preview-workspace-content aside h3,.preview-workspace-content aside p{grid-column:1/-1}}
 @media(max-width:520px){.preview-workspace>header{gap:8px;padding:12px}.preview-workspace>header h2{font-size:14px}.preview-workspace-content{padding:12px;gap:14px}.preview-workspace-content aside{grid-template-columns:minmax(0,1fr);padding:15px}}
+
+
+.shared-context{display:flex;flex-direction:column;gap:16px;margin:16px 0;padding:16px;border:1px solid var(--line,#d9d8cf);border-radius:10px;background:var(--surface,#fffefa);min-width:0}
+.shared-context>div{display:flex;flex-direction:column;gap:8px;min-width:0}
+.shared-context .eyebrow{font:700 10px ui-monospace,monospace;letter-spacing:.12em;color:var(--muted,#73776f)}
+.shared-context input{width:100%;min-width:0;padding:10px;border:1px solid var(--line,#d9d8cf);border-radius:7px;background:var(--paper,#f3f1e9);color:inherit}
+.shared-chapters,.shared-transcript{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow:auto}
+.shared-chapters button,.shared-transcript button{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:8px;border:0;border-radius:6px;background:var(--paper,#f3f1e9);color:inherit;font-size:12px;cursor:pointer}
+.shared-chapters button span,.shared-transcript button span{font:11px ui-monospace,monospace;color:var(--muted,#73776f);white-space:nowrap}
+.shared-report{border-top:1px solid var(--line,#d9d8cf);padding-top:12px}
+.shared-report p{font-size:12px;line-height:1.55;overflow-wrap:anywhere;white-space:pre-wrap}
+.shared-report strong{font-weight:700}
+[data-theme="dark"] .shared-context{background:#222821;border-color:#343a32}
+[data-theme="dark"] .shared-context input,[data-theme="dark"] .shared-chapters button,[data-theme="dark"] .shared-transcript button{background:#171c17;border-color:#41483e;color:#f1f0e8}
