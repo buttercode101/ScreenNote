@@ -60,7 +60,7 @@ export async function publishRecording(
       if(uploaded.has(part))continue;
       const start=part*chunkBytes,end=Math.min(clip.size,start+chunkBytes),chunk=clip.blob.slice(start,end);
       await retryTransfer(async()=>{
-        const response=await fetch("/api/recordings/"+pending!.id+"/parts/"+part,{method:"PUT",credentials:"same-origin",headers:{"content-type":"application/octet-stream","content-length":String(chunk.size)},body:chunk});
+        const response=await fetch("/api/recordings/"+pending!.id+"/parts/"+part,{method:"PUT",credentials:"same-origin",headers:{"content-type":"application/octet-stream"},body:chunk});
         const data=await readJson<{uploaded?:boolean}>(response);
         if(!response.ok)throw Object.assign(new Error(data.error||"A video part could not be uploaded."),{status:response.status});
         return data;
