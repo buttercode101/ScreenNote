@@ -119,7 +119,9 @@ test("appearance, local library and portable backup persist across a fresh brows
   const freshContext=await browser.newContext(),freshPage=await freshContext.newPage();
   await freshPage.goto("/");
   await freshPage.locator("#restore-library-backup").setInputFiles(backupPath!);
-  await expect.poll(async()=>freshPage.locator("#modal").evaluate((el:any)=>el.open)).toBe(true);
+  await freshPage.waitForTimeout(300);
+  const restoreOpen=await freshPage.locator("#modal").evaluate((el:any)=>el.open);
+  if(!restoreOpen)throw new Error("Library backup restore failed: "+await freshPage.locator("#error").innerText()+" "+await freshPage.locator("#notice").innerText());
   await expect(freshPage.locator("#modal")).toContainText("Restore your ScreenNote library");
   await freshPage.getByRole("button",{name:"Restore backup"}).click();
   await expect(freshPage.locator(".clip-card")).toHaveCount(1);
