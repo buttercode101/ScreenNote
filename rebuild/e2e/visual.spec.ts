@@ -172,7 +172,8 @@ test("temporary share viewer remains contained with long discussion content on m
     await route.fulfill({json:{title:"A very long ScreenNote title that must wrap naturally without forcing the viewer outside the available screen width",mimeType:"video/webm",size:2048,duration:95,expiresAt:1796200000,passwordRequired:false}});
   });
   await page.goto("/s/"+token);
-  await expect(page.locator(".share-layout")).toBeVisible();
+  const shareLayout=page.locator(".share-layout");
+  if(!await shareLayout.isVisible())throw new Error("Share viewer did not render: "+(await page.locator("body").innerText()).slice(0,1200));
   await expect(page.locator(".share-discussion")).toContainText("Guest reviewer");
   for(const theme of ["light","dark"]){
     await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
