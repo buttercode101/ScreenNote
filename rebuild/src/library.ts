@@ -18,7 +18,7 @@ export type Clip = {
   reviewBrief?: ReviewBrief;
 };
 
-export type Annotation = { kind: "rectangle" | "arrow" | "highlight" | "blur" | "redact"; x: number; y: number; w: number; h: number };
+export type Annotation = { kind: "rectangle" | "arrow" | "highlight" | "blur" | "redact"; x: number; y: number; w: number; h: number; time?: number; duration?: number };
 export type CaptionCue = { start: number; end: number; text: string };
 export type Chapter = { time: number; title: string };
 export type BugReport = { url: string; steps: string; expected: string; actual: string; environment: string };

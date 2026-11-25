@@ -1,0 +1,26 @@
+import { describe, expect, it } from "vitest";
+import { annotationIsVisible, visibleAnnotations } from "../src/annotationTiming";
+import type { Annotation } from "../src/library";
+
+const mark: Annotation = { kind: "rectangle", x: .1, y: .1, w: .2, h: .2, time: 12, duration: 4 };
+
+describe("playhead-anchored visual annotations", () => {
+  it("shows a mark only during its saved time window", () => {
+    expect(annotationIsVisible(mark, 11.99)).toBe(false);
+    expect(annotationIsVisible(mark, 12)).toBe(true);
+    expect(annotationIsVisible(mark, 14)).toBe(true);
+    expect(annotationIsVisible(mark, 16.01)).toBe(false);
+  });
+  it("keeps legacy marks visible throughout the clip", () => {
+    const legacy: Annotation = { kind: "redact", x: 0, y: 0, w: .2, h: .2 };
+    expect(annotationIsVisible(legacy, 0)).toBe(true);
+    expect(annotationIsVisible(legacy, 900)).toBe(true);
+  });
+  it("filters only the marks that are not active at the playhead", () => {
+    const legacy: Annotation = { kind: "arrow", x: 0, y: 0, w: .1, h: .1 };
+    expect(visibleAnnotations([legacy, mark], 20)).toEqual([legacy]);
+  });
+  it("rejects invalid playback time instead of showing stale marks", () => {
+    expect(annotationIsVisible(mark, Number.NaN)).toBe(false);
+  });
+});
