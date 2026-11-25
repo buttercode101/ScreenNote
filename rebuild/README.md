@@ -74,8 +74,8 @@ Verified against the deployed Cloudflare development Worker on 2026-11-25:
 
 - CI typecheck, unit tests, production build and Playwright suite passed before deployment.
 - Deployed D1 and R2 bindings were verified.
-- A live acceptance script exercised the real Worker and storage: guest session, real R2 upload, password-protected publication, incorrect-password rejection, successful unlock, byte-range playback, comments/replies, edit/delete, creator resolve, stop-share deletion and post-stop 404.
-- Test-created D1 rows and R2 objects were cleaned; the isolated development database and shared-media prefix were left empty.
+- The live acceptance script exercised the real Worker and storage: guest session, real R2 upload, password-protected publication, incorrect-password rejection, successful unlock, five-attempt lockout, byte-range playback, comments/replies, edit/delete, creator resolve, stop-share deletion and post-stop 404.
+- The smoke script cleans its own D1/R2 test records. An active user share was found in the development bucket and preserved; the shared-media prefix is intentionally not empty while that share remains active.
 - Responsive visual tests cover 320, 375, 768, 1120 and 1440 px in light/dark mode. The 320 px hero overlap and touch target are now explicit regression assertions.
 
 ## Remaining before production
