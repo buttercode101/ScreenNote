@@ -179,8 +179,9 @@ test("real legacy share viewer and privacy route remain contained across widths 
       await contained(page,width);
     }
   }
-  await page.goto("/privacy");
-  await expect(page.getByRole("heading",{name:"Your original stays with you."})).toBeVisible();
+  await page.goto("/");
+  await page.locator(".footer [data-action=privacy]").click();
+  await expect(page.getByRole("heading",{name:"Your screen. Your call."})).toBeVisible();
   for(const theme of ["light","dark"]){
     await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
     for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
