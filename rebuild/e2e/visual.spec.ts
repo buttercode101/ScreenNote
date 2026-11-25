@@ -227,7 +227,7 @@ test("landscape layouts, keyboard access and accessible control names",async({pa
     }
   }
   await page.setViewportSize({width:390,height:844});
-  const unnamed=await page.locator("button,[role=button],a[href],input:not([type=hidden]),select,textarea").evaluateAll(nodes=>nodes.filter(el=>{
+  const unnamed=await page.locator("button,[role=button],a[href],input:not([type=hidden]),select,textarea").evaluateAll(nodes=>(nodes as HTMLElement[]).filter(el=>{
     const e=el;
     if(e.disabled||e.getAttribute("aria-hidden")==="true")return false;
     const type=e.getAttribute("type");
@@ -236,7 +236,7 @@ test("landscape layouts, keyboard access and accessible control names",async({pa
   }).map(e=>({tag:e.tagName,html:e.outerHTML.slice(0,180)})));
   expect(unnamed,JSON.stringify(unnamed)).toEqual([]);
   await page.keyboard.press("Tab");
-  const focused=await page.evaluate(()=>({tag:document.activeElement?.tagName,outline:getComputedStyle(document.activeElement).outlineStyle,skip:document.activeElement?.classList.contains("skip")}));
+  const focused=await page.evaluate(()=>{const el=document.activeElement as HTMLElement|null;return {tag:el?.tagName,outline:el?getComputedStyle(el).outlineStyle:"none",skip:el?.classList.contains("skip")};});
   expect(focused.tag).toBeTruthy();
   expect(focused.outline).not.toBe("none");
 });
