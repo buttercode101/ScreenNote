@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_D1_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: "90cefa028781f749f5816c5748f04cd2"
     defaults:
       run:
@@ -51,7 +52,9 @@ jobs:
           path: rebuild/test-results/screenshots/**
           if-no-files-found: warn
       - name: Apply idempotent D1 password-attempt migration
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        if: ${{ env.CLOUDFLARE_D1_API_TOKEN != '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_D1_API_TOKEN }}
         run: node scripts/apply-migrations.mjs
       - name: Deploy isolated Cloudflare development Worker
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
