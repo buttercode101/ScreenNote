@@ -265,7 +265,18 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
         controller.enqueue(chunk);
       }
     }));
-    await env.MEDIA.put(row.object_key, countedStream, { httpMetadata: { contentType: row.mime_type } });
+    // R2 requires a stream with a known length. FixedLengthStream preserves
+    // streaming/backpressure while enforcing the reservation's exact byte count.
+    const fixedLength = new FixedLengthStream(row.byte_size);
+    const pipePromise = countedStream.pipeTo(fixedLength.writable);
+    try {
+      await env.MEDIA.put(row.object_key, fixedLength.readable, { httpMetadata: { contentType: row.mime_type } });
+      await pipePromise;
+    } catch {
+      await pipePromise.catch(() => undefined);
+      await env.MEDIA.delete(row.object_key).catch(() => undefined);
+      return fail("The upload could not be stored completely. Your local original is still safe.", 400);
+    }
     if (receivedBytes !== row.byte_size) {
       await env.MEDIA.delete(row.object_key);
       return fail("The uploaded video was incomplete. Your local original is still safe.", 400);
