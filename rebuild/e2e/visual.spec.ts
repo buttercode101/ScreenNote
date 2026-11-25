@@ -60,8 +60,8 @@ test("password gate, comment ownership actions, and share revocation work in the
   const ownerKey = "a".repeat(64);
   let unlocked = false;
   let revoked = false;
-  const comment = { id:"comment-1", parentId:null, viewerLabel:"Guest", body:"Original note", time:5, createdAt:Math.floor(Date.now()/1000), updatedAt:Math.floor(Date.now()/1000), resolved:0, deletedAt:null, anchorX:null, anchorY:null, isMine:true };
-  await page.addInitScript(({ token, ownerKey }) => {
+  let comment: { id:string; parentId:string|null; viewerLabel:string; body:string; time:number; createdAt:number; updatedAt:number; resolved:number; deletedAt:number|null; anchorX:number|null; anchorY:number|null; isMine:boolean } = { id:"comment-1", parentId:null, viewerLabel:"Guest", body:"Original note", time:5, createdAt:Math.floor(Date.now()/1000), updatedAt:Math.floor(Date.now()/1000), resolved:0, deletedAt:null, anchorX:null, anchorY:null, isMine:true };
+  await page.addInitScript(({ token, ownerKey }: { token:string; ownerKey:string }) => {
     localStorage.setItem("screennote-recovery-" + token, ownerKey);
     localStorage.setItem("screennote-author-" + token, "b".repeat(48));
   }, { token, ownerKey });
