@@ -237,7 +237,7 @@ export async function handleLegacyClip(request:Request,env:LegacyEnv):Promise<Re
   const bytes=decodeBase64(body.data),expected=Math.min(CHUNK_BYTES,c.size-part*CHUNK_BYTES);
   if(bytes.length!==expected||part===0&&!isVideo(bytes,c.type))throw fail("The upload part does not match this video.");
   const objectKey=partKey(c.id,part),old=await env.DB.prepare("SELECT size FROM legacy_clip_parts WHERE clip_id=? AND part=?").bind(c.id,part).first<{size:number}>();
-  if(old){const obj=await env.MEDIA.head(objectKey);if(!obj||obj.size!==expected)throw fail("This upload part is corrupt. Retry the upload.",409)}
+  if(old){const obj=await env.MEDIA.head(objectKey);if(obj&&obj.size===expected)return response({part,uploaded:true});await env.MEDIA.put(objectKey,bytes,{httpMetadata:{contentType:"application/octet-stream"}});await env.DB.prepare("UPDATE legacy_clip_parts SET size=?,created_at=? WHERE clip_id=? AND part=?").bind(bytes.length,Date.now(),c.id,part).run()}
   else{await env.MEDIA.put(objectKey,bytes,{httpMetadata:{contentType:"application/octet-stream"}});await env.DB.prepare("INSERT INTO legacy_clip_parts(clip_id,part,object_key,size,created_at) VALUES(?,?,?,?,?)").bind(c.id,part,objectKey,bytes.length,Date.now()).run()}
   return response({part,uploaded:true});
  }
@@ -249,7 +249,7 @@ export async function handleLegacyClip(request:Request,env:LegacyEnv):Promise<Re
  }
  if(op==="publish"){
   await requireOwner(c,body.owner);
-  if(c.status==="published")return response(publicClip(c));
+  if(c.status==="published"){try{await clearParts(env,c.id);if(!c.cleanupComplete){c.cleanupComplete=true;await saveClip(env,record,c)}}catch{}return response(publicClip(c))}
   if(c.status!=="pending")throw fail("This clip is no longer publishable.",409);
   if(c.uploadUntil<Date.now())throw fail("This upload reservation expired. Publish again to renew it.",409);
   let info=await env.MEDIA.head(record.row.object_key);
