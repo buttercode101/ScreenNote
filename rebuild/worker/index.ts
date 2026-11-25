@@ -4,6 +4,9 @@ const SESSION_SECONDS = 60 * 60 * 24 * 30;
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_DURATION_SECONDS = 10 * 60;
 const MAX_COMMENTS_PER_SHARE = 200;
+const PASSWORD_ATTEMPT_LIMIT = 5;
+const PASSWORD_ATTEMPT_WINDOW_SECONDS = 15 * 60;
+const PASSWORD_LOCK_SECONDS = 15 * 60;
 const encoder = new TextEncoder();
 
 const json = (data: unknown, status = 200, headers: HeadersInit = {}) =>
@@ -160,9 +163,28 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       if (!share.password_hash) return json({ access: true });
       const body = await request.json<{ password?: string }>().catch(() => null);
       if (!body || typeof body.password !== "string" || body.password.length > 128) return fail("Enter the sharing password.", 400);
+      const now = Math.floor(Date.now() / 1000);
+      // Store only a hash of Cloudflare's client IP; never persist the raw address.
+      const ipHash = await digest(`${share.id}:${request.headers.get("cf-connecting-ip") ?? "unknown"}`);
+      let attempt = await env.DB.prepare("SELECT window_started, attempts, locked_until FROM share_password_attempts WHERE share_id = ? AND ip_hash = ?")
+        .bind(share.id, ipHash).first<{ window_started:number; attempts:number; locked_until:number }>();
+      if (attempt && attempt.locked_until > now) return fail("Too many attempts. Try again in 15 minutes.", 429);
+      if (attempt && now - attempt.window_started >= PASSWORD_ATTEMPT_WINDOW_SECONDS) {
+        await env.DB.prepare("DELETE FROM share_password_attempts WHERE share_id = ? AND ip_hash = ?").bind(share.id, ipHash).run();
+        attempt = null;
+      }
       const actual = await passwordDigest(body.password, share.password_salt!);
-      if (!safeEqual(actual, share.password_hash)) return fail("That password isn't correct.", 401);
-      const tokenValue = randomToken(32), now = Math.floor(Date.now() / 1000);
+      if (!safeEqual(actual, share.password_hash)) {
+        const attempts = (attempt?.attempts ?? 0) + 1;
+        const windowStarted = attempt?.window_started ?? now;
+        const lockedUntil = attempts >= PASSWORD_ATTEMPT_LIMIT ? now + PASSWORD_LOCK_SECONDS : 0;
+        await env.DB.prepare("INSERT OR REPLACE INTO share_password_attempts (share_id, ip_hash, window_started, attempts, locked_until) VALUES (?, ?, ?, ?, ?)")
+          .bind(share.id, ipHash, windowStarted, attempts, lockedUntil).run();
+        if (lockedUntil) return fail("Too many attempts. Try again in 15 minutes.", 429);
+        return fail("That password isn't correct.", 401);
+      }
+      await env.DB.prepare("DELETE FROM share_password_attempts WHERE share_id = ? AND ip_hash = ?").bind(share.id, ipHash).run();
+      const tokenValue = randomToken(32);
       await env.DB.prepare("INSERT INTO share_access_sessions (token_hash, share_id, expires_at) VALUES (?, ?, ?)")
         .bind(await digest(tokenValue), share.id, Math.min(share.expires_at, now + 60 * 60 * 12)).run();
       return json({ access: true }, 200, { "set-cookie": accessCookie(share.id, tokenValue, token, Math.min(share.expires_at - now, 43200)) });
@@ -371,6 +393,7 @@ export default {
         await env.MEDIA.delete(row.object_key);
         await env.DB.prepare("DELETE FROM recordings WHERE id = ?").bind(row.id).run();
       }
+      await env.DB.prepare("DELETE FROM share_password_attempts WHERE window_started <= ?").bind(now - 3600).run();
       await env.DB.prepare("DELETE FROM guest_sessions WHERE expires_at <= ?").bind(now).run();
       await env.DB.prepare("DELETE FROM share_access_sessions WHERE expires_at <= ?").bind(now).run();
     })());

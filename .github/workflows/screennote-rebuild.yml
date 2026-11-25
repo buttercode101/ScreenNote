@@ -50,6 +50,9 @@ jobs:
           name: screennote-visual-evidence
           path: rebuild/test-results/screenshots/**
           if-no-files-found: warn
+      - name: Apply idempotent D1 password-attempt migration
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        run: node scripts/apply-migrations.mjs
       - name: Deploy isolated Cloudflare development Worker
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         run: npm run deploy

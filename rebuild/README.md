@@ -82,7 +82,7 @@ Verified against the deployed Cloudflare development Worker on 2026-11-25:
 
 - Test screen/microphone/camera permission flows, device changes, pause/resume and interrupted capture on physical Android and desktop browsers; browser capture is not universally supported on mobile.
 - Verify recovery-key restore from a separate browser and scheduled expiry cleanup over real elapsed time.
-- Complete an independent security review, including password-attempt throttling and abuse controls.
+- Complete an independent security review, including broader abuse controls beyond the per-share password-attempt lockout.
 - Finish manual keyboard, screen-reader and real-device visual QA.
 - Configure a confirmed production domain and make a separate production cutover decision.
 

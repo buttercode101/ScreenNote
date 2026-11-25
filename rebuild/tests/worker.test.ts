@@ -30,6 +30,7 @@ class FakeD1 {
   shares = new Map<string, any>();
   comments = new Map<string, any>();
   access = new Set<string>();
+  passwordAttempts = new Map<string, any>();
   prepare(sql: string) {
     const db = this;
     return { bind(...v: any[]) {
@@ -49,6 +50,7 @@ class FakeD1 {
           }
           if (sql.includes("FROM comments") && sql.includes("COUNT(*)")) return { total: db.comments.size };
           if (sql.includes("FROM comments")) return db.comments.get(v[0]) ?? null;
+          if (sql.includes("FROM share_password_attempts")) return db.passwordAttempts.get(`${v[0]}:${v[1]}`) ?? null;
           if (sql.includes("FROM share_access_sessions")) return db.access.has(v[0]) ? { token_hash: v[0] } : null;
           return null;
         },
@@ -57,6 +59,11 @@ class FakeD1 {
           if (sql.startsWith("INSERT INTO recordings")) db.recordings.set(v[0], { id:v[0], owner_token_hash:v[1], title:v[2], object_key:v[3], mime_type:v[4], byte_size:v[5], duration_seconds:v[6], status:"uploading" });
           if (sql.startsWith("UPDATE recordings SET status")) { const r=db.recordings.get(v[1]); if(r)r.status="ready"; }
           if (sql.startsWith("INSERT INTO shares")) db.shares.set(v[0], { id:v[0], recording_id:v[1], owner_token_hash:v[2], owner_key_hash:v[3], token_hash:v[4], expires_at:v[5], password_salt:v[6], password_hash:v[7], revoked_at:null });
+          if (sql.startsWith("INSERT OR REPLACE INTO share_password_attempts")) db.passwordAttempts.set(`${v[0]}:${v[1]}`, { share_id:v[0], ip_hash:v[1], window_started:v[2], attempts:v[3], locked_until:v[4] });
+          if (sql.startsWith("DELETE FROM share_password_attempts")) {
+            if (sql.includes("window_started")) { for (const [key,row] of db.passwordAttempts) if (row.window_started <= v[0]) db.passwordAttempts.delete(key); }
+            else db.passwordAttempts.delete(`${v[0]}:${v[1]}`);
+          }
           if (sql.startsWith("INSERT INTO share_access_sessions")) db.access.add(v[0]);
           if (sql.startsWith("INSERT INTO comments")) db.comments.set(v[0], { id:v[0], share_id:v[1], parent_id:v[2], author_hash:v[3], viewer_label:v[4], body:v[5], time_seconds:v[6], created_at:v[7], updated_at:v[8], resolved:0, deleted_at:null, anchor_x:v[9]??null, anchor_y:v[10]??null });
           if (sql.startsWith("DELETE FROM shares")) db.shares.delete(v[0]);
@@ -132,6 +139,21 @@ describe("ScreenNote temporary sharing API",()=>{
     expect(reply.status).toBe(201);
     const resolve=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/comments/${comment.id}/resolve`,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({ownerKey:key,resolved:true})}),state.env as any,{} as any);
     expect(resolve.status).toBe(200);
+  });
+  it("locks password guesses by share and client IP after five failures",async()=>{
+    const s=await session(state.env),u=await upload(state.env,s.cookie),key="f".repeat(64);
+    const pub=await worker.fetch(new Request(`https://screennote.test/api/recordings/${u.id}/publish`,{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:JSON.stringify({expiresInDays:7,password:"correct horse",ownerKey:key})}),state.env as any,{} as any);
+    expect(pub.status).toBe(201);
+    const share=await pub.json() as any;
+    for(let i=0;i<5;i++){
+      const attempt=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/access`,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({password:"incorrect"})}),state.env as any,{} as any);
+      expect(attempt.status).toBe(i===4?429:401);
+    }
+    const correct=await worker.fetch(new Request(`https://screennote.test/api/share/${share.token}/access`,{method:"POST",headers:{origin:"https://screennote.test","content-type":"application/json"},body:JSON.stringify({password:"correct horse"})}),state.env as any,{} as any);
+    expect(correct.status).toBe(429);
+    const attempt=[...state.DB.passwordAttempts.values()][0];
+    expect(attempt.attempts).toBe(5);
+    expect(attempt.locked_until).toBeGreaterThan(Math.floor(Date.now()/1000));
   });
   it("supports byte-range playback and stops serving media after owner deletion",async()=>{
     const s=await session(state.env),u=await upload(state.env,s.cookie),key="f".repeat(64);

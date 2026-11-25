@@ -85,6 +85,18 @@ const accessResponse = await request(sharePath + "/access", {
 assert.equal(accessResponse.status, 200, "correct password unlocks share");
 const accessCookie = accessResponse.headers.get("set-cookie")?.split(";")[0];
 assert.ok(accessCookie, "password access cookie is set");
+for (let i = 0; i < 5; i++) {
+  const failed = await request(sharePath + "/access", {
+    method:"POST", headers:{origin,"content-type":"application/json"},
+    body:JSON.stringify({password:"wrong-password-again"})
+  });
+  assert.equal(failed.status, i === 4 ? 429 : 401, "password attempts are throttled after five failures");
+}
+const lockedCorrect = await request(sharePath + "/access", {
+  method:"POST", headers:{origin,"content-type":"application/json"},
+  body:JSON.stringify({password:"live-check-password"})
+});
+assert.equal(lockedCorrect.status, 429, "correct password is held during the temporary lockout");
 const viewerHeaders = { origin, cookie: accessCookie, "content-type": "application/json" };
 const share = await json(await request(sharePath, { headers: viewerHeaders }));
 assert.equal(share.title, "Live acceptance check");
@@ -130,7 +142,7 @@ assert.equal(stopped.status, 200, "owner can stop share and delete shared object
 assert.equal((await request(sharePath)).status, 404, "stopped share is no longer available");
 shareToken = null;
 recordingId = null;
-console.log("Live ScreenNote acceptance passed: assets, guest session, real D1/R2 upload, password gate, byte-range media, comments/replies/edit/delete, resolve, and stop-share deletion.");
+console.log("Live ScreenNote acceptance passed: assets, guest session, real D1/R2 upload, password gate and lockout, byte-range media, comments/replies/edit/delete, resolve, and stop-share deletion.");
 } catch (error) {
   if (shareToken) {
     await request(`/api/share/${shareToken}/manage`, { method:"DELETE", headers:{origin,"content-type":"application/json"}, body:JSON.stringify({ownerKey}) }).catch(() => undefined);
