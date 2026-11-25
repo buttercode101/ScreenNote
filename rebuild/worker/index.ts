@@ -468,7 +468,7 @@ export default {
       const legacyClipRows = await env.DB.prepare("SELECT object_key FROM legacy_clip_records").bind().all<{object_key:string}>();
       const legacyPartRows = await env.DB.prepare("SELECT object_key FROM legacy_clip_parts").bind().all<{object_key:string}>();
       const legacyReferenced = new Set([...legacyClipRows.results,...legacyPartRows.results].map(x=>x.object_key));
-      const cleanupState = await env.DB.prepare("SELECT cursor FROM legacy_cleanup_state WHERE id=1").first<{cursor:string|null}>();
+      const cleanupState = await env.DB.prepare("SELECT cursor FROM legacy_cleanup_state WHERE id=1").bind().first<{cursor:string|null}>();
       let cleanupCursor = cleanupState?.cursor || undefined;
       for (let page=0;page<10;page++) {
         const listing = await env.MEDIA.list({prefix:"legacy/clips/",limit:1000,...(cleanupCursor?{cursor:cleanupCursor}:{})});
