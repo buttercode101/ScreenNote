@@ -183,12 +183,15 @@ test("temporary share viewer and privacy route use the independent responsive de
       captions:[{start:1,end:2,text:"The first step"}],
       chapters:[{time:1,title:"Introduction"}],
       report:{steps:"Open the menu",expected:"Menu opens",actual:"Menu remains closed",url:"",environment:""},
+      reviewBrief:{purpose:"Review the checkout flow",focus:"Inspect the payment confirmation",expectedOutcome:"A receipt is shown",requestedAction:"approve"},
       reviewStatus:"approved"
     }})
   }));
   await page.goto("/s/"+token);
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
-  await expect(page.getByText("Approved",{exact:true})).toBeVisible();\n  await expect(page.getByRole("region",{name:"Review brief"})).toContainText("Review the checkout flow");\n  await expect(page.getByRole("region",{name:"Review brief"})).toContainText("A receipt is shown");
+  await expect(page.getByText("Approved",{exact:true})).toBeVisible();
+  await expect(page.getByRole("region",{name:"Review brief"})).toContainText("Review the checkout flow");
+  await expect(page.getByRole("region",{name:"Review brief"})).toContainText("A receipt is shown");
   await page.getByRole("button",{name:/Thanks/i}).click();
   await expect(page.getByRole("button",{name:/Thanks/i})).toHaveAttribute("aria-pressed","true");
   await expect(page.locator(".share-video-wrap")).toBeVisible();
