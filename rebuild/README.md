@@ -1,14 +1,21 @@
-# ScreenNote Cloudflare rebuild
+# ScreenNote — Cloudflare application
 
-This branch is being executed as a **full replacement**, not a reduced rewrite.
+This branch is a separately implemented Cloudflare-first product. It is not a visual clone or a repackaged copy of the Vercel frontend.
 
-## Current implementation state
+## Application boundary
 
-- The complete ScreenNote 0.5.0 browser app from `main` is restored under `legacy/public` and `legacy/lib`, including its original capture, local IndexedDB library, import/trim/annotation tools, captions and transcript search, chapters, bug-report context, threaded discussions, reactions, review status, recovery keys, offline safeguards, upload retry/resume and all original user journeys.
-- The Cloudflare Worker serves the rebuilt original browser bundle and retains the isolated D1/R2 candidate API.
-- **Temporary parity bridge:** `/api/clip` currently proxies to the verified Vercel production API so the restored original UI does not lose the mature API contract during the native backend migration. Therefore this deployment is not yet independent of Vercel. Do not call it a completed Cloudflare-native replacement.
-- The bridge must be replaced by the Cloudflare D1/R2 implementation only after black-box API parity tests pass for every operation. Existing production data is not copied or mutated by migration tests.
-- Vercel production remains unchanged and is the rollback reference.
+- **Frontend:** React 19 + TypeScript + Vite. The deployed entrypoint is `rebuild/index.html` and `rebuild/src/main.tsx`.
+- **Design system:** independent editorial interface: Space Grotesk / Source Sans 3 / DM Mono, warm mineral paper, near-black recording surface and acid-lime action colour. It does not load the Vercel stylesheet or Vercel HTML/JS.
+- **Build assets:** `scripts/build-legacy.mjs` now copies only the offline service worker and app icon. It does not bundle or copy the legacy browser app.
+- **Backend:** Cloudflare Worker with D1 metadata and R2 media storage.
+- **Local-first data:** IndexedDB stores original recordings on the user's device; publishing is explicit.
+- **Legacy source:** `legacy/` remains in this branch as a behavior/feature reference and migration source only. It is not the deployed UI.
+
+## Important backend limitation
+
+The Worker still has a temporary `/api/clip` compatibility proxy to the Vercel API for older 0.5.0 clients and data contracts. The new frontend is independent of the Vercel frontend, but the entire service is not yet independent of Vercel. Do not describe the API layer as fully Cloudflare-native until the proxy is removed after contract-parity tests and an explicit legacy-link migration plan.
+
+Vercel production remains unchanged.
 
 ## Build and test
 
@@ -20,8 +27,8 @@ npm run build
 npm run e2e
 ```
 
-The build first bundles the original browser app from `legacy/public/app.js` into `legacy/dist`, then packages it as Cloudflare Worker static assets. `/api/clip` is Worker-first.
+The build emits the Vite/React app. Legacy HTML, CSS and browser JavaScript are deliberately excluded from the Worker asset bundle.
 
 ## Release gates
 
-See `FEATURE-PARITY-ACCEPTANCE.md`. Current verdict: **full browser feature set restored; Cloudflare-native backend parity and production cutover are still in progress**. Never infer complete acceptance from candidate-only tests.
+See `FEATURE-PARITY-ACCEPTANCE.md`. The independent frontend is a new implementation; feature parity, Worker/API independence, visual acceptance, security review, accessibility review, and physical-device checks remain separate release gates.
