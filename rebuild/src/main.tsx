@@ -11,6 +11,8 @@ import ShareViewer from "./ShareViewer";
 import PrivacyPage from "./PrivacyPage";
 import EditorWorkspace from "./EditorWorkspace";
 import PreviewWorkspace from "./PreviewWorkspace";
+// @ts-expect-error Shared browser-safe media validation helper has no declaration file.
+import { importMedia } from "../legacy/lib/import-media.js";
 import "./styles.css";
 
 const recorder = new ScreenRecorder();
@@ -20,7 +22,7 @@ const formatTime = (seconds: number) => {
   return `${m}:${s}`;
 };
 const formatDate = (time: number) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(time);
-async function readVideoDuration(file: File): Promise<number> {
+async function readVideoDuration(file: Blob): Promise<number> {
   const url = URL.createObjectURL(file);
   try {
     return await new Promise((resolve, reject) => {
@@ -164,12 +166,13 @@ function App() {
 
   async function importFile(file?: File) {
     if (!file) return;
-    if (!["video/mp4", "video/webm", "video/quicktime"].includes(file.type)) {
-      setMessage("Choose an MP4, WebM or MOV video.");
-      return;
-    }
-    try { const duration = await readVideoDuration(file); const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\\.[^.]+$/, ""), createdAt: Date.now(), duration, size: file.size, mimeType: file.type, blob: file }; await saveClip(clip); await refresh(); setMessage("Video added to your private library."); }
-    catch { setMessage("Could not save this file. Check available device storage."); }
+    try {
+      const media = await importMedia(file);
+      const duration = await readVideoDuration(media.blob);
+      if (!duration) throw new Error("This video has no readable duration.");
+      const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\\.[^.]+$/, ""), createdAt: Date.now(), duration, size: media.blob.size, mimeType: media.type, blob: media.blob };
+      await saveClip(clip); await refresh(); setMessage("Video added to your private library.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this file. Check available device storage."); }
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -388,7 +391,7 @@ function App() {
       <button className="button primary publish-submit" disabled={publishing || (sharePassword.length>0&&sharePassword.length<8)} onClick={publishSelected}>{publishing?"Uploading securely…":"Publish temporary link"} <ArrowUpRight size={16}/></button>
     </section></div>}
     {shareLink && <div className="share-link-toast" role="status"><div><strong>Temporary link ready</strong><span>{shareLink}</span></div><a className="button secondary" href={shareLink} target="_blank" rel="noopener noreferrer">Open preview</a><button className="button secondary" onClick={()=>navigator.clipboard?.writeText(shareLink)}>Copy link</button><button className="button secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([recoveryData],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="screennote-recovery.json";a.click();URL.revokeObjectURL(url);}}>Recovery key</button><button className="icon-button" onClick={()=>setShareLink("")} aria-label="Dismiss"><X size={16}/></button></div>}
-    <input ref={fileRef} type="file" accept="video/mp4,video/webm,video/quicktime" hidden onChange={(e) => importFile(e.target.files?.[0])}/><input ref={recoveryFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => importRecovery(e.target.files?.[0])}/><input ref={backupFileRef} type="file" accept=".zip,application/zip" hidden onChange={(e) => restoreLibraryBackup(e.target.files?.[0])}/>
+    <input ref={fileRef} type="file" accept="video/mp4,video/webm" hidden onChange={(e) => importFile(e.target.files?.[0])}/><input ref={recoveryFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => importRecovery(e.target.files?.[0])}/><input ref={backupFileRef} type="file" accept=".zip,application/zip" hidden onChange={(e) => restoreLibraryBackup(e.target.files?.[0])}/>
   </div>;
 }
 
