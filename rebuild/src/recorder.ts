@@ -97,6 +97,7 @@ export class ScreenRecorder {
       this.sourceStreams = [display, ...(microphone ? [microphone] : []), ...(camera ? [camera] : []), ...(composite ? [composite] : [])];
       this.audioContext = audioContext; this.cleanupVideo = cleanupVideo; this.displayTrack = displayTrack;
       this.onTick = onTick; this.onSourceEnded = onSourceEnded;
+      if (typeof MediaRecorder === "undefined") throw new Error("This browser cannot encode screen recordings. Import a video instead.");
       const mimeType = supportedMimeType();
       this.recorder = new MediaRecorder(this.stream, { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: profile.videoBitsPerSecond, audioBitsPerSecond: profile.audioBitsPerSecond });
       this.chunks = []; this.pendingWrites = []; this.chunkIndex = 0; this.recoveryFailed = false;
