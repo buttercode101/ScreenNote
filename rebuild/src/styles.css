@@ -247,3 +247,14 @@
 
 .editor-blur-overlay{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none}
 .editor-blur-preview{fill:rgba(20,25,20,.12);stroke:rgba(20,25,20,.35);stroke-width:2;backdrop-filter:blur(12px)}
+
+
+.share-reactions{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding:12px 0;border-bottom:1px solid var(--line,#d9d8cf)}
+.share-reactions>.eyebrow{font:700 10px ui-monospace,monospace;letter-spacing:.12em;color:var(--muted,#73776f)}
+.share-reactions>div{display:flex;gap:8px;flex-wrap:wrap}
+.share-reactions button{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid var(--line,#d9d8cf);border-radius:999px;background:var(--surface,#fffefa);color:inherit;font-size:11px;font-weight:650;cursor:pointer}
+.share-reactions button b{font:11px ui-monospace,monospace;color:var(--muted,#73776f)}
+.share-reactions button.active{background:rgba(168,197,47,.18);border-color:#a8c52f}
+[data-theme="dark"] .share-reactions{border-color:#343a32}
+[data-theme="dark"] .share-reactions button{background:#222821;border-color:#41483e}
+[data-theme="dark"] .share-reactions button.active{background:rgba(168,197,47,.18);border-color:#a8c52f}
