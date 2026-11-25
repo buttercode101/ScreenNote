@@ -88,6 +88,22 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:"Close editor"}).click();
 });
 
+test("preferences export and restore a portable local library backup",async({page})=>{
+  await page.goto("/");
+  await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
+  await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
+  await page.getByRole("button",{name:/Preferences/i}).click();
+  await expect(page.getByRole("dialog",{name:/Preferences & backups/i})).toBeVisible();
+  const downloadPromise=page.waitForEvent("download");
+  await page.getByRole("button",{name:/Back up my library/i}).click();
+  const download=await downloadPromise;
+  expect(download.suggestedFilename()).toBe("screennote-library-backup.zip");
+  const filePath=await download.path();
+  if(!filePath)throw new Error("Backup download did not produce a file.");
+  await page.locator('input[type="file"]').last().setInputFiles(filePath);
+  await expect(page.getByRole("status").filter({hasText:/duplicate\(s\) were skipped/i})).toBeVisible();
+  await page.getByRole("button",{name:/Close preferences/i}).click();
+});
 test("new frontend contains no legacy stylesheet or legacy app script requests",async({page})=>{
   const requested:string[]=[];
   page.on("request",request=>requested.push(new URL(request.url()).pathname));
