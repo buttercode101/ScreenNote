@@ -432,18 +432,28 @@ export default {
       }
       // Native 0.5.0 API retention: expired/revoked uploads are deleted from R2 and D1 metadata remains for owner status.
       const nowMs = Date.now();
-      const legacyExpired = await env.DB.prepare("SELECT id,status,object_key,data FROM legacy_clip_records WHERE (status='pending' AND upload_until<=?) OR (status='published' AND expires_at<=?) OR (status IN ('revoked','deleted','expired') AND json_extract(data,'$.cleanupComplete') IS NOT 1) LIMIT 100")
-        .bind(nowMs,nowMs).all<{id:string;status:string;object_key:string;data:string}>();
+      const legacyExpired = await env.DB.prepare("SELECT id,status,object_key,data,expires_at FROM legacy_clip_records WHERE (status='pending' AND upload_until<=?) OR (status='published' AND (expires_at<=? OR json_extract(data,'$.cleanupComplete') IS NOT 1)) OR (status IN ('revoked','deleted','expired') AND json_extract(data,'$.cleanupComplete') IS NOT 1) LIMIT 100")
+        .bind(nowMs,nowMs).all<{id:string;status:string;object_key:string;data:string;expires_at:number}>();
       for (const row of legacyExpired.results) {
         const clip = JSON.parse(row.data);
+        // A successful publish can still leave multipart chunks if cleanup was interrupted.
+        // Retry chunk cleanup without expiring or deleting the published video.
+        if (row.status === "published" && row.expires_at > nowMs && !clip.cleanupComplete) {
+          const pendingParts = await env.DB.prepare("SELECT object_key FROM legacy_clip_parts WHERE clip_id=?").bind(row.id).all<{object_key:string}>();
+          for (const part of pendingParts.results) await env.MEDIA.delete(part.object_key);
+          await env.DB.prepare("DELETE FROM legacy_clip_parts WHERE clip_id=?").bind(row.id).run();
+          clip.cleanupComplete = true;
+          await env.DB.prepare("UPDATE legacy_clip_records SET data=? WHERE id=? AND status='published' AND data=?").bind(JSON.stringify(clip),row.id,row.data).run();
+          continue;
+        }
         if (row.status === "pending" || row.status === "published") {
           const previousStatus = row.status;
           const allocation = previousStatus === "pending" ? 2 * Number(clip.size || 0) : Number(clip.size || 0);
           clip.status = "expired";
           clip.cleanupComplete = false;
           await env.DB.batch([
-            env.DB.prepare("UPDATE legacy_capacity SET reserved_bytes=MAX(0,reserved_bytes-?),reserved_count=MAX(0,reserved_count-1) WHERE id=1 AND EXISTS(SELECT 1 FROM legacy_clip_records WHERE id=? AND status=?)").bind(allocation,row.id,previousStatus),
-            env.DB.prepare("UPDATE legacy_clip_records SET status='expired',data=?,media_token_hash=NULL,media_token_expires=NULL WHERE id=? AND status=?").bind(JSON.stringify(clip),row.id,previousStatus)
+            env.DB.prepare("UPDATE legacy_capacity SET reserved_bytes=MAX(0,reserved_bytes-?),reserved_count=MAX(0,reserved_count-1) WHERE id=1 AND EXISTS(SELECT 1 FROM legacy_clip_records WHERE id=? AND status=? AND data=?)").bind(allocation,row.id,previousStatus,row.data),
+            env.DB.prepare("UPDATE legacy_clip_records SET status='expired',data=?,media_token_hash=NULL,media_token_expires=NULL WHERE id=? AND status=? AND data=?").bind(JSON.stringify(clip),row.id,previousStatus,row.data)
           ]);
         }
         await env.MEDIA.delete(row.object_key);
