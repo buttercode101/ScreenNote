@@ -156,25 +156,22 @@ test("installable app shell keeps the local library usable offline",async({page,
 });
 
 
-test("temporary share viewer remains contained with long discussion content on mobile and desktop",async({page})=>{
-  const token="layout-acceptance-token-12345678901234567890";
-  await page.route("**/api/share/**",async route=>{
+test("real legacy share viewer and privacy route remain contained across widths and themes",async({page})=>{
+  const id="123e4567-e89b-12d3-a456-426614174000";
+  await page.route(/\/api\/clip\?op=view/,async route=>{
     const url=new URL(route.request().url());
-    if(url.pathname.endsWith("/comments")){
-      await route.fulfill({json:{comments:[{
-        id:"comment-1",parentId:null,viewerLabel:"Guest reviewer",
-        body:"Please inspect this very long review note and its unbroken reference https://example.com/".repeat(8),
-        time:12,createdAt:1795600000,resolved:0,deletedAt:null,isMine:false,anchorX:0.82,anchorY:0.36
-      }]}});
-      return;
-    }
-    if(url.pathname.endsWith("/media")){await route.fulfill({status:200,contentType:"video/webm",body:""});return;}
-    await route.fulfill({json:{title:"A very long ScreenNote title that must wrap naturally without forcing the viewer outside the available screen width",mimeType:"video/webm",size:2048,duration:95,expiresAt:1796200000,passwordRequired:false}});
+    if(url.searchParams.get("id")!==id){await route.continue();return;}
+    await route.fulfill({json:{
+      id,title:"A very long ScreenNote title that must wrap naturally without forcing the viewer outside the available screen width",
+      reviewStatus:"needs-feedback",width:1280,height:720,start:0,end:95,duration:95,
+      createdAt:Date.now(),expiresAt:Date.now()+86400000,passwordProtected:false,
+      discussionRevision:0,captions:[],chapters:[],report:null,comments:[],
+      reactions:{like:0,thanks:0,idea:0},mediaUrl:"/sample.webm"
+    }});
   });
-  await page.goto("/s/"+token);
-  const shareLayout=page.locator(".share-layout");
-  if(!await shareLayout.isVisible())throw new Error("Share viewer did not render: "+(await page.locator("body").innerText()).slice(0,1200));
-  await expect(page.locator(".share-discussion")).toContainText("Guest reviewer");
+  await page.goto("/v/"+id);
+  await expect(page.locator(".viewer-grid")).toBeVisible();
+  await expect(page.locator(".reply-panel")).toContainText("Talk about this moment.");
   for(const theme of ["light","dark"]){
     await page.evaluate(value=>document.documentElement.setAttribute("data-theme",value),theme);
     for(const width of [320,360,375,390,414,600,768,834,1024,1120,1280,1440,1920]){
@@ -192,4 +189,3 @@ test("temporary share viewer remains contained with long discussion content on m
     }
   }
 });
-
