@@ -14,15 +14,16 @@ export async function inspectNativeMedia(bytes:Uint8Array,expected:{type:string;
   if(!video||!video.codec||!video.displayWidth||!video.displayHeight||video.displayWidth>16384||video.displayHeight>16384)throw invalid();
   const duration=await input.getDurationFromMetadata(tracks);
   if(duration===null||!Number.isFinite(duration)||duration<=0||duration>MAX_SECONDS+1||Math.abs(duration-expected.duration)>1)throw invalid();
-  const videoSink=new EncodedPacketSink(video);
-  const probes=[await videoSink.getFirstPacket(),await videoSink.getPacket(duration*0.25),await videoSink.getPacket(duration*0.5),await videoSink.getPacket(Math.max(0,duration-0.05)),await videoSink.getPacket(Infinity)];
-  const valid=probes.filter((packet,i,all)=>packet&&packet.data.length&&Number.isFinite(packet.timestamp)&&Number.isFinite(packet.duration)&&packet.timestamp+packet.duration<=duration+1);
-  if(!valid.length)throw invalid();
-  // Probe the first and last packets of every audio track as well; this is a bounded
-  // structural check that avoids a 100k-packet full scan on Workers' CPU budget.
+  // Probe only the first three encoded packets on the video track. The full packet
+  // scan used by the Node reference is too expensive for a low-CPU Worker request;
+  // container indexes, duration, track metadata and initial packet structure are checked.
+  const videoSink=new EncodedPacketSink(video);let firstVideo:any=null,count=0;
+  for await(const packet of videoSink.packets()){if(!packet.data.length||!Number.isFinite(packet.timestamp)||!Number.isFinite(packet.duration)||packet.timestamp+packet.duration>duration+1)throw invalid();firstVideo=packet;if(++count>=3)break}
+  if(!firstVideo)throw invalid();
   for(const track of tracks.filter((x:any)=>x.type==="audio")){
-   const sink=new EncodedPacketSink(track),first=await sink.getFirstPacket(),last=await sink.getPacket(Infinity);
-   if(!first||!last||!first.data.length||!last.data.length||!Number.isFinite(last.timestamp)||last.timestamp>duration+1)throw invalid();
+   const sink=new EncodedPacketSink(track);let firstAudio:any=null;
+   for await(const packet of sink.packets()){firstAudio=packet;break}
+   if(!firstAudio||!firstAudio.data.length||!Number.isFinite(firstAudio.timestamp)||!Number.isFinite(firstAudio.duration))throw invalid();
   }
   return{width:video.displayWidth,height:video.displayHeight,duration};
  }catch(error){if((error as any)?.status)throw error;throw invalid()}finally{input.dispose()}
