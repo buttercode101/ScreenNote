@@ -99,6 +99,9 @@ test("imported recording opens the full editor with preview, annotations, captio
   for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});const dims=await page.evaluate(()=>({body:document.body.scrollWidth,doc:document.documentElement.scrollWidth,viewport:innerWidth}));expect(dims.body).toBeLessThanOrEqual(width+1);expect(dims.doc).toBeLessThanOrEqual(width+1);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
   await page.getByRole("button",{name:/Share a reviewed copy/i}).click();
   await expect(page.getByRole("heading",{name:"Make a temporary link"})).toBeVisible();
+  const modalLayer=await page.locator(".modal-backdrop").evaluate(el=>Number(getComputedStyle(el).zIndex));
+  const editorLayer=await page.locator(".editor-workspace").evaluate(el=>Number(getComputedStyle(el).zIndex));
+  expect(modalLayer).toBeGreaterThan(editorLayer);
   await expect(page.getByText(/Only this shared copy is uploaded/i)).toBeVisible();
   await page.locator(".review-brief-fields > summary").click({force:true});
   await expect(page.locator(".review-brief-fields")).toHaveJSProperty("open",true);
