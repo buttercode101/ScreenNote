@@ -4,7 +4,7 @@ import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp
 import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listFullClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
 // @ts-expect-error Shared browser-safe backup helper has no declaration file.
 import { makeLibraryBackup, readLibraryBackup } from "../legacy/lib/library-backup.js";
-import { ScreenRecorder, supportedMimeType, type RecordingResult } from "./recorder";
+import { ScreenRecorder, supportedMimeType, type RecordingResult, type QualityPreset } from "./recorder";
 import { newOwnerKey, publishRecording } from "./sharing";
 import { clampTrimRange, trimVideoElement } from "./trim";
 import ShareViewer from "./ShareViewer";
@@ -46,6 +46,13 @@ function App() {
   const [mic, setMic] = useState(true);
   const [camera, setCamera] = useState(false);
   const [systemAudio, setSystemAudio] = useState(true);
+  const [quality, setQuality] = useState<QualityPreset>("balanced");
+  const [microphones, setMicrophones] = useState<MediaDeviceInfo[]>([]);
+  const [microphoneId, setMicrophoneId] = useState("");
+  const [bubbleSize, setBubbleSize] = useState(.27);
+  const [bubbleCorner, setBubbleCorner] = useState("bottom-right");
+  const [countdown, setCountdown] = useState(0);
+  const countdownTimer = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [dark, setDark] = useState(() => { try { return localStorage.getItem("screennote-theme") === "dark"; } catch { return false; } });
@@ -93,13 +100,38 @@ function App() {
     try {
       await beginRecordingSession({ id, title, createdAt, mimeType: supportedMimeType() || "video/webm", chunkCount: 0, totalBytes: 0, updatedAt: createdAt });
       activeSessionId.current = id;
+      const corners: Record<string, {x:number;y:number}> = {
+        "top-left": {x:.04,y:.04}, "top-right": {x:1-bubbleSize-.04,y:.04},
+        "bottom-left": {x:.04,y:1-bubbleSize-.04}, "bottom-right": {x:1-bubbleSize-.04,y:1-bubbleSize-.04}
+      };
       await recorder.start(
-        { microphone: mic, systemAudio, camera },
+        { microphone: mic, systemAudio, camera, quality, microphoneId: microphoneId || undefined, cameraBubble: { ...corners[bubbleCorner], size: bubbleSize } },
         setSeconds,
-        (chunk, index) => appendRecordingChunk(id, chunk, index)
+        (chunk, index) => appendRecordingChunk(id, chunk, index),
+        () => {
+          if (countdownTimer.current !== null) window.clearInterval(countdownTimer.current);
+          countdownTimer.current = null; setCountdown(0); setBusy(false);
+          const sessionId = activeSessionId.current; activeSessionId.current = null;
+          if (sessionId) void deleteRecordingSession(sessionId).then(refresh);
+          setMessage("Screen sharing ended before recording began. Nothing was recorded.");
+        }
       );
-      setRecording(true);
-      setPaused(false);
+      setCountdown(3);
+      let remaining = 3;
+      countdownTimer.current = window.setInterval(() => {
+        remaining -= 1; setCountdown(remaining);
+        if (remaining <= 0) {
+          if (countdownTimer.current !== null) window.clearInterval(countdownTimer.current);
+          countdownTimer.current = null;
+          try { recorder.begin(); setRecording(true); setPaused(false); setSeconds(0); }
+          catch (error) {
+            recorder.cancel(); const sessionId = activeSessionId.current; activeSessionId.current = null;
+            if (sessionId) void deleteRecordingSession(sessionId).then(refresh);
+            setMessage(error instanceof Error ? error.message : "Could not begin recording.");
+          }
+          setCountdown(0);
+        }
+      }, 1000);
     } catch (error) {
       await deleteRecordingSession(id).catch(() => undefined);
       activeSessionId.current = null;
@@ -135,6 +167,27 @@ function App() {
     window.addEventListener("screennote:recording-finished", handleExternalStop);
     return () => window.removeEventListener("screennote:recording-finished", handleExternalStop);
   }, []);
+
+  function cancelCountdown() {
+    if (countdownTimer.current !== null) window.clearInterval(countdownTimer.current);
+    countdownTimer.current = null; recorder.cancel(); setCountdown(0);
+    const sessionId = activeSessionId.current; activeSessionId.current = null;
+    if (sessionId) void deleteRecordingSession(sessionId).then(refresh);
+    setMessage("Recording cancelled before it began. Nothing was saved.");
+  }
+
+  async function refreshMicrophones() {
+    if (!navigator.mediaDevices?.enumerateDevices) { setMessage("This browser does not expose microphone selection."); return; }
+    let permission: MediaStream | undefined;
+    try {
+      permission = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "audioinput");
+      setMicrophones(devices);
+      if (microphoneId && !devices.some(device => device.deviceId === microphoneId)) setMicrophoneId("");
+      setMessage(devices.length ? "Microphone sources refreshed." : "No microphone inputs were found.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Microphone access was not granted."); }
+    finally { permission?.getTracks().forEach(track => track.stop()); }
+  }
 
   async function finish() {
     setBusy(true);
@@ -361,7 +414,7 @@ function App() {
 
         <section className="capture-panel">
           <div className="capture-copy"><div className="capture-icon"><Video size={21}/></div><div><h2>{recording ? "You're recording" : "Start with a recording"}</h2><p>{recording ? "Take your time. Your recording is being captured in this tab." : "Record your screen or bring in a video you already have."}</p></div></div>
-          {recording ? <div className="record-controls"><div className="recording-indicator"><span/>{formatTime(seconds)} {paused ? "PAUSED" : "RECORDING"}</div><button className="button secondary" onClick={() => { if (paused) recorder.resume(); else recorder.pause(); setPaused(!paused); }}>{paused ? <Play size={16}/> : <Pause size={16}/>} {paused ? "Resume" : "Pause"}</button><button className="button danger" disabled={busy} onClick={finish}><Check size={16}/> Finish</button></div> : <div className="capture-actions"><label className="toggle-option"><input type="checkbox" checked={mic} onChange={(e) => setMic(e.target.checked)}/><Mic size={15}/> Microphone</label><label className="toggle-option"><input type="checkbox" checked={systemAudio} onChange={(e) => setSystemAudio(e.target.checked)}/> System audio</label><label className="toggle-option"><input type="checkbox" checked={camera} onChange={(e) => setCamera(e.target.checked)}/><Camera size={15}/> Camera bubble</label><button className="button primary" disabled={busy} onClick={start}><span className="record-dot"/>{busy ? "Preparing…" : "Record screen"} <ArrowUpRight size={16}/></button></div>}
+          {countdown > 0 ? <div className="record-countdown" role="status"><strong>{countdown}</strong><span>Get ready. Recording begins after the countdown.</span><button className="button secondary" onClick={cancelCountdown}>Cancel</button></div> : recording ? <div className="record-controls"><div className="recording-indicator"><span/>{formatTime(seconds)} {paused ? "PAUSED" : "RECORDING"}</div><button className="button secondary" onClick={() => { if (paused) recorder.resume(); else recorder.pause(); setPaused(!paused); }}>{paused ? <Play size={16}/> : <Pause size={16}/>} {paused ? "Resume" : "Pause"}</button><button className="button danger" disabled={busy} onClick={finish}><Check size={16}/> Finish</button></div> : <div className="capture-setup"><div className="capture-actions"><label className="toggle-option"><input type="checkbox" checked={mic} onChange={(e) => setMic(e.target.checked)}/><Mic size={15}/> Microphone</label><label className="toggle-option"><input type="checkbox" checked={systemAudio} onChange={(e) => setSystemAudio(e.target.checked)}/> System audio</label><label className="toggle-option"><input type="checkbox" checked={camera} onChange={(e) => setCamera(e.target.checked)}/><Camera size={15}/> Camera bubble</label><button className="button primary" disabled={busy} onClick={start}><span className="record-dot"/>{busy ? "Preparing…" : "Record screen"} <ArrowUpRight size={16}/></button></div><details className="capture-advanced"><summary>Recording quality, microphone and camera settings</summary><div className="capture-settings-grid"><label>Recording quality<select value={quality} onChange={e=>setQuality(e.target.value as QualityPreset)}><option value="saver">Smaller file · 720p</option><option value="balanced">Balanced · 1080p</option><option value="clear">Sharper · up to 1440p</option></select></label><label>Microphone source<select value={microphoneId} onChange={e=>setMicrophoneId(e.target.value)} disabled={!mic}><option value="">Browser default</option>{microphones.map((device,i)=><option key={device.deviceId||i} value={device.deviceId}>{device.label||"Microphone "+(i+1)}</option>)}</select></label><button className="button secondary" onClick={refreshMicrophones} disabled={!mic}>Refresh microphone list</button><label>Camera bubble size<input type="range" min=".16" max=".38" step=".01" value={bubbleSize} onChange={e=>setBubbleSize(Number(e.target.value))} disabled={!camera}/></label><label>Camera bubble position<select value={bubbleCorner} onChange={e=>setBubbleCorner(e.target.value)} disabled={!camera}><option value="top-left">Top left</option><option value="top-right">Top right</option><option value="bottom-left">Bottom left</option><option value="bottom-right">Bottom right</option></select></label></div></details></div>}
         </section>
 
         {message && <div className="notice" role="status"><Check size={16}/>{message}<button onClick={() => setMessage("")} aria-label="Dismiss"><X size={15}/></button></div>}
