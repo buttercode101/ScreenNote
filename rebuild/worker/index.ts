@@ -219,6 +219,12 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       const chapters = Array.isArray(body.details.chapters) ? body.details.chapters : [];
       const annotations = Array.isArray(body.details.annotations) ? body.details.annotations : [];
       if (body.details.reviewStatus !== undefined && !["needs-feedback","changes-requested","approved"].includes(String(body.details.reviewStatus))) return fail("Choose a valid review status.", 400);
+      const brief = body.details.reviewBrief;
+      if (brief !== undefined && brief !== null) {
+        if (typeof brief !== "object" || Array.isArray(brief)) return fail("Review brief must be an object.", 400);
+        for (const field of ["purpose","focus","expectedOutcome"] as const) if (brief[field] !== undefined && (typeof brief[field] !== "string" || brief[field].length > (field === "purpose" ? 160 : 400))) return fail("Review brief text is too long or invalid.", 400);
+        if (brief.requestedAction !== undefined && !["review","approve","reproduce","fix"].includes(String(brief.requestedAction))) return fail("Choose a valid requested action.", 400);
+      }
       if (captions.length > 100 || chapters.length > 20 || annotations.length > 40) return fail("Video context exceeds the supported item limits.", 400);
       for (const cue of captions as any[]) if (!cue || !Number.isFinite(cue.start) || !Number.isFinite(cue.end) || cue.start < 0 || cue.end <= cue.start || cue.end > share.duration_seconds + .05 || typeof cue.text !== "string" || cue.text.length > 500) return fail("Shared captions contain an invalid cue.", 400);
       for (const chapter of chapters as any[]) if (!chapter || !Number.isFinite(chapter.time) || chapter.time < 0 || chapter.time >= share.duration_seconds || typeof chapter.title !== "string" || !chapter.title.trim() || chapter.title.length > 80) return fail("Shared chapters contain an invalid entry.", 400);

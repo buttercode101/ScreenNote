@@ -1,3 +1,5 @@
+export type ReviewBrief = { purpose: string; focus: string; expectedOutcome: string; requestedAction: "review" | "approve" | "reproduce" | "fix" };
+
 export type Clip = {
   id: string;
   title: string;
@@ -13,6 +15,7 @@ export type Clip = {
   chapters?: Chapter[];
   report?: BugReport | null;
   reviewStatus?: "needs-feedback" | "changes-requested" | "approved";
+  reviewBrief?: ReviewBrief;
 };
 
 export type Annotation = { kind: "rectangle" | "arrow" | "highlight" | "blur" | "redact"; x: number; y: number; w: number; h: number };

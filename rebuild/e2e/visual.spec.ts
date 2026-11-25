@@ -99,6 +99,12 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:/Share a reviewed copy/i}).click();
   await expect(page.getByRole("heading",{name:"Make a temporary link"})).toBeVisible();
   await expect(page.getByText(/Only this shared copy is uploaded/i)).toBeVisible();
+  await page.getByText("Set a review brief (optional)",{exact:true}).click();
+  await page.getByLabel("Review purpose").fill("Check the checkout flow");
+  await page.getByLabel("Review focus areas").fill("Watch the payment confirmation step");
+  await page.getByLabel("Expected outcome").fill("A successful payment shows a receipt");
+  await page.getByLabel("Requested action").selectOption("approve");
+  await expect(page.getByLabel("Requested action")).toHaveValue("approve");
   await page.getByRole("button",{name:"Close share settings"}).click();
   await page.getByRole("button",{name:"Close editor"}).click();
 });

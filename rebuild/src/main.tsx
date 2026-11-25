@@ -75,6 +75,10 @@ function App() {
   const [publishId, setPublishId] = useState<string | null>(null);
   const [expiryDays, setExpiryDays] = useState(3);
   const [sharePassword, setSharePassword] = useState("");
+  const [reviewPurpose, setReviewPurpose] = useState("");
+  const [reviewFocus, setReviewFocus] = useState("");
+  const [reviewExpected, setReviewExpected] = useState("");
+  const [reviewAction, setReviewAction] = useState<"review"|"approve"|"reproduce"|"fix">("review");
   const [publishing, setPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [storageEstimate, setStorageEstimate] = useState<{usage:number;quota:number}|null>(null);
@@ -321,6 +325,10 @@ function App() {
   async function shareClip(id: string) {
     if (!online) { setMessage("Sharing needs an internet connection. Your local recording is still available to preview, edit and download."); return; }
     const clip = await getClip(id);
+    setReviewPurpose(clip?.reviewBrief?.purpose || "");
+    setReviewFocus(clip?.reviewBrief?.focus || "");
+    setReviewExpected(clip?.reviewBrief?.expectedOutcome || "");
+    setReviewAction(clip?.reviewBrief?.requestedAction || "review");
     if (clip?.share && clip.share.expiresAt * 1000 > Date.now()) {
       const url = new URL(clip.share.url, location.origin).toString();
       setShareLink(url); await navigator.clipboard?.writeText(url).catch(() => undefined);
@@ -338,16 +346,18 @@ function App() {
       if (!clip) throw new Error("This local recording is no longer available.");
       if (!clip.duration || clip.duration > 600) throw new Error("This clip needs a valid duration of 10 minutes or less before it can be shared.");
       const previousShare = clip.share;
+      const brief = { purpose: reviewPurpose.trim().slice(0,160), focus: reviewFocus.trim().slice(0,400), expectedOutcome: reviewExpected.trim().slice(0,400), requestedAction: reviewAction };
+      const hasBrief = Boolean(brief.purpose || brief.focus || brief.expectedOutcome);
       const ownerKey = newOwnerKey();
       setUploadProgress(0);
       const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey, setUploadProgress);
       const resolvedOwnerKey = result.ownerKey || ownerKey;
-      const detailsResponse = await fetch("/api/share/" + result.token + "/details", { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey, details: { annotations: clip.annotations || [], captions: clip.captions || [], chapters: clip.chapters || [], report: clip.report || null, reviewStatus: clip.reviewStatus || "needs-feedback" } }) });
+      const detailsResponse = await fetch("/api/share/" + result.token + "/details", { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey, details: { annotations: clip.annotations || [], captions: clip.captions || [], chapters: clip.chapters || [], report: clip.report || null, reviewStatus: clip.reviewStatus || "needs-feedback", reviewBrief: hasBrief ? brief : null } }) });
       if (!detailsResponse.ok) {
         await fetch("/api/share/" + result.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey }) }).catch(() => undefined);
         throw new Error("The video uploaded, but its review context could not be saved. The incomplete share was rolled back; your local original is safe.");
       }
-      const next = { ...clip, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt } };
+      const next = { ...clip, reviewBrief: hasBrief ? brief : undefined, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt } };
       await saveClip(next); await refresh();
       let previousShareWarning = "";
       if (previousShare && previousShare.token !== result.token) {
@@ -488,6 +498,7 @@ function App() {
       <div className="publish-modal-head"><div><span className="eyebrow">SHARE A MOMENT</span><h2 id="publish-title">Make a temporary link</h2><p>Your original stays on this device. Only this shared copy is uploaded.</p></div><button className="icon-button" onClick={()=>setPublishId(null)} aria-label="Close share settings"><X size={18}/></button></div>
       <label className="field-label">Link expires after<select value={expiryDays} onChange={e=>setExpiryDays(Number(e.target.value))}><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option></select></label>
       <label className="field-label">Password protection <span className="optional-label">Optional</span><input type="password" minLength={8} maxLength={128} value={sharePassword} onChange={e=>setSharePassword(e.target.value)} placeholder="Add a password (8+ characters)"/></label>
+      <details className="review-brief-fields"><summary>Set a review brief (optional)</summary><p>Give your guest enough context to leave useful feedback.</p><label className="field-label">Review purpose<input aria-label="Review purpose" maxLength={160} value={reviewPurpose} onChange={e=>setReviewPurpose(e.target.value)} placeholder="What are they reviewing?"/></label><label className="field-label">Focus areas<textarea aria-label="Review focus areas" maxLength={400} rows={2} value={reviewFocus} onChange={e=>setReviewFocus(e.target.value)} placeholder="What should they look at?"/></label><label className="field-label">Expected outcome<textarea aria-label="Expected outcome" maxLength={400} rows={2} value={reviewExpected} onChange={e=>setReviewExpected(e.target.value)} placeholder="What should be true when this is correct?"/></label><label className="field-label">Requested action<select aria-label="Requested action" value={reviewAction} onChange={e=>setReviewAction(e.target.value as typeof reviewAction)}><option value="review">Review and give feedback</option><option value="approve">Approve</option><option value="reproduce">Reproduce this issue</option><option value="fix">Help fix this</option></select></label></details>
       <div className="privacy-explainer"><ShieldCheck size={17}/><span>Viewers don't need an account. Your shared copy and discussion are deleted when the link expires or you stop sharing.</span></div>
       <p className="upload-resume-note">Large uploads are sent in resumable parts. If your connection drops, retry sharing and completed parts will be reused.</p>
       {publishing && <div className="publish-progress"><div><span>Secure upload</span><strong>{uploadProgress}%</strong></div><progress max="100" value={uploadProgress}/></div>}
