@@ -44,14 +44,17 @@ const recording = await json(await request("/api/recordings", {
   method: "POST", headers,
   body: JSON.stringify({ title: "Live acceptance check", mimeType: "video/webm", size: 12, duration: 12 })
 }));
+const ownerKey = "a".repeat(64);
 const bytes = new Uint8Array([0x1a,0x45,0xdf,0xa3,0x93,0x42,0x86,0x81,0x01,0x42,0xf7,0x81]);
 const uploaded = await request(recording.uploadUrl, {
   method: "PUT", headers: { ...headers, "content-type": "video/webm", "content-length": String(bytes.byteLength) }, body: bytes
 });
+if (uploaded.status !== 200) {
+  await request("/api/recordings/" + recording.id, { method:"DELETE", headers, body:JSON.stringify({ ownerKey }) }).catch(() => undefined);
+}
 assert.equal(uploaded.status, 200, "real R2 upload succeeds");
 assert.equal((await json(uploaded)).status, "ready");
 
-const ownerKey = "a".repeat(64);
 const published = await json(await request(`/api/recordings/${recording.id}/publish`, {
   method: "POST", headers,
   body: JSON.stringify({ expiresInDays: 1, password: "live-check-password", ownerKey })
