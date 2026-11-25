@@ -46,7 +46,7 @@ async function saveClip(env:LegacyEnv,record:ClipRecord,clip:any,patch:Record<st
  if(patch.mediaTokenExpires!==undefined)row.media_token_expires=patch.mediaTokenExpires as number|null;
 }
 async function transitionStatus(env:LegacyEnv,record:ClipRecord,clip:any,nextStatus:string,patch:Record<string,unknown>={}){
- const oldStatus=record.row.status,id=record.row.id,size=clip.size;
+ const row=record.row,oldStatus=row.status,id=row.id,size=clip.size;
  const toTerminal=terminal(nextStatus)&&["pending","published"].includes(oldStatus);
  const releaseBytes=oldStatus==="pending"&&nextStatus==="published"?size:toTerminal?(oldStatus==="pending"?2*size:size):0;
  const releaseCount=toTerminal?1:0;
