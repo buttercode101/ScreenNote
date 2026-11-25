@@ -5,7 +5,7 @@ const digest=async(value:string)=>[...new Uint8Array(await crypto.subtle.digest(
 const owner="a".repeat(64),authorKey="b".repeat(48),replyKey="c".repeat(48);
 const uuid=()=>crypto.randomUUID();
 async function clip(){
- return {id:uuid(),ownerHash:await digest(owner),status:"published",expiresAt:Date.now()+86400000,start:0,end:30,duration:30,title:"Unit clip",comments:[],votes:{},discussionRevision:0};
+ return {id:uuid(),ownerHash:await digest(owner),status:"published",expiresAt:Date.now()+86400000,start:0,end:30,duration:30,title:"Unit clip",comments:[] as any[],votes:{} as Record<string,string>,discussionRevision:0};
 }
 describe("Cloudflare 0.5.0 API parity helpers",()=>{
  it("hashes passwords with PBKDF2 and rejects incorrect values",async()=>{
