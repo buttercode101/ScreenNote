@@ -72,6 +72,13 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.locator(".context-editor textarea").first().fill("WEBVTT\n\n00:00:00.100 --> 00:00:00.500\nOpening frame");
   await page.getByRole("button",{name:/Save context/i}).click();
   await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
+  const srtDownloadPromise=page.waitForEvent("download");
+  await page.getByRole("button",{name:/Export SRT/i}).click();
+  expect((await srtDownloadPromise).suggestedFilename()).toMatch(/\\.srt$/);
+  await page.locator(".context-editor textarea").nth(1).fill("0:00 Introduction");
+  const chapterDownloadPromise=page.waitForEvent("download");
+  await page.getByRole("button",{name:/Export chapters JSON/i}).click();
+  expect((await chapterDownloadPromise).suggestedFilename()).toMatch(/chapters\\.json$/);
   await page.getByRole("button",{name:/Edit & annotate/i}).click();
   await page.getByRole("button",{name:"Blur"}).click();
   const canvas=page.locator(".annotation-overlay");
