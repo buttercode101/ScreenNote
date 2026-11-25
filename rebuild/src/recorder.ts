@@ -21,6 +21,7 @@ export class ScreenRecorder {
   private audioContext?: AudioContext;
   private cleanupVideo?: () => void;
   private displayTrack?: MediaStreamTrack;
+  private displayEndedHandler?: () => void;
   private frameId = 0;
   private chunks: Blob[] = [];
   private pendingWrites: Promise<void>[] = [];
@@ -104,13 +105,16 @@ export class ScreenRecorder {
           this.pendingWrites.push(writeChunk(event.data, this.chunkIndex++));
         }
       };
-      displayTrack.addEventListener("ended", () => {
+      this.displayEndedHandler = () => {
         if (this.recorder?.state === "recording" || this.recorder?.state === "paused") {
           this.stop().then((result) => window.dispatchEvent(new CustomEvent<RecordingResult>("screennote:recording-finished", { detail: result }))).catch(() => undefined);
         } else {
-          this.cancel(); this.onSourceEnded?.();
+          const notify = this.onSourceEnded;
+          this.cancel();
+          notify?.();
         }
-      }, { once: true });
+      };
+      displayTrack.addEventListener("ended", this.displayEndedHandler, { once: true });
     } catch (error) {
       cleanupVideo?.(); [display, ...(microphone ? [microphone] : []), ...(camera ? [camera] : []), ...(composite ? [composite] : [])].forEach(source => source.getTracks().forEach(track => track.stop()));
       await audioContext?.close().catch(() => undefined); throw error;
@@ -156,11 +160,10 @@ export class ScreenRecorder {
 
   private clearTimer(): void { if (this.timer !== undefined) window.clearInterval(this.timer); this.timer = undefined; }
   private cleanup(): void {
-    this.clearTimer(); this.displayTrack?.removeEventListener("ended", this.handleDisplayEnded);
+    this.clearTimer(); if (this.displayTrack && this.displayEndedHandler) this.displayTrack.removeEventListener("ended", this.displayEndedHandler);
     this.stream?.getTracks().forEach(track => track.stop());
     this.sourceStreams.forEach(source => source.getTracks().forEach(track => track.stop()));
     this.cleanupVideo?.(); void this.audioContext?.close().catch(() => undefined);
-    this.stream = undefined; this.sourceStreams = []; this.audioContext = undefined; this.cleanupVideo = undefined; this.displayTrack = undefined; this.recorder = undefined; this.chunks = []; this.pendingWrites = []; this.onTick = undefined; this.onSourceEnded = undefined;
+    this.stream = undefined; this.sourceStreams = []; this.audioContext = undefined; this.cleanupVideo = undefined; this.displayTrack = undefined; this.displayEndedHandler = undefined; this.recorder = undefined; this.chunks = []; this.pendingWrites = []; this.onTick = undefined; this.onSourceEnded = undefined;
   }
-  private handleDisplayEnded = () => undefined;
 }
