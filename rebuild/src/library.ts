@@ -208,6 +208,13 @@ export async function restoreRecordingSession(sessionId: string): Promise<void> 
     request.onerror = () => reject(request.error);
   });
   if (!chunks.length) throw new Error("No recoverable video data was found");
+  if (chunks.some((chunk,index) => chunk.index !== index) || chunks.length !== session.chunkCount) {
+    throw new Error("Recovery data is incomplete. Keep this recovery session and do not discard it.");
+  }
+  const recoveredBytes = chunks.reduce((sum,chunk)=>sum+chunk.blob.size,0);
+  if (session.totalBytes && recoveredBytes !== session.totalBytes) {
+    throw new Error("Recovery data failed its size check. The original recovery data has been preserved.");
+  }
   const blob = new Blob(chunks.map((chunk) => chunk.blob), { type: session.mimeType });
   await finalizeRecordingSession(sessionId, {
     id: session.id,
