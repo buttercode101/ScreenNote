@@ -16,10 +16,19 @@ try {
   browser = await chromium.launch({ headless: true });
   creatorContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
   const creator = await creatorContext.newPage();
+  creator.on("console", message => { if (message.type() === "error") console.error("[live browser console]", message.text()); });
+  creator.on("pageerror", error => console.error("[live browser page error]", error));
+  creator.on("requestfailed", request => console.error("[live browser request failed]", request.url(), request.failure()?.errorText));
+  creator.on("response", response => { if (response.status() >= 400 && new URL(response.url()).origin === origin) console.error("[live browser HTTP]", response.status(), response.url()); });
   await creator.goto(base, { waitUntil: "domcontentloaded" });
   await creator.getByRole("heading", { name: /Make it clear/i }).waitFor();
   await creator.locator('input[type="file"]').first().setInputFiles(sample);
-  await creator.getByRole("heading", { name: "sample", exact: true }).waitFor({ timeout: 20000 });
+  try { await creator.getByRole("heading", { name: "sample", exact: true }).waitFor({ timeout: 20000 }); }
+  catch (error) {
+    await creator.screenshot({ path: path.join(output, "creator-import-failure.png"), fullPage: true });
+    console.error("[live browser import diagnostics]", JSON.stringify({ titles: await creator.locator(".clip-card h3").allTextContents(), statuses: await creator.locator("[role=status]").allTextContents(), body: (await creator.locator("body").innerText()).slice(0, 4000) }));
+    throw error;
+  }
   await creator.locator(".clip-thumb").waitFor();
   await creator.screenshot({ path: path.join(output, "creator-library.png"), fullPage: true });
 
