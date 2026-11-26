@@ -158,3 +158,5 @@ The local production build now splits capture, annotation, import, and editor/co
 
 ## Media lifecycle regression fix — 26 Nov 2026
 A final production trim test exposed blob URL `ERR_FILE_NOT_FOUND` console errors from temporary metadata/trim video elements revoking their source before media teardown completed. The metadata preview and trim helper now pause, detach the source, call `load()`, and defer URL revocation for 60 seconds; Node timers are unreferenced so test processes do not wait on cleanup timers. The editor also detaches previews before replacing them, and local download uses a separate object URL. After the fix, local trim + annotation E2E remained successful through a 15-second follow-up with zero console errors (only expected aborted requests when elements are replaced).
+
+- GitHub verification for media lifecycle fix commit `bb6f7fadd60b7da69e905b876d2422c2ff7e81c3`: ScreenNote CI and Verify ScreenNote both completed successfully; Android internal build was still running at the last status check.
