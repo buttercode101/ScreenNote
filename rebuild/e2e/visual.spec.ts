@@ -99,6 +99,8 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.locator(".editor-title-wrap input").fill("A".repeat(100));
   await page.keyboard.press("Enter");
   await expect(page.locator(".editor-title-button")).toHaveText("A".repeat(100));
+  await expect(page.locator(".editor-title-button")).toHaveAttribute("title","A".repeat(100));
+  await expect(page.locator(".editor-title-button")).toHaveCSS("-webkit-line-clamp","2");
   await page.getByRole("button",{name:/Captions & context/i}).click();
   await expect(page.getByText(/OWNER-SUPPLIED CAPTIONS/i)).toBeVisible();
   await page.locator(".context-editor textarea").first().fill("WEBVTT\n\n00:00:00.100 --> 00:00:00.500\nOpening frame");
