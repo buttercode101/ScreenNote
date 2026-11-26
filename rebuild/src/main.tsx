@@ -6,7 +6,8 @@ import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordin
 import { makeLibraryBackup, readLibraryBackup } from "../legacy/lib/library-backup.js";
 import { ScreenRecorder, cameraBubbleFootprint, supportedMimeType, type RecordingResult, type QualityPreset } from "./recorder";
 import CameraBubblePosition from "./CameraBubblePosition";
-import { newOwnerKey, publishRecording } from "./sharing";\nimport { planShareVersion } from "./shareVersions";
+import { newOwnerKey, publishRecording } from "./sharing";
+import { planShareVersion } from "./shareVersions";
 import { clampTrimRange, trimVideoElement } from "./trim";
 import ShareViewer from "./ShareViewer";
 import PrivacyPage from "./PrivacyPage";
