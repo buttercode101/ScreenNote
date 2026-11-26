@@ -379,19 +379,33 @@ function App() {
         await fetch("/api/share/" + result.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey }) }).catch(() => undefined);
         throw new Error("The video uploaded, but its review context could not be saved. The incomplete share was rolled back; your local original is safe.");
       }
-      const next = { ...clip, reviewBrief: hasBrief ? brief : undefined, shareHistory:versionPlan.history, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt, version:versionPlan.version, publishedAt:publishTimestamp } };
+      const next = { ...clip, reviewBrief: hasBrief ? brief : undefined, shareHistory:[...versionPlan.history,...versionPlan.historyToRevoke], share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt, version:versionPlan.version, publishedAt:publishTimestamp } };
       await saveClip(next); setPreviewClip(next); await refresh();
       let previousShareWarning = "";
       if (versionPlan.previousToRevoke && previousShare && previousShare.token !== result.token) {
         const stopped = await fetch("/api/share/" + previousShare.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: previousShare.ownerKey }) }).catch(() => null);
         if (!stopped || (!stopped.ok && stopped.status !== 404)) {
           const failedVersion:ShareVersion={...previousShare,version:previousShare.version??Math.max(1,versionPlan.version-1),publishedAt:previousShare.publishedAt??publishTimestamp,title:clip.title,revocationPending:true};
-          const recoverable={...next,shareHistory:[failedVersion,...versionPlan.history.filter(item=>item.token!==failedVersion.token)].slice(0,10)};
+          const latest=await getClip(publishId)||next;
+          const recoverable={...latest,shareHistory:[failedVersion,...(latest.shareHistory||[]).filter(item=>item.token!==failedVersion.token)].sort((a,b)=>b.version-a.version)};
           await saveClip(recoverable);setPreviewClip(recoverable);await refresh();
-          previousShareWarning = " The previous link could not be revoked. It was retained in version history so you can retry; it may remain active until revoked or expired.";
+          previousShareWarning += " The previous link could not be revoked. It was retained in version history so you can retry; it may remain active until revoked or expired.";
         }
       }
-      if(versionPlan.previousKept)previousShareWarning=" Previous version "+versionPlan.previousKept.version+" remains available in local version history; its feedback stays attached to that version.";
+      for(const oldVersion of versionPlan.historyToRevoke){
+        const stopped=await fetch("/api/share/"+oldVersion.token+"/manage",{method:"DELETE",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({ownerKey:oldVersion.ownerKey})}).catch(()=>null);
+        const latest=await getClip(publishId)||next;
+        if(stopped&&(stopped.ok||stopped.status===404)){
+          const cleaned={...latest,shareHistory:(latest.shareHistory||[]).filter(item=>item.token!==oldVersion.token)};
+          await saveClip(cleaned);setPreviewClip(cleaned);await refresh();
+        }else{
+          const pending={...oldVersion,revocationPending:true};
+          const recoverable={...latest,shareHistory:[...(latest.shareHistory||[]).filter(item=>item.token!==pending.token),pending].sort((a,b)=>b.version-a.version)};
+          await saveClip(recoverable);setPreviewClip(recoverable);await refresh();
+          previousShareWarning += " Older version "+oldVersion.version+" could not be revoked and remains in history for retry.";
+        }
+      }
+      if(versionPlan.previousKept)previousShareWarning += " Previous version "+versionPlan.previousKept.version+" remains available in local version history; its feedback stays attached to that version.";
       const fullUrl = new URL(result.url, location.origin).toString();
       setShareLink(fullUrl);setShareLinkVersion(versionPlan.version);
       setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey: resolvedOwnerKey, recordingId: result.id, expiresAt: result.expiresAt, reviewVersion:versionPlan.version }, null, 2));
