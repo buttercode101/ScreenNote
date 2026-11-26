@@ -535,7 +535,7 @@ test("light and dark text tokens meet WCAG AA contrast",async({page})=>{
 
 test("transient share and alert surfaces keep readable contrast in both themes",async({page})=>{
   await page.goto("/");
-  await page.evaluate(()=>document.body.insertAdjacentHTML("beforeend",\`
+  await page.evaluate(()=>document.body.insertAdjacentHTML("beforeend",`
     <div class="share-link-toast"><div><strong>Share link ready</strong><span>https://example.test/share</span></div><button class="button secondary">Copy link</button></div>
     <p class="share-error">The share could not be published.</p>
     <span class="shared-review-status changes-requested">Changes requested</span>
@@ -545,7 +545,7 @@ test("transient share and alert surfaces keep readable contrast in both themes",
     <div class="capture-unavailable">Capture unavailable</div>
     <button class="button danger">Delete</button>
     <span class="duration">0:45</span>
-  \`));
+  `));
   const contrast=async(selector:string)=>page.locator(selector).evaluate(el=>{
     const rgb=(value:string)=>value.match(/[\d.]+/g)!.slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});
     const lum=(v:number[])=>.2126*v[0]+.7152*v[1]+.0722*v[2];
