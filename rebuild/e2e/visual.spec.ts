@@ -405,7 +405,7 @@ test("transient share and alert surfaces keep readable contrast in both themes",
   const contrast=async(selector:string)=>page.locator(selector).evaluate(el=>{
     const rgb=(value:string)=>value.match(/[\\d.]+/g)!.slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});
     const lum=(v:number[])=>.2126*v[0]+.7152*v[1]+.0722*v[2];
-    const style=getComputedStyle(el),fg=lum(rgb(style.color)),bg=lum(rgb(style.backgroundColor));return (Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);
+    const style=getComputedStyle(el),fg=lum(rgb(style.color));let bgColor=style.backgroundColor;if(bgColor==="transparent"||bgColor==="rgba(0, 0, 0, 0)")bgColor=getComputedStyle(el.closest(".share-link-toast")||document.body).backgroundColor;const bg=lum(rgb(bgColor));return (Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);
   });
   for(const theme of ["light","dark"]){
     if(theme==="dark")await page.getByRole("button",{name:"Toggle appearance"}).click();
