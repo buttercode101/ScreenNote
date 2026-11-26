@@ -49,7 +49,7 @@ async function assertNamedControls(page:import("@playwright/test").Page){
 
 test.beforeAll(async()=>{await mkdir("test-results/screenshots",{recursive:true});});
 
-test("independent React workspace is contained at 13 widths in light and dark",async({page})=>{
+test("independent React workspace is contained at 13 widths, short landscape heights and light/dark",async({page})=>{
   await page.goto("/");
   await expect(page.getByRole("heading",{level:1,name:/Make it clear/i})).toBeVisible();
   await expect(page.locator('script[type="module"][src="/src/main.tsx"]')).toHaveCount(1);
@@ -72,9 +72,19 @@ test("independent React workspace is contained at 13 widths in light and dark",a
   await page.getByRole("button",{name:"Toggle appearance"}).click();
   for(const v of landscape){await page.setViewportSize(v);await contained(page,v.width);}
   await page.setViewportSize({width:320,height:640});
-  await page.evaluate(()=>{document.documentElement.style.zoom="1.5"});
   await contained(page,320);
-  await page.evaluate(()=>{document.documentElement.style.zoom="1"});
+});
+
+test("high-DPI mobile viewport keeps controls contained and reachable",async({browser})=>{
+  const context=await browser.newContext({viewport:{width:320,height:640},deviceScaleFactor:2});
+  const page=await context.newPage();
+  await page.goto("/");
+  await contained(page,320);
+  await page.getByRole("button",{name:"Open preferences"}).click();
+  await expect(page.getByRole("dialog",{name:/Preferences & backups/i})).toBeVisible();
+  await contained(page,320);
+  await page.getByRole("button",{name:/Close preferences/i}).click();
+  await context.close();
 });
 
 test("imported recording opens the full editor with preview, annotations, captions and sharing",async({page})=>{
