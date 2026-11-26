@@ -73,3 +73,13 @@ Take over the isolated Cloudflare rebuild and make the whole product substantial
 ## Acceptance rule
 
 Do not mark this rebuild complete because a workflow is green, the Worker is deployed, or one screen looks polished. Close every applicable ledger item with implementation and evidence, disclose external gates, and keep production isolated until the user explicitly authorizes cutover.
+
+
+## Addendum — current execution batch
+
+- Semantic root palette cleanup and typography/line-height token application are committed.
+- Review status chip surfaces now use semantic accent/alert tokens.
+- Guest share review packet now exports JSON and Markdown, uses absolute share/media URLs, includes guest decisions, and redacts deleted comment text.
+- Repro Capsule extension, parser, editor import, unit tests, extension privacy-boundary tests and E2E import/export assertions are committed.
+- Latest observed workflow for commit `1ef0aa1be7a767d3abb759fa8af085b68da93e0a` is running; do not report the current batch as green until its E2E and isolated deployment/live browser jobs complete.
+- The previous 7782 commit Cloudflare workflow failed typecheck due a malformed regression-test fixture; that fixture was corrected in commit `1ef0aa1...` and is being rerun. The failure was in the test source, not in the application code.
