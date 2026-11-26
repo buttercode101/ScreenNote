@@ -30,7 +30,7 @@ try {
     console.error("[live browser import diagnostics]", JSON.stringify({ titles: await creator.locator(".clip-card h3").allTextContents(), statuses: await creator.locator("[role=status]").allTextContents(), body: (await creator.locator("body").innerText()).slice(0, 4000) }));
     throw error;
   }
-  const importedTitle = (await importedHeading.textContent() || "").replace(/\\s+/g, " ").trim();
+  const importedTitle = (await importedHeading.textContent() || "").replace(/\s+/g, " ").trim();
   assert.match(importedTitle, /sample/i, "the imported sample file should appear in the library");
   await creator.locator(".clip-thumb").waitFor();
   await creator.screenshot({ path: path.join(output, "creator-library.png"), fullPage: true });
