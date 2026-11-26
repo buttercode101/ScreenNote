@@ -142,7 +142,7 @@ function ShareViewer({token}:{token:string}) {
     }));
   }
   function buildReviewPacket() {
-    if (!share) return null;
+    if(!share)return null;
     return {
       schema:"screennote.review-packet",
       version:1,
@@ -170,55 +170,24 @@ function ShareViewer({token}:{token:string}) {
     window.setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
   function exportHandoff() {
-    const payload=buildReviewPacket();if(!payload)return;
-    saveExport("screennote-review-packet.json","application/json",JSON.stringify(payload,null,2));
+    const packet=buildReviewPacket();if(!packet)return;
+    saveExport("screennote-review-packet.json","application/json",JSON.stringify(packet,null,2));
   }
   function exportMarkdown() {
     const packet=buildReviewPacket();if(!packet||!share)return;
-    const safe=(value:string)=>value.replace(/[\\`*_{}\\[\\]()#+.!|>~-]/g,"\\  function buildThread(parentId:string|null):unknown[] {
-    return comments.filter(comment=>comment.parentId===parentId).map(comment=>({
-      id:comment.id, author:comment.viewerLabel, text:comment.body,
-      timestampSeconds:comment.time, timestampLabel:timeLabel(comment.time),
-      resolved:!!comment.resolved, deleted:!!comment.deletedAt,
-      replies:buildThread(comment.id)
-    }));
-  }
-  function exportHandoff() {
-    if (!share) return;
-    const payload = {
-      schema: "screennote.agent-handoff",
-      version: 1,
-      product: "ScreenNote",
-      title: share.title,
-      media: { mimeType: share.mimeType, sizeBytes: share.size, durationSeconds: share.duration, downloadPath: "/api/share/" + token + "/media" },
-      share: { expiresAt: new Date(share.expiresAt * 1000).toISOString(), passwordProtected: share.passwordRequired },
-      discussion: buildThread(null),
-      reviewStatus: details.reviewStatus || "needs-feedback",
-      reviewBrief: details.reviewBrief || null,
-      videoAnnotations: details.annotations || [],
-      captions: details.captions || [],
-      chapters: details.chapters || [],
-      bugReport: details.report || null,
-      keyframes: [],
-      annotations: comments.filter(comment => comment.anchorX !== null && comment.anchorX !== undefined).map(comment => ({ commentId: comment.id, timestampSeconds: comment.time, x: comment.anchorX, y: comment.anchorY, text: comment.body })),
-      exportedAt: new Date().toISOString(),
-      instructions: "Use the timestamped discussion to inspect the corresponding moment in the accompanying video. Treat comments as review context, not verified facts."
-    };
-    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
-    const anchor = document.createElement("a"); anchor.href = url; anchor.download = "screennote-agent-handoff.json"; anchor.click(); URL.revokeObjectURL(url);
-  }");
-    const quote=(value:string)=>value.split("\\n").map(line=>"> "+safe(line)).join("\\n");
+    const safe=(value:string)=>[...value].map(ch=>"#*\`_[]()|>".includes(ch)?"\\"+ch:ch).join("");
+    const quote=(value:string)=>value.split(/\r?\n/).map(line=>"> "+safe(line)).join("\n");
     const action=({review:"Review and give feedback",approve:"Approve",reproduce:"Reproduce this issue",fix:"Help fix this"} as const)[details.reviewBrief?.requestedAction||"review"];
     const lines=[`# Review packet — ${safe(share.title)}`,"",`- **Status:** ${safe(packet.reviewStatus)}`,`- **Share:** ${packet.shareUrl}`,`- **Video:** ${packet.media.url}`,`- **Expires:** ${packet.share.expiresAt}`,`- **Password protected:** ${packet.share.passwordProtected?"Yes":"No"}`,""];
-    if(details.reviewBrief){lines.push("## Review brief","",details.reviewBrief.purpose?quote(details.reviewBrief.purpose):"",details.reviewBrief.focus?"**Focus**\\n\\n"+quote(details.reviewBrief.focus):"",details.reviewBrief.expectedOutcome?"**Expected outcome**\\n\\n"+quote(details.reviewBrief.expectedOutcome):"",`**Requested action:** ${safe(action)}`,"");}
-    if(reviews.length){lines.push("## Guest decisions","");for(const review of reviews){lines.push(`### ${safe(review.reviewerLabel||"Guest")} — ${safe(reviewDecisionLabel(review.decision))}`,`- **Moment:** ${timeLabel(review.time)}`,`- **Updated:** ${new Date(review.updatedAt*1000).toISOString()}`,review.comment?quote(review.comment):"", "");}}
-    const appendComments=(parentId:string|null,depth=0):string[]=>comments.filter(comment=>comment.parentId===parentId).flatMap(comment=>{const text=comment.deletedAt?"[Comment deleted]":comment.body;return [`${"  ".repeat(depth)}- **${timeLabel(comment.time)} · ${safe(comment.viewerLabel||"Guest")}${comment.resolved?" · resolved":""}:** ${safe(text).replace(/\\n/g,"\\n  ")}`,...appendComments(comment.id,depth+1)];});
+    if(details.reviewBrief)lines.push("## Review brief","",details.reviewBrief.purpose?quote(details.reviewBrief.purpose):"",details.reviewBrief.focus?"**Focus**\n\n"+quote(details.reviewBrief.focus):"",details.reviewBrief.expectedOutcome?"**Expected outcome**\n\n"+quote(details.reviewBrief.expectedOutcome):"",`**Requested action:** ${safe(action)}`,"");
+    if(reviews.length){lines.push("## Guest decisions","");for(const review of reviews)lines.push(`### ${safe(review.reviewerLabel||"Guest")} — ${safe(reviewDecisionLabel(review.decision))}`,`- **Moment:** ${timeLabel(review.time)}`,`- **Updated:** ${new Date(review.updatedAt*1000).toISOString()}`,review.comment?quote(review.comment):"", "");}
+    const appendComments=(parentId:string|null,depth=0):string[]=>comments.filter(comment=>comment.parentId===parentId).flatMap(comment=>{const text=comment.deletedAt?"[Comment deleted]":comment.body;return [`${"  ".repeat(depth)}- **${timeLabel(comment.time)} · ${safe(comment.viewerLabel||"Guest")}${comment.resolved?" · resolved":""}:** ${safe(text).replace(/\r?\n/g,"\n  ")}`,...appendComments(comment.id,depth+1)];});
     lines.push("## Timestamped discussion","",...appendComments(null),"");
     if(details.chapters?.length)lines.push("## Chapters","",...details.chapters.map(chapter=>`- ${timeLabel(chapter.time)} — ${safe(chapter.title)}`),"");
     if(details.captions?.length)lines.push("## Captions / transcript","",...details.captions.map(cue=>`- ${timeLabel(cue.start)}–${timeLabel(cue.end)}: ${safe(cue.text)}`),"");
-    if(details.report){lines.push("## Bug report","",details.report.url?`- **Page:** ${safe(details.report.url)}`:"",details.report.steps?"**Reproduction steps**\\n\\n"+quote(details.report.steps):"",details.report.expected?"**Expected**\\n\\n"+quote(details.report.expected):"",details.report.actual?"**Actual**\\n\\n"+quote(details.report.actual):"",details.report.environment?"**Environment**\\n\\n"+quote(details.report.environment):"","");}
+    if(details.report)lines.push("## Bug report","",details.report.url?`- **Page:** ${safe(details.report.url)}`:"",details.report.steps?"**Reproduction steps**\n\n"+quote(details.report.steps):"",details.report.expected?"**Expected**\n\n"+quote(details.report.expected):"",details.report.actual?"**Actual**\n\n"+quote(details.report.actual):"",details.report.environment?"**Environment**\n\n"+quote(details.report.environment):"","");
     lines.push("---",`Exported from ScreenNote on ${packet.exportedAt}.`,"Guest names are unverified. Deleted comment text is excluded.");
-    saveExport("screennote-review-packet.md","text/markdown;charset=utf-8",lines.filter(Boolean).join("\\n"));
+    saveExport("screennote-review-packet.md","text/markdown;charset=utf-8",lines.join("\n"));
   }
   function downloadVideo() {
     const anchor = document.createElement("a"); anchor.href = "/api/share/" + token + "/media"; const extension = share?.mimeType === "video/mp4" ? "mp4" : share?.mimeType === "video/quicktime" ? "mov" : "webm"; anchor.download = (share?.title || "screennote").replace(/[^a-z0-9-_ ]/gi, "").trim() + "." + extension; anchor.click();
