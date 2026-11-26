@@ -44,6 +44,7 @@ try {
   await creator.getByRole("button", { name: "Share " + importedTitle }).click();
   await creator.getByRole("heading", { name: "Make a temporary link" }).waitFor();
   await creator.locator(".publish-modal input[type=password]").fill(password);
+  await creator.locator(".review-brief-fields > summary").click();
   await creator.getByLabel("Review purpose").fill("Live browser acceptance");
   await creator.getByLabel("Review focus areas").fill("Verify guest feedback and creator controls");
   await creator.getByLabel("Expected outcome").fill("The shared clip is reviewed and can be revoked");
