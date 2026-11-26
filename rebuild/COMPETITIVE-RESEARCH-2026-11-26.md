@@ -70,6 +70,34 @@ These are the public web baselines, not ScreenNote's stretch goals. ScreenNote s
 Chrome's screen-capture documentation confirms that `getDisplayMedia()` invokes the browser's user-facing picker and can return selected tab/window/screen video (and audio where supported); browser permission and supported audio tracks are not controllable by ScreenNote.
 Source: https://developer.chrome.com/docs/extensions/how-to/web-platform/screen-capture
 
+## Feature-gap matrix and response
+
+| Workflow | Competitor evidence | ScreenNote response / gap to close |
+|---|---|---|
+| Capture modes | Loom, Claap, Tella and Zight document screen, camera and/or combined capture. | Keep the browser flow simple; expose mic/system audio/camera as clear toggles, preserve import as an equal first-class path, and communicate browser capability limits before capture. |
+| Feedback precision | Claap documents timestamps, pinned moments and area annotations; Loom offers video comments/reactions. | Combine timestamp + normalized frame-point + drawn region, with accurate seek and annotation persistence across trim. |
+| Post-capture polish | Tella documents clip workflows, transcript editing, subtitles and zoom effects; Zight documents trim and annotations. | Keep editing lightweight and safe: non-destructive trim, original retained, annotations/captions/chapters in one review workspace. |
+| Guest collaboration | Loom/Claap support shared links and video discussion; Claap documents public links without requiring an account. | Account-free guest review is the default; comments and review decisions remain tied to a temporary share and expire with it. |
+| Privacy and lifecycle | Competitors provide privacy controls; ScreenNote's documented model is local-first and temporary by design. | Make local-only vs published status unmistakable, show expiry/password before publishing, and verify revoke/expiry deletes media and discussion from D1/R2. |
+| Workflow completion | Zight has request links and bug-report flows; Loom has integrations and analytics. | Close the loop with a compact review brief, approve/changes/question decisions, resolve/reopen threads, and exportable Markdown handoff—without turning the app into a heavyweight team suite. |
+| Visual quality | Tella emphasizes creator-grade output; major products use familiar video-player conventions. | Avoid feature parity clutter. A quiet editorial interface, reliable responsive video, strong typography and one clear primary action per state should make the product feel considered. |
+
+## ScreenNote performance stretch goals
+
+These are **acceptance targets, not measured results**. Measure with Lighthouse/CrUX and real-device traces; report p75 separately for mobile and desktop.
+
+| Metric | Public good baseline | ScreenNote stretch target |
+|---|---:|---:|
+| LCP | <= 2.5 s | <= 1.8 s |
+| INP | <= 200 ms | <= 150 ms |
+| CLS | <= 0.1 | <= 0.05 |
+| Comment-to-frame seek | no standard CWV metric | <= 100 ms after click on local/shared playback |
+| Local recording persistence | no standard CWV metric | begin chunk persistence during capture; stop should finalize without a full-file re-encode |
+| Editor readiness | no universal competitor benchmark published | <= 2.0 s on the defined mid-range Android test device with a representative 1080p clip |
+| Upload feedback | no comparable public benchmark found | progress updates at least every 500 ms; never block local save on cloud publish |
+
+Do not claim ScreenNote is faster than a competitor until the same workload, device, browser, network and capture settings have been measured against that competitor.
+
 ## ScreenNote's differentiated product promise
 
 **A temporary, private-by-default video review room—not another permanent video library.**
