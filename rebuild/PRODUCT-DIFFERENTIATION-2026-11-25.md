@@ -186,3 +186,11 @@ Do not charge merely to remove arbitrary friction from the free local workflow. 
 A release is not accepted until a fresh guest can open a share without an account, understand the brief, watch and seek, leave timestamped feedback, choose a review decision, refresh without losing it, and the owner can see the decision, resolve it, publish a revised version, and export an accurate issue packet. Test password-protected, expired and revoked links; 320px mobile; keyboard-only; both themes; concurrent reviewer submissions; and failed/offline states.
 
 This document is the product direction and acceptance definition. It does not claim these proposed features have already been implemented or deployed.
+
+
+## 26 November implementation update
+
+- The guest share now offers a JSON review packet and a Markdown review handoff, including guest decisions and complete review context. Deleted comment bodies are redacted from both formats.
+- The optional Chrome/Edge Repro Capsule extension and editor import path are implemented on the isolated rebuild branch. Capture is explicit, local-only, permission-limited, and excludes typed values/form data/network/console/screenshot capture. The import parser validates schema, caps step count and size, strips URL credentials/query/fragment, and formats a reviewable reproduction outline.
+- Automated unit, extension-boundary and editor-import tests have been added. They are not a substitute for manual installation/testing in actual Chrome and Edge.
+- Version-aware media review remains unimplemented: current comments are not safely migrated across different media versions. Do not claim that feature is shipped.
