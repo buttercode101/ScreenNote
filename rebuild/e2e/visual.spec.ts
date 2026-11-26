@@ -116,6 +116,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await assertNamedControls(page);
   const previewDialog=page.locator(".preview-workspace"),previewButtons=previewDialog.locator("button");
   await previewButtons.first().focus();await page.keyboard.press("Shift+Tab");await expect(previewButtons.last()).toBeFocused();await page.keyboard.press("Tab");await expect(previewButtons.first()).toBeFocused();
+  await expect(previewButtons.first()).toHaveCSS("outline-color","rgb(49, 91, 69)");
   for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width)){await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});await page.screenshot({path:`test-results/screenshots/preview-viewport-${width}.png`});}}
   await page.getByRole("button",{name:/Open editor/i}).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
