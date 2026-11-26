@@ -116,7 +116,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await assertNamedControls(page);
   const previewDialog=page.locator(".preview-workspace"),previewButtons=previewDialog.locator("button");
   await previewButtons.first().focus();await page.keyboard.press("Shift+Tab");await expect(previewButtons.last()).toBeFocused();await page.keyboard.press("Tab");await expect(previewButtons.first()).toBeFocused();
-  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});}
+  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width)){await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});await page.screenshot({path:`test-results/screenshots/preview-viewport-${width}.png`);}}
   await page.getByRole("button",{name:/Open editor/i}).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
   await assertNamedControls(page);
@@ -168,7 +168,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   const savedLongTitle=page.locator('.clip-card h3[title="'+ "A".repeat(100) +'"]');
   await expect(savedLongTitle).toBeVisible();
   await expect(savedLongTitle).toHaveCSS("-webkit-line-clamp","2");
-  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if(width===320){const heights=await page.locator(".editor-toolbar button,.editor-tabs button").evaluateAll(nodes=>nodes.filter(node=>getComputedStyle(node).display!=="none").map(node=>node.getBoundingClientRect().height));expect(heights.length).toBeGreaterThan(0);expect(heights.every(height=>height>=44)).toBe(true);}if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
+  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if(width===320){const heights=await page.locator(".editor-toolbar button,.editor-tabs button").evaluateAll(nodes=>nodes.filter(node=>getComputedStyle(node).display!=="none").map(node=>node.getBoundingClientRect().height));expect(heights.length).toBeGreaterThan(0);expect(heights.every(height=>height>=44)).toBe(true);}if([320,1440].includes(width)){await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});await page.screenshot({path:`test-results/screenshots/editor-viewport-${width}.png`);}}
   for(const v of [{width:568,height:320},{width:844,height:390},{width:1024,height:600}]){await page.setViewportSize(v);await contained(page,v.width);await expect(page.getByRole("button",{name:"Close editor"})).toBeVisible();}
   await page.setViewportSize({width:1280,height:900});
   await page.getByRole("button",{name:/Share a reviewed copy/i}).click();
