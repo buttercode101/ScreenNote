@@ -7,12 +7,15 @@ async function proxyLegacyClip(request: Request): Promise<Response> {
   const incoming = new URL(request.url);
   const upstream = new URL("/api/clip" + incoming.search, LEGACY_API_ORIGIN);
   const headers = new Headers(request.headers);
-  headers.delete("host"); headers.delete("content-length"); headers.delete("cf-connecting-ip");
+  for (const name of [...headers.keys()]) {
+    const lower = name.toLowerCase();
+    if (["host","content-length","cookie","authorization","proxy-authorization","forwarded","x-real-ip"].includes(lower) || lower.startsWith("cf-") || lower.startsWith("x-forwarded-")) headers.delete(name);
+  }
   headers.set("origin", LEGACY_API_ORIGIN); headers.set("referer", LEGACY_API_ORIGIN + "/");
   const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
   const response = await fetch(upstream, { method:request.method, headers, body, redirect:"manual" });
   const out = new Headers(response.headers);
-  out.delete("content-length"); out.delete("content-encoding"); out.set("cache-control","no-store"); out.set("x-content-type-options","nosniff");
+  out.delete("content-length"); out.delete("content-encoding"); out.delete("set-cookie"); out.delete("set-cookie2"); out.set("cache-control","no-store"); applySecurityHeaders(out);
   return new Response(request.method === "HEAD" ? null : response.body, {status:response.status,statusText:response.statusText,headers:out});
 }
 

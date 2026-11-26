@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../worker/index";
 
 (globalThis as any).FixedLengthStream = class {
@@ -130,6 +130,22 @@ async function upload(env:any,cookie:string) {
 describe("ScreenNote temporary sharing API",()=>{
   let state:ReturnType<typeof makeEnv>;
   beforeEach(()=>{state=makeEnv();});
+  afterEach(()=>vi.unstubAllGlobals());
+  it("does not forward guest credentials or edge identity to the legacy API bridge",async()=>{
+    let forwarded:Headers|undefined;
+    vi.stubGlobal("fetch",vi.fn(async(_input:RequestInfo|URL,init?:RequestInit)=>{
+      forwarded=new Headers(init?.headers);
+      return new Response(JSON.stringify({token:"legacy-test"}),{status:200,headers:{"content-type":"application/json","set-cookie":"legacy_session=private; Secure; HttpOnly"}});
+    }));
+    const request=new Request("https://screennote.test/api/clip?op=upload",{method:"POST",headers:{origin:"https://screennote.test",cookie:"sn_guest=private; sn_access_private=secret",authorization:"Bearer private","proxy-authorization":"Basic private","x-forwarded-for":"203.0.113.8","cf-connecting-ip":"203.0.113.8","content-type":"application/json"},body:JSON.stringify({pathname:"legacy-test.webm"})});
+    const response=await worker.fetch(request,state.env as any,{} as any);
+    expect(response.status).toBe(200);expect(forwarded).toBeTruthy();
+    for(const header of ["cookie","authorization","proxy-authorization","x-forwarded-for","cf-connecting-ip"])expect(forwarded!.has(header)).toBe(false);
+    expect(forwarded!.get("origin")).toBe("https://screennote-woad.vercel.app");
+    expect(forwarded!.get("referer")).toBe("https://screennote-woad.vercel.app/");
+    expect(response.headers.has("set-cookie")).toBe(false);
+    expect(response.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+  });
   it("rejects oversized JSON before parsing or reserving upload state",async()=>{
     const s=await session(state.env),huge=JSON.stringify({title:"Oversized",mimeType:"video/webm",size:4,duration:12,padding:"x".repeat(80*1024)});
     const response=await worker.fetch(new Request("https://screennote.test/api/recordings",{method:"POST",headers:{origin:"https://screennote.test",cookie:s.cookie,"content-type":"application/json"},body:huge}),state.env as any,{} as any);
