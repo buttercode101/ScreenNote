@@ -329,14 +329,14 @@ test("temporary share viewer and privacy route use the independent responsive de
     chapters:[{time:1,title:"Introduction"}],
     report:{steps:"Open the menu",expected:"Menu opens",actual:"Menu remains closed",url:"",environment:""},
     reviewBrief:{purpose:"Review the checkout flow",focus:"Inspect the payment confirmation",expectedOutcome:"A receipt is shown",requestedAction:"approve"},
-    reviewStatus:"approved"
+    reviewStatus:"approved",reviewVersion:{number:2,publishedAt:1764158400000}
   };
   await page.route("**/api/share/"+token+"/details",async route=>{
     if(route.request().method()==="PUT"){currentDetails=route.request().postDataJSON().details;await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({saved:true})});return;}
     await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({details:currentDetails})});
   });
   await page.goto("/s/"+token+"?campaign=private#review");
-  await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();\n  await expect(page.locator(".share-version-badge")).toHaveText("Version 2");
   await assertTextContrast(page,"guest share light");
   await page.evaluate(()=>document.documentElement.setAttribute("data-theme","dark"));
   await assertTextContrast(page,"guest share dark");
