@@ -1,5 +1,7 @@
 export type ReviewBrief = { purpose: string; focus: string; expectedOutcome: string; requestedAction: "review" | "approve" | "reproduce" | "fix" };
 
+export type ShareVersion = { version:number; recordingId:string; token:string; url:string; ownerKey:string; expiresAt:number; publishedAt:number; title:string };
+
 export type Clip = {
   id: string;
   title: string;
@@ -9,7 +11,8 @@ export type Clip = {
   mimeType: string;
   blob: Blob;
   thumbnail?: Blob;
-  share?: { recordingId: string; token: string; url: string; ownerKey: string; expiresAt: number };
+  share?: { recordingId: string; token: string; url: string; ownerKey: string; expiresAt: number; version?:number; publishedAt?:number };
+  shareHistory?: ShareVersion[];
   annotations?: Annotation[];
   captions?: CaptionCue[];
   chapters?: Chapter[];
