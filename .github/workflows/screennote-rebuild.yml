@@ -16,7 +16,7 @@ on:
       - ".github/workflows/screennote-rebuild.yml"
 
 concurrency:
-  group: screennote-cloudflare-development
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -65,20 +65,20 @@ jobs:
           path: rebuild/test-results/screenshots/**
           if-no-files-found: warn
       - name: Apply D1 migrations with the dedicated database token
-        if: ${{ env.CLOUDFLARE_D1_API_TOKEN != '' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && env.CLOUDFLARE_D1_API_TOKEN != '' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_D1_API_TOKEN }}
         run: node scripts/apply-migrations.mjs
       - name: Warn when D1 migration credentials are not configured
-        if: ${{ env.CLOUDFLARE_D1_API_TOKEN == '' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && env.CLOUDFLARE_D1_API_TOKEN == '' }}
         run: echo "::warning::D1 migrations were skipped. Apply any pending SQL in Cloudflare before deploying schema changes."
       - name: Deploy isolated Cloudflare development Worker
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && env.CLOUDFLARE_API_TOKEN != '' }}
         env:
           SCREENNOTE_WORKER_FIRST_ALL: "1"
         run: npm run deploy
       - name: Verify deployed app and real share lifecycle
-        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && env.CLOUDFLARE_API_TOKEN != '' }}
         run: node scripts/live-smoke.mjs
 
   build:
