@@ -181,9 +181,12 @@ function ShareViewer({token}:{token:string}) {
     return items.filter(c=>c.parentId===parent).map(c=><article className={"share-comment "+(depth?"reply":"")} key={c.id}>
       <div className="share-comment-meta"><strong>{c.viewerLabel||"Guest"}</strong><button className="timestamp-link" onClick={()=>seek(c.time)}>{timeLabel(c.time)}</button><span>{dateLabel(c.createdAt)}</span></div>
       <p>{c.deletedAt?"This comment was removed.":c.body}</p>
-      {!c.deletedAt&&<button className="text-action" onClick={()=>{setReplyTo(c.id);seek(c.time);}}>Reply</button>}{c.isMine&&!c.deletedAt&&<><button className="text-action" onClick={()=>editComment(c)}>Edit</button><button className="text-action" onClick={()=>deleteComment(c)}>Delete</button></>}
-      {depth===0&&ownerKey&&!c.deletedAt&&<button className="text-action" onClick={()=>resolve(c.id,!c.resolved)}>{c.resolved?"Reopen":"Resolve"}</button>}
-      {c.resolved===1&&<span className="resolved-tag"><Check size={12}/> Resolved</span>}
+      {!c.deletedAt&&<div className="share-comment-actions">
+        <button className="text-action" onClick={()=>{setReplyTo(c.id);seek(c.time);}}>Reply</button>
+        {c.isMine&&<><button className="text-action" onClick={()=>editComment(c)}>Edit</button><button className="text-action" onClick={()=>deleteComment(c)}>Delete</button></>}
+        {depth===0&&ownerKey&&<button className="text-action" onClick={()=>resolve(c.id,!c.resolved)}>{c.resolved?"Reopen":"Resolve"}</button>}
+        {c.resolved===1&&<span className="resolved-tag"><Check size={12}/> Resolved</span>}
+      </div>}
       {thread(items,c.id,depth+1)}
     </article>);
   }
