@@ -61,7 +61,7 @@ test("independent React workspace is contained at 13 widths, short landscape hei
   }
   await page.getByRole("button",{name:"Toggle appearance"}).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
-  await expect(page.locator(".capture-panel")).toHaveCSS("background-color","rgb(32, 33, 30)");
+  await expect(page.locator(".capture-panel")).toHaveCSS("background-color","rgb(41, 59, 46)");
   for(const v of viewports){
     await page.setViewportSize({width:v.width,height:v.height});
     await contained(page,v.width);
