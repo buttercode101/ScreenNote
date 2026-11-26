@@ -239,6 +239,8 @@ async function handleApi(request: Request, env: Bindings): Promise<Response> {
       const body = await readJsonLimited<{ password?: string }>(request, 2048);
       if (!body || typeof body.password !== "string" || body.password.length > 128) return fail("Enter the sharing password.", 400);
       const now = Math.floor(Date.now() / 1000);
+      await env.DB.prepare("DELETE FROM share_action_rate_limits WHERE window_started <= ?").bind(now - 3600).run();
+      await env.DB.prepare("DELETE FROM share_password_attempts WHERE window_started <= ? OR locked_until <= ?").bind(now - PASSWORD_ATTEMPT_WINDOW_SECONDS, now).run();
       // Store only a hash of Cloudflare's client IP; never persist the raw address.
       const ipHash = await digest(`${share.id}:${request.headers.get("cf-connecting-ip") ?? "unknown"}`);
       let attempt = await env.DB.prepare("SELECT window_started, attempts, locked_until FROM share_password_attempts WHERE share_id = ? AND ip_hash = ?")
