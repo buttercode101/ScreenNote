@@ -323,6 +323,11 @@ test("temporary share viewer and privacy route use the independent responsive de
   await page.setViewportSize({width:320,height:900});
   const commentActionHeights=await page.locator(".share-comment-actions button").evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
   expect(commentActionHeights.every(height=>height>=44),"comment actions must have mobile-sized touch targets").toBe(true);
+  const shareHeaderActionHeights=await page.locator(".share-header-actions .text-action").evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
+  expect(shareHeaderActionHeights.length).toBeGreaterThanOrEqual(2);
+  expect(shareHeaderActionHeights.every(height=>height>=44),"share header actions must have mobile-sized touch targets").toBe(true);
+  const timestampHeight=await page.locator(".share-comment-meta .timestamp-link").first().evaluate(node=>node.getBoundingClientRect().height);
+  expect(timestampHeight,"timestamp seek target must be comfortably tappable on mobile").toBeGreaterThanOrEqual(44);
   await expect(page.locator(".share-comment-actions button").nth(0)).toHaveText("Reply");
   await expect(page.locator(".share-comment-actions button").nth(1)).toHaveText("Edit");
   await expect(page.locator(".share-comment-actions button").nth(2)).toHaveText("Delete");
