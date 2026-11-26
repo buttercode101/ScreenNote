@@ -263,7 +263,7 @@ test("new frontend contains no legacy stylesheet or legacy app script requests",
 test("temporary share viewer and privacy route use the independent responsive design",async({page})=>{
   const token="a".repeat(40);
   await page.route(`**/api/share/${token}`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({title:"A product walkthrough",mimeType:"video/webm",size:2048,duration:38,expiresAt:Math.floor(Date.now()/1000)+86400,passwordRequired:false})}));
-  await page.route(`**/api/share/${token}/comments`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[]})}));
+  await page.route(`**/api/share/${token}/comments`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[{id:"visual-comment-1",parentId:null,viewerLabel:"Guest reviewer",body:"Please clarify this frame.",time:0,createdAt:100,resolved:0,deletedAt:null,isMine:true,anchorX:null,anchorY:null}]})}));
   let savedReview:any=null;
   await page.route("**/api/share/"+token+"/reviews",async route=>{
     if(route.request().method()==="POST"){savedReview=route.request().postDataJSON();await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({saved:true})});return;}
@@ -317,6 +317,14 @@ test("temporary share viewer and privacy route use the independent responsive de
   await expect(page.locator(".share-video-wrap")).toBeVisible();
   await expect(page.locator(".shared-annotation-overlay .shared-mark")).toHaveCount(1); // Only the untimed legacy mark is active at 0s.
   await expect(page.locator(".share-discussion")).toBeVisible();
+  await expect(page.locator(".share-comment-actions")).toHaveCSS("display","flex");
+  await expect(page.locator(".share-comment-actions button")).toHaveCount(3);
+  await page.setViewportSize({width:320,height:900});
+  const commentActionHeights=await page.locator(".share-comment-actions button").evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
+  expect(commentActionHeights.every(height=>height>=44),"comment actions must have mobile-sized touch targets").toBe(true);
+  await expect(page.locator(".share-comment-actions button").nth(0)).toHaveText("Reply");
+  await expect(page.locator(".share-comment-actions button").nth(1)).toHaveText("Edit");
+  await expect(page.locator(".share-comment-actions button").nth(2)).toHaveText("Delete");
   await expect(page.getByRole("button",{name:/Introduction/i})).toBeVisible();
   await expect(page.getByText(/SEARCH THE TRANSCRIPT/i)).toBeVisible();
   await expect(page.getByText(/Open the menu/i)).toBeVisible();
