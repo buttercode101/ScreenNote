@@ -154,3 +154,7 @@ The local production build now splits capture, annotation, import, and editor/co
 - Local browser E2E against the split build: sample/import/title, trim-copy, annotation-copy, record/pause/resume/stop/playback, permission-denied, mobile import/download, library search, dark mode and 320–1440 px responsive checks passed.
 - Media URL cleanup: preview URLs are released after detach; local download uses its own URL so a download does not depend on the preview element's lifetime.
 - Production deployment of this code split is pending Vercel deployment API quota reset or an authenticated deployment path. Current live production remains the last successful deployment; do not interpret local Lighthouse numbers as live production results.
+
+
+## Media lifecycle regression fix — 26 Nov 2026
+A final production trim test exposed blob URL `ERR_FILE_NOT_FOUND` console errors from temporary metadata/trim video elements revoking their source before media teardown completed. The metadata preview and trim helper now pause, detach the source, call `load()`, and defer URL revocation for 60 seconds; Node timers are unreferenced so test processes do not wait on cleanup timers. The editor also detaches previews before replacing them, and local download uses a separate object URL. After the fix, local trim + annotation E2E remained successful through a 15-second follow-up with zero console errors (only expected aborted requests when elements are replaced).
