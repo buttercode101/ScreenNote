@@ -594,3 +594,18 @@ footer a{color:var(--sn-accent)}
 :root[data-theme="dark"] .preview-workspace-content aside .preview-primary{background:var(--sn-accent)!important;color:var(--sn-accent-ink)!important;border-color:var(--sn-accent)!important}
 @media(max-width:760px){.share-discussion{padding:16px}.share-layout{gap:18px}}
 @media(max-width:600px){.editor-card{padding:14px}.preview-workspace-content aside{padding:16px}.editor-topline{padding:10px 12px}}
+
+
+/* Final legacy-accent cleanup: no neon-lime controls remain in the product UI. */
+.editor-primary,.editor-inline-actions button:last-child{background:var(--sn-accent)!important;color:var(--sn-accent-ink)!important;border-color:var(--sn-accent)!important}
+.editor-primary:hover,.editor-inline-actions button:last-child:hover{background:var(--sn-accent-hover)!important;border-color:var(--sn-accent-hover)!important}
+.editor-workspace progress,.editor-timeline input,.capture-settings-grid input[type="range"],.publish-progress progress{accent-color:var(--sn-accent)!important}
+.record-countdown strong{color:var(--sn-accent)!important}
+.share-reactions button.active{background:color-mix(in srgb,var(--sn-accent) 16%,var(--sn-surface))!important;border-color:var(--sn-accent)!important;color:var(--sn-ink)}
+.storage-protected,.resolved-tag,.secure-label svg{color:var(--sn-accent)!important}
+.camera-bubble-handle{background:var(--sn-accent)!important;border-color:var(--sn-paper)!important}
+.camera-bubble-handle span{background:var(--sn-accent-ink)!important}
+.camera-bubble-handle:focus-visible{outline-color:var(--sn-accent)!important}
+.editor-status{background:var(--sn-ink)!important;color:var(--sn-paper)!important}
+.recording-indicator span,.record-dot{background:var(--sn-alert)!important}
+:root[data-theme="dark"] .share-reactions button.active{background:color-mix(in srgb,var(--sn-accent) 18%,var(--sn-surface))!important;border-color:var(--sn-accent)!important;color:var(--sn-ink)}
