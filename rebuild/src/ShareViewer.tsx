@@ -135,6 +135,48 @@ function ShareViewer({token}:{token:string}) {
   }
   function buildThread(parentId:string|null):unknown[] {
     return comments.filter(comment=>comment.parentId===parentId).map(comment=>({
+      id:comment.id, author:comment.viewerLabel||"Guest", text:comment.deletedAt?"[Comment deleted]":comment.body,
+      timestampSeconds:comment.time, timestampLabel:timeLabel(comment.time),
+      resolved:!!comment.resolved, deleted:!!comment.deletedAt,
+      replies:buildThread(comment.id)
+    }));
+  }
+  function buildReviewPacket() {
+    if (!share) return null;
+    return {
+      schema:"screennote.review-packet",
+      version:1,
+      product:"ScreenNote",
+      title:share.title,
+      shareUrl:window.location.href,
+      media:{url:new URL("/api/share/"+token+"/media",window.location.origin).href,mimeType:share.mimeType,sizeBytes:share.size,durationSeconds:share.duration},
+      share:{expiresAt:new Date(share.expiresAt*1000).toISOString(),passwordProtected:share.passwordRequired},
+      reviewStatus:details.reviewStatus||"needs-feedback",
+      reviewBrief:details.reviewBrief||null,
+      guestDecisions:reviews.map(review=>({reviewerLabel:review.reviewerLabel||"Guest",decision:review.decision,comment:review.comment,timeSeconds:review.time,updatedAt:new Date(review.updatedAt*1000).toISOString()})),
+      discussion:buildThread(null),
+      videoAnnotations:details.annotations||[],
+      captions:details.captions||[],
+      chapters:details.chapters||[],
+      bugReport:details.report||null,
+      framePoints:comments.filter(comment=>comment.anchorX!==null&&comment.anchorX!==undefined&&!comment.deletedAt).map(comment=>({commentId:comment.id,timestampSeconds:comment.time,x:comment.anchorX,y:comment.anchorY,text:comment.body})),
+      exportedAt:new Date().toISOString(),
+      instructions:"Use timestamped discussion and frame points to inspect the accompanying video. Guest labels are unverified. Deleted comment text is intentionally excluded."
+    };
+  }
+  function saveExport(filename:string,mime:string,content:string) {
+    const url=URL.createObjectURL(new Blob([content],{type:mime}));
+    const anchor=document.createElement("a");anchor.href=url;anchor.download=filename;anchor.click();
+    window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function exportHandoff() {
+    const payload=buildReviewPacket();if(!payload)return;
+    saveExport("screennote-review-packet.json","application/json",JSON.stringify(payload,null,2));
+  }
+  function exportMarkdown() {
+    const packet=buildReviewPacket();if(!packet||!share)return;
+    const safe=(value:string)=>value.replace(/[\\`*_{}\\[\\]()#+.!|>~-]/g,"\\  function buildThread(parentId:string|null):unknown[] {
+    return comments.filter(comment=>comment.parentId===parentId).map(comment=>({
       id:comment.id, author:comment.viewerLabel, text:comment.body,
       timestampSeconds:comment.time, timestampLabel:timeLabel(comment.time),
       resolved:!!comment.resolved, deleted:!!comment.deletedAt,
@@ -164,6 +206,19 @@ function ShareViewer({token}:{token:string}) {
     };
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = "screennote-agent-handoff.json"; anchor.click(); URL.revokeObjectURL(url);
+  }");
+    const quote=(value:string)=>value.split("\\n").map(line=>"> "+safe(line)).join("\\n");
+    const action=({review:"Review and give feedback",approve:"Approve",reproduce:"Reproduce this issue",fix:"Help fix this"} as const)[details.reviewBrief?.requestedAction||"review"];
+    const lines=[`# Review packet — ${safe(share.title)}`,"",`- **Status:** ${safe(packet.reviewStatus)}`,`- **Share:** ${packet.shareUrl}`,`- **Video:** ${packet.media.url}`,`- **Expires:** ${packet.share.expiresAt}`,`- **Password protected:** ${packet.share.passwordProtected?"Yes":"No"}`,""];
+    if(details.reviewBrief){lines.push("## Review brief","",details.reviewBrief.purpose?quote(details.reviewBrief.purpose):"",details.reviewBrief.focus?"**Focus**\\n\\n"+quote(details.reviewBrief.focus):"",details.reviewBrief.expectedOutcome?"**Expected outcome**\\n\\n"+quote(details.reviewBrief.expectedOutcome):"",`**Requested action:** ${safe(action)}`,"");}
+    if(reviews.length){lines.push("## Guest decisions","");for(const review of reviews){lines.push(`### ${safe(review.reviewerLabel||"Guest")} — ${safe(reviewDecisionLabel(review.decision))}`,`- **Moment:** ${timeLabel(review.time)}`,`- **Updated:** ${new Date(review.updatedAt*1000).toISOString()}`,review.comment?quote(review.comment):"", "");}}
+    const appendComments=(parentId:string|null,depth=0):string[]=>comments.filter(comment=>comment.parentId===parentId).flatMap(comment=>{const text=comment.deletedAt?"[Comment deleted]":comment.body;return [`${"  ".repeat(depth)}- **${timeLabel(comment.time)} · ${safe(comment.viewerLabel||"Guest")}${comment.resolved?" · resolved":""}:** ${safe(text).replace(/\\n/g,"\\n  ")}`,...appendComments(comment.id,depth+1)];});
+    lines.push("## Timestamped discussion","",...appendComments(null),"");
+    if(details.chapters?.length)lines.push("## Chapters","",...details.chapters.map(chapter=>`- ${timeLabel(chapter.time)} — ${safe(chapter.title)}`),"");
+    if(details.captions?.length)lines.push("## Captions / transcript","",...details.captions.map(cue=>`- ${timeLabel(cue.start)}–${timeLabel(cue.end)}: ${safe(cue.text)}`),"");
+    if(details.report){lines.push("## Bug report","",details.report.url?`- **Page:** ${safe(details.report.url)}`:"",details.report.steps?"**Reproduction steps**\\n\\n"+quote(details.report.steps):"",details.report.expected?"**Expected**\\n\\n"+quote(details.report.expected):"",details.report.actual?"**Actual**\\n\\n"+quote(details.report.actual):"",details.report.environment?"**Environment**\\n\\n"+quote(details.report.environment):"","");}
+    lines.push("---",`Exported from ScreenNote on ${packet.exportedAt}.`,"Guest names are unverified. Deleted comment text is excluded.");
+    saveExport("screennote-review-packet.md","text/markdown;charset=utf-8",lines.filter(Boolean).join("\\n"));
   }
   function downloadVideo() {
     const anchor = document.createElement("a"); anchor.href = "/api/share/" + token + "/media"; const extension = share?.mimeType === "video/mp4" ? "mp4" : share?.mimeType === "video/quicktime" ? "mov" : "webm"; anchor.download = (share?.title || "screennote").replace(/[^a-z0-9-_ ]/gi, "").trim() + "." + extension; anchor.click();
@@ -197,7 +252,7 @@ function ShareViewer({token}:{token:string}) {
   if(error&&!share)return <main className="share-page"><div className="share-ended"><ShieldCheck size={25}/><h1>This moment has ended.</h1><p>{error}</p><span>ScreenNote links are temporary by design.</span></div></main>;
   if(!share)return null;
   return <main className="share-page">
-    <header className="share-topbar"><div className="share-brand"><span className="brand-mark"><Video size={17}/></span> screen<span>note</span></div><span className="temporary-label"><Clock3 size={14}/> Temporary share</span><div className="share-header-actions"><button className="text-action" onClick={exportHandoff}>Export handoff</button><button className="text-action" onClick={downloadVideo}>Download video</button>{ownerKey&&<button className="text-action" onClick={stopShare}>Stop sharing</button>}</div></header>
+    <header className="share-topbar"><div className="share-brand"><span className="brand-mark"><Video size={17}/></span> screen<span>note</span></div><span className="temporary-label"><Clock3 size={14}/> Temporary share</span><div className="share-header-actions"><button className="text-action" onClick={exportHandoff}>Export JSON</button><button className="text-action" onClick={exportMarkdown}>Export Markdown</button><button className="text-action" onClick={downloadVideo}>Download video</button>{ownerKey&&<button className="text-action" onClick={stopShare}>Stop sharing</button>}</div></header>
     <div className="share-layout"><section className="share-main"><div className="share-heading"><span className="eyebrow">A MOMENT, SHARED</span>{details.reviewStatus&&<span className={"shared-review-status "+details.reviewStatus}>{details.reviewStatus==="approved"?"Approved":details.reviewStatus==="changes-requested"?"Changes requested":"Needs feedback"}</span>}<h1>{share.title}</h1><p>Watch the clip. Leave a note at the exact moment that matters.</p></div>
       {details.reviewBrief&&(details.reviewBrief.purpose||details.reviewBrief.focus||details.reviewBrief.expectedOutcome)&&<section className="share-review-brief" aria-label="Review brief"><span className="eyebrow">REVIEW BRIEF</span>{details.reviewBrief.purpose&&<h2>{details.reviewBrief.purpose}</h2>}{details.reviewBrief.focus&&<p><strong>Focus:</strong> {details.reviewBrief.focus}</p>}{details.reviewBrief.expectedOutcome&&<p><strong>Expected outcome:</strong> {details.reviewBrief.expectedOutcome}</p>}<span className="brief-action">Requested: {({review:"Review and give feedback",approve:"Approve",reproduce:"Reproduce this issue",fix:"Help fix this"} as const)[details.reviewBrief.requestedAction||"review"]}</span></section>}
       <div className={"share-video-wrap "+(annotateMode?"annotate-mode":"")} onClick={placeAnnotation}><video ref={video} src={"/api/share/"+token+"/media"} controls playsInline preload="metadata" onTimeUpdate={e=>setTime(e.currentTarget.currentTime)}>{captionUrl&&<track kind="captions" src={captionUrl} srcLang="en" label="Owner captions" default/>}</video>{!!details.annotations?.length&&<svg className="shared-annotation-overlay" viewBox="0 0 1000 562" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="sn-arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#ff6b35"/></marker></defs>{visibleAnnotations(details.annotations,time).map((mark,i)=>{const x=mark.x*1000,y=mark.y*562,w=mark.w*1000,h=mark.h*562;if(mark.kind==="arrow")return <line key={i} x1={x} y1={y} x2={x+w} y2={y+h} stroke="#ff6b35" strokeWidth="5" markerEnd="url(#sn-arrowhead)"/>;return <rect key={i} x={x} y={y} width={w} height={h} className={"shared-mark "+mark.kind}/>})}</svg>}{comments.filter(c=>c.anchorX!==null&&c.anchorX!==undefined&&c.anchorY!==null&&Math.abs(c.time-time)<1.5&&!c.deletedAt).map(c=><button key={"pin-"+c.id} className="frame-annotation-pin" style={{left:(c.anchorX!*100)+"%",top:(c.anchorY!*100)+"%"}} title={c.body} onClick={e=>{e.stopPropagation();seek(c.time);}}/>)}{annotation&&<span className="pending-annotation-pin" style={{left:(annotation.x*100)+"%",top:(annotation.y*100)+"%"}}/>}{annotateMode&&<button className="annotation-layer" aria-label="Choose a point on the video frame" onClick={e=>{e.preventDefault();e.stopPropagation();placeAnnotation(e as unknown as React.MouseEvent<HTMLDivElement>);}}/>}{activeBubbles.map((c,i)=><button key={c.id} className="playback-bubble" style={{bottom:(20+Math.min(3,i)*52)+"px"}} onClick={()=>seek(c.time)}><MessageCircle size={14}/>{c.body.slice(0,90)}</button>)}</div>
