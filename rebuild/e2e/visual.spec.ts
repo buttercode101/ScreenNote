@@ -32,6 +32,21 @@ async function contained(page: import("@playwright/test").Page, width:number) {
   expect(m.offenders, `visible controls or content panels escape viewport at ${width}px`).toEqual([]);
 }
 
+async function assertNamedControls(page:import("@playwright/test").Page){
+  const missing=await page.evaluate(()=>{
+    const elements=[...document.querySelectorAll<HTMLElement>('button,input:not([type="hidden"]),select,textarea,[role="button"],[role="slider"]')].filter(el=>{const style=getComputedStyle(el);return style.display!=="none"&&style.visibility!=="hidden"&&el.getClientRects().length>0});
+    const name=(el:HTMLElement)=>{
+      const aria=el.getAttribute("aria-label")?.trim();
+      const labelled=el.getAttribute("aria-labelledby")?.split(/\\s+/).map(id=>document.getElementById(id)?.textContent?.trim()||"").join(" ").trim();
+      const labels=el instanceof HTMLInputElement||el instanceof HTMLSelectElement||el instanceof HTMLTextAreaElement?[...(el.labels||[])].map(label=>label.textContent?.trim()||"").join(" ").trim():"";
+      const text=el.tagName==="BUTTON"||el.getAttribute("role")==="button"?el.textContent?.trim():"";
+      return aria||labelled||labels||el.getAttribute("title")?.trim()||text||"";
+    };
+    return elements.filter(el=>!name(el)).map(el=>({tag:el.tagName,type:(el as HTMLInputElement).type||"",id:el.id,classes:el.className?.toString?.()||""}));
+  });
+  expect(missing, "visible controls must expose an accessible name").toEqual([]);
+}
+
 test.beforeAll(async()=>{await mkdir("test-results/screenshots",{recursive:true});});
 
 test("independent React workspace is contained at 13 widths in light and dark",async({page})=>{
@@ -61,6 +76,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
   await expect(page.locator(".clip-thumb")).toBeVisible();
   await expect(page.locator(".clip-thumb img, .clip-thumb-fallback").first()).toBeVisible({timeout:10000});
+  await assertNamedControls(page);
   await expect(page.getByRole("button",{name:/Preview/i})).toBeVisible();
   await expect(page.getByRole("button",{name:/Edit/i})).toBeVisible();
   await page.setViewportSize({width:320,height:780});
@@ -70,11 +86,13 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:/Preview/i}).click();
   await expect(page.locator(".preview-workspace")).toBeVisible();
   await expect(page.locator(".preview-workspace video")).toBeVisible();
+  await assertNamedControls(page);
   const previewDialog=page.locator(".preview-workspace"),previewButtons=previewDialog.locator("button");
   await previewButtons.first().focus();await page.keyboard.press("Shift+Tab");await expect(previewButtons.last()).toBeFocused();await page.keyboard.press("Tab");await expect(previewButtons.first()).toBeFocused();
   for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});}
   await page.getByRole("button",{name:/Open editor/i}).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
+  await assertNamedControls(page);
   await expect(page.locator(".editor-video-wrap video")).toBeVisible();
   await page.locator(".editor-title-button").click();
   await page.locator(".editor-title-wrap input").fill("A".repeat(100));
@@ -164,6 +182,7 @@ test("preferences export and restore a portable local library backup",async({pag
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
   await page.getByRole("button",{name:"Open preferences"}).click();
+  await assertNamedControls(page);
   const preferences=page.getByRole("dialog",{name:/Preferences & backups/i}),preferenceControls=preferences.locator('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex="0"]');
   await preferenceControls.last().focus();await page.keyboard.press("Tab");await expect(preferenceControls.first()).toBeFocused();
   await expect(page.getByRole("dialog",{name:/Preferences & backups/i})).toBeVisible();
@@ -235,6 +254,7 @@ test("temporary share viewer and privacy route use the independent responsive de
   });
   await page.goto("/s/"+token);
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
+  await assertNamedControls(page);
   await expect(page.getByText("Approved",{exact:true})).toBeVisible();
   await expect(page.getByRole("region",{name:"Review brief"})).toContainText("Review the checkout flow");
   await expect(page.getByRole("region",{name:"Review brief"})).toContainText("A receipt is shown");
