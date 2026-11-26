@@ -328,3 +328,21 @@ test("password-protected share keeps the gate closed until correct unlock and re
   await expect(page.locator(".password-gate")).toHaveCount(0);
   for(const width of [320,375,768,1440]){await page.setViewportSize({width,height:900});await contained(page,width);}
 });
+
+test("light and dark text tokens meet WCAG AA contrast",async({page})=>{
+  await page.goto("/");
+  const readRatios=()=>page.evaluate(()=>{
+    const style=getComputedStyle(document.documentElement);
+    const hex=(name:string)=>style.getPropertyValue(name).trim().replace("#","");
+    const rgb=(value:string)=>{const h=value.length===3?value.split("").map(x=>x+x).join(""):value;return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)/255)};
+    const lum=(value:string)=>rgb(value).map(x=>x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4)).reduce((sum,x,i)=>sum+x*[.2126,.7152,.0722][i],0);
+    const ratio=(a:string,b:string)=>{const values=[lum(a),lum(b)].sort((x,y)=>y-x);return (values[0]+.05)/(values[1]+.05)};
+    const ink=hex("--ink"),muted=hex("--muted"),rust=hex("--rust"),paper=hex("--paper"),panel=hex("--panel"),acid=hex("--acid"),acidInk=hex("--acid-ink");
+    return [ratio(ink,paper),ratio(muted,paper),ratio(muted,panel),ratio(rust,paper),ratio(rust,panel),ratio(acidInk,acid)];
+  });
+  for(const theme of ["light","dark"]){
+    if(theme==="dark")await page.getByRole("button",{name:"Toggle appearance"}).click();
+    const ratios=await readRatios();
+    expect(ratios,theme+" text contrast ratios: "+ratios.join(", ")).toEqual(ratios.map(value=>expect(value).toBeGreaterThanOrEqual(4.5)));
+  }
+});
