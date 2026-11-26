@@ -663,3 +663,8 @@ body{font-family:var(--sn-font-ui)!important;line-height:var(--sn-leading-body)}
 .share-heading h1{line-height:var(--sn-leading-heading)!important;text-wrap:balance}
 .section-heading h2,.privacy-document h2,.preview-header h2,.publish-modal h2{line-height:var(--sn-leading-heading)}
 .intro,.empty-state p,.bottom-note p,.share-comment p,.editor-hint,.privacy-document p{line-height:var(--sn-leading-relaxed)}
+
+
+/* Contrast-safe inverted utility surfaces across light and dark themes. */
+.button.danger{color:var(--sn-accent-ink)!important}
+.duration{color:var(--sn-paper)!important}
