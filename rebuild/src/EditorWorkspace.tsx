@@ -14,7 +14,8 @@ type Props = {
   url: string;
   onClose: () => void;
   onUpdated: () => void;
-  onShare: () => void;\n  shareLabel?:string;
+  onShare: () => void;
+  shareLabel?:string;
   onDownload: () => void;
   onDelete: () => void;
 };
