@@ -319,13 +319,14 @@ test("temporary share viewer and privacy route use the independent responsive de
   await expect(page.locator(".share-discussion")).toBeVisible();
   await expect(page.locator(".discussion-title h2")).toHaveText("1 comment");
   await expect(page.locator(".share-comment-actions")).toHaveCSS("display","flex");
-  await expect(page.locator(".share-comment-actions button")).toHaveCount(3);
+  await expect(page.locator(".share-comment-actions button")).toHaveCount(4);
   await page.setViewportSize({width:320,height:900});
   const commentActionHeights=await page.locator(".share-comment-actions button").evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
   expect(commentActionHeights.every(height=>height>=44),"comment actions must have mobile-sized touch targets").toBe(true);
   await expect(page.locator(".share-comment-actions button").nth(0)).toHaveText("Reply");
   await expect(page.locator(".share-comment-actions button").nth(1)).toHaveText("Edit");
   await expect(page.locator(".share-comment-actions button").nth(2)).toHaveText("Delete");
+  await expect(page.locator(".share-comment-actions button").nth(3)).toHaveText("Resolve");
   await expect(page.getByRole("button",{name:/Introduction/i})).toBeVisible();
   await expect(page.getByText(/SEARCH THE TRANSCRIPT/i)).toBeVisible();
   await expect(page.getByText(/Open the menu/i)).toBeVisible();
