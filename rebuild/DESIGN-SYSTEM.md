@@ -55,7 +55,7 @@ Metadata may use the existing system monospace stack.
 | `--sn-text-2xl` | 30px | 1.22 | Page heading |
 | `--sn-text-display` | `clamp(36px, 5.2vw, 62px)` | 1.12 | Landing headline |
 
-Headings use tight negative tracking and balanced wrapping. Body copy uses comfortable leading; timestamps and technical metadata use tabular/monospace numerals. Avoid shrinking text merely to fit—allow wrapping and reflow.
+Headings use tight negative tracking and balanced wrapping. Body copy uses comfortable leading; timestamps and technical metadata use tabular/monospace numerals. Avoid shrinking text merely to fit—allow wrapping and reflow. The editor title area is capped at 620px on desktop and shrinks with the viewport so long recording names cannot crowd the close control.
 
 ## Spacing, radius and depth
 
