@@ -432,14 +432,28 @@ function App() {
     finally { if (recoveryFileRef.current) recoveryFileRef.current.value = ""; }
   }
 
+  async function revokeRemoteShare(share:{token:string;ownerKey:string}) {
+    const response=await fetch("/api/share/"+share.token+"/manage",{method:"DELETE",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({ownerKey:share.ownerKey})});
+    if(!response.ok&&response.status!==404)throw new Error("A shared version could not be revoked. Keep its recovery key and try again.");
+  }
+  async function revokeShareVersion(id:string,version:ShareVersion) {
+    if(!window.confirm("Revoke share version "+version.version+"? Its link and discussion will be deleted."))return;
+    try{
+      await revokeRemoteShare(version);
+      const clip=await getClip(id);if(!clip)return;
+      await saveClip({...clip,shareHistory:(clip.shareHistory||[]).filter(item=>item.token!==version.token)});
+      await refresh();setMessage("Share version "+version.version+" was revoked.");
+    }catch(error){setMessage(error instanceof Error?error.message:"Could not revoke this share version.");}
+  }
   async function stopSharing(id: string) {
     const clip = await getClip(id);
-    if (!clip?.share) return;
+    if (!clip || (!clip.share && !clip.shareHistory?.length)) return;
     try {
-      const response = await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
-      if (!response.ok && response.status !== 404) throw new Error("The shared copy could not be removed. Try again.");
-      const next = { ...clip }; delete next.share; await saveClip(next); await refresh();
-      setMessage("Sharing stopped. The shared video and its discussion have been deleted. Your local original is still here.");
+      const shares=[...(clip.share?[clip.share]:[]),...(clip.shareHistory||[])];
+      for(const share of shares)await revokeRemoteShare(share);
+      const next={...clip};delete next.share;delete next.shareHistory;
+      await saveClip(next);await refresh();
+      setMessage("All shared versions and their discussions have been deleted. Your local original is still here.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't stop sharing."); }
   }
 
@@ -447,14 +461,14 @@ function App() {
     if (!window.confirm("Delete this recording from this device? This cannot be undone.")) return;
     try {
       const clip = await getClip(id);
-      if (clip?.share) {
-        const stopped = await fetch("/api/share/" + clip.share.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: clip.share.ownerKey }) });
-        if (!stopped.ok && stopped.status !== 404) throw new Error("The shared copy could not be removed. Your local recording and recovery key have been kept.");
+      if(clip){
+        const shares=[...(clip.share?[clip.share]:[]),...(clip.shareHistory||[])];
+        for(const share of shares)await revokeRemoteShare(share);
       }
       await deleteClip(id);
       try { localStorage.removeItem("screennote-pending-upload-"+id); } catch { /* storage may be restricted */ }
       await refresh();
-      setMessage("Recording deleted from this device.");
+      setMessage("Recording and all of its shared versions deleted from this device.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Couldn't delete this recording. Your local copy is still here.");
     }
