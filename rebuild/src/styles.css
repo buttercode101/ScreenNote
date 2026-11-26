@@ -308,7 +308,7 @@
  .editor-card input,.editor-card select,.editor-card textarea,.context-editor input,.context-editor select,.context-editor textarea,.share-comment-form input,.share-comment-form textarea,.guest-review-panel input,.guest-review-panel textarea{min-height:44px}
 }
 
-@media(max-width:600px){.clip-info{align-items:stretch;flex-direction:column}.clip-info>div:first-child{width:100%;min-width:0}.clip-info h3{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;text-overflow:ellipsis}.clip-actions{width:100%;flex-wrap:wrap}.clip-actions .clip-text-action{flex:1 1 88px;min-width:0;justify-content:center}.clip-actions .icon-button{flex:0 0 44px;width:44px;height:44px}}
+.clip-info{align-items:stretch;flex-direction:column}.clip-info>div:first-child{width:100%;min-width:0;flex:0 0 auto}.clip-actions{width:100%;flex-wrap:wrap}.clip-actions .clip-text-action{flex:1 1 88px;min-width:0;justify-content:center}.clip-actions .icon-button{flex:0 0 44px;width:44px;height:44px}
 
 .clip-info h3{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;text-overflow:ellipsis}
 

@@ -23,12 +23,15 @@ try {
   await creator.goto(base, { waitUntil: "domcontentloaded" });
   await creator.getByRole("heading", { name: /Make it clear/i }).waitFor();
   await creator.locator('input[type="file"]').first().setInputFiles(sample);
-  try { await creator.getByRole("heading", { name: "sample", exact: true }).waitFor({ timeout: 20000 }); }
+  const importedHeading = creator.locator(".clip-card h3").first();
+  try { await importedHeading.waitFor({ timeout: 20000 }); }
   catch (error) {
     await creator.screenshot({ path: path.join(output, "creator-import-failure.png"), fullPage: true });
     console.error("[live browser import diagnostics]", JSON.stringify({ titles: await creator.locator(".clip-card h3").allTextContents(), statuses: await creator.locator("[role=status]").allTextContents(), body: (await creator.locator("body").innerText()).slice(0, 4000) }));
     throw error;
   }
+  const importedTitle = (await importedHeading.textContent() || "").replace(/\\s+/g, " ").trim();
+  assert.match(importedTitle, /sample/i, "the imported sample file should appear in the library");
   await creator.locator(".clip-thumb").waitFor();
   await creator.screenshot({ path: path.join(output, "creator-library.png"), fullPage: true });
 
@@ -38,7 +41,7 @@ try {
   await creator.locator(".editor-workspace").waitFor();
   await creator.getByRole("button", { name: "Close editor" }).click();
 
-  await creator.getByRole("button", { name: "Share sample" }).click();
+  await creator.getByRole("button", { name: "Share " + importedTitle }).click();
   await creator.getByRole("heading", { name: "Make a temporary link" }).waitFor();
   await creator.locator(".publish-modal input[type=password]").fill(password);
   await creator.getByLabel("Review purpose").fill("Live browser acceptance");
