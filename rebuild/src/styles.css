@@ -609,3 +609,18 @@ footer a{color:var(--sn-accent)}
 .editor-status{background:var(--sn-ink)!important;color:var(--sn-paper)!important}
 .recording-indicator span,.record-dot{background:var(--sn-alert)!important}
 :root[data-theme="dark"] .share-reactions button.active{background:color-mix(in srgb,var(--sn-accent) 18%,var(--sn-surface))!important;border-color:var(--sn-accent)!important;color:var(--sn-ink)}
+
+
+/* 320px polish: keep the utility bar single-line and make empty states feel finished. */
+.empty-state{border-style:solid!important;box-shadow:var(--sn-shadow-sm)}
+.capture-panel .capture-advanced summary{color:#c8d1c6}
+.capture-panel .capture-advanced summary:hover{color:#fff}
+@media(max-width:680px){.capture-actions{gap:8px}.empty-state{padding:28px 16px}}
+@media(max-width:380px){
+ .topbar{padding-inline:12px;gap:8px}
+ .breadcrumb{font-size:14px;line-height:1.2;white-space:nowrap}
+ .top-actions{gap:6px;flex:0 0 auto}
+ .secure-label{font-size:0!important;line-height:1;letter-spacing:0!important;white-space:nowrap;max-width:none!important;width:16px;flex:0 0 16px;overflow:hidden}
+ .secure-label svg{width:16px;height:16px;flex:none}
+ .top-actions .icon-button{width:40px;height:40px;min-width:40px}
+}
