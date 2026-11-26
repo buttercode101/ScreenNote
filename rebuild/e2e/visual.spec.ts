@@ -548,6 +548,7 @@ test("transient share and alert surfaces keep readable contrast in both themes",
     const unavailable=document.createElement("div");unavailable.className="capture-unavailable";unavailable.textContent="Capture unavailable";document.body.append(unavailable);
     const danger=document.createElement("button");danger.className="button danger";danger.textContent="Delete";document.body.append(danger);
     const duration=document.createElement("span");duration.className="duration";duration.textContent="0:45";document.body.append(duration);
+    return;
   });
   const contrast=async(selector:string)=>page.locator(selector).evaluate(el=>{
     const rgb=(value:string)=>value.match(/[\d.]+/g)!.slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});
