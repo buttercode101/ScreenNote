@@ -51,7 +51,7 @@ export function formatReproCapsuleSteps(capsule:ReproCapsule):string {
   if(!capsule.steps.length)return "No interaction steps were captured.";
   return capsule.steps.map((step,index)=>{
     const minutes=Math.floor(step.atMs/60000),seconds=Math.floor(step.atMs/1000)%60,millis=step.atMs%1000;
-    const stamp=minutes+":"+String(seconds).padStart(2,"0")+"."+String(millis).padStart(3,"0");
+    const stamp=String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0")+"."+String(millis).padStart(3,"0");
     const label=step.target.label?" “"+step.target.label+"”":"";
     const target=step.target.role||step.target.tag?" ("+[step.target.role,step.target.tag].filter(Boolean).join(" · ")+")":"";
     const action=step.action==="click"?"Click"+label+target:"Press "+step.key;
