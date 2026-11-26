@@ -52,6 +52,12 @@ test.beforeAll(async()=>{await mkdir("test-results/screenshots",{recursive:true}
 test("independent React workspace is contained at 13 widths, short landscape heights and light/dark",async({page})=>{
   await page.goto("/");
   await expect(page.getByRole("heading",{level:1,name:/Make it clear/i})).toBeVisible();
+  await page.setViewportSize({width:320,height:780});
+  const mobileHeader=await page.evaluate(()=>({topbar:document.querySelector(".topbar")?.getBoundingClientRect().height,breadcrumb:document.querySelector(".breadcrumb")?.getBoundingClientRect().height,secure:document.querySelector(".secure-label")?.getBoundingClientRect().width}));
+  expect(mobileHeader.topbar, "mobile utility bar should remain compact").toBeLessThanOrEqual(64);
+  expect(mobileHeader.breadcrumb, "mobile breadcrumb should stay on one line").toBeLessThanOrEqual(22);
+  expect(mobileHeader.secure, "mobile privacy status should collapse to its icon").toBeLessThanOrEqual(18);
+  await expect(page.locator(".empty-state")).toHaveCSS("border-style","solid");
   await expect(page.locator('script[type="module"][src="/src/main.tsx"]')).toHaveCount(1);
   await expect(page.locator("#app")).toHaveCount(0);
   for(const v of viewports){
