@@ -32,3 +32,12 @@ The build emits the Vite/React app. Legacy HTML, CSS and browser JavaScript are 
 ## Release gates
 
 See `FEATURE-PARITY-ACCEPTANCE.md`. The independent frontend is a new implementation; feature parity, Worker/API independence, visual acceptance, security review, accessibility review, and physical-device checks remain separate release gates.
+
+
+## Review handoff and Repro Capsule
+
+The temporary share viewer can export a versioned review packet in JSON or Markdown. It includes the share/video URLs, expiry and password state, review brief/status, guest decisions, timestamped discussion, frame points, owner annotations, captions, chapters and bug-report context. Deleted comment bodies are redacted. Guest labels are unverified and the export is a handoff artifact, not an authenticated identity record.
+
+The optional Chrome/Edge Manifest V3 extension is in [extension/](extension/README.md). It starts only after a user click, captures a short click/navigation-key outline in the active tab, has no host permissions or network code, and asks the user to review/edit the JSON before download. Import it from the editor's **Captions & context → Bug report → Import Repro Capsule** action. ScreenNote sanitizes URL credentials, query and fragment again on import. Imported context remains local until the creator explicitly saves/publishes it; publishing makes saved context visible to share-link viewers.
+
+The extension does not collect screenshots, form values, typed characters, cookies, network requests or console logs. It is an interaction outline, not automatic full telemetry or a guaranteed reproduction.
