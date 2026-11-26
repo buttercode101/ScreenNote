@@ -394,3 +394,21 @@ test("light and dark text tokens meet WCAG AA contrast",async({page})=>{
     for(const value of ratios)expect(value,theme+" contrast ratio").toBeGreaterThanOrEqual(4.5);
   }
 });
+
+
+test("transient share and alert surfaces keep readable contrast in both themes",async({page})=>{
+  await page.goto("/");
+  await page.evaluate(()=>{
+    const toast=document.createElement("div");toast.className="share-link-toast";toast.innerHTML='<div><strong>Share link ready</strong><span>https://example.test/share</span></div><button class="button secondary">Copy link</button>';document.body.append(toast);
+    const error=document.createElement("p");error.className="share-error";error.textContent="The share could not be published.";document.body.append(error);
+  });
+  const contrast=async(selector:string)=>page.locator(selector).evaluate(el=>{
+    const rgb=(value:string)=>value.match(/[\\d.]+/g)!.slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});
+    const lum=(v:number[])=>.2126*v[0]+.7152*v[1]+.0722*v[2];
+    const style=getComputedStyle(el),fg=lum(rgb(style.color)),bg=lum(rgb(style.backgroundColor));return (Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);
+  });
+  for(const theme of ["light","dark"]){
+    if(theme==="dark")await page.getByRole("button",{name:"Toggle appearance"}).click();
+    for(const selector of [".share-link-toast",".share-link-toast span",".share-link-toast button",".share-error"]){expect(await contrast(selector),selector+" contrast in "+theme).toBeGreaterThanOrEqual(4.5);}
+  }
+});
