@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
 const viewports = [
@@ -263,7 +263,7 @@ test("new frontend contains no legacy stylesheet or legacy app script requests",
 test("temporary share viewer and privacy route use the independent responsive design",async({page})=>{
   const token="a".repeat(40);
   await page.route(`**/api/share/${token}`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({title:"A product walkthrough",mimeType:"video/webm",size:2048,duration:38,expiresAt:Math.floor(Date.now()/1000)+86400,passwordRequired:false})}));
-  await page.route(`**/api/share/${token}/comments`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[{id:"visual-comment-1",parentId:null,viewerLabel:"Guest reviewer",body:"Please clarify this frame.",time:0,createdAt:100,resolved:0,deletedAt:null,isMine:true,anchorX:null,anchorY:null}]})}));
+  await page.route(`**/api/share/${token}/comments`,route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[{id:"visual-comment-1",parentId:null,viewerLabel:"Guest reviewer",body:"Please clarify this frame.",time:0,createdAt:100,resolved:0,deletedAt:null,isMine:true,anchorX:null,anchorY:null},{id:"visual-comment-deleted",parentId:null,viewerLabel:"Guest reviewer",body:"deleted private feedback must not leak",time:3,createdAt:102,resolved:0,deletedAt:110,isMine:true,anchorX:null,anchorY:null}]})}));
   let savedReview:any=null;
   await page.route("**/api/share/"+token+"/reviews",async route=>{
     if(route.request().method()==="POST"){savedReview=route.request().postDataJSON();await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({saved:true})});return;}
@@ -314,6 +314,28 @@ test("temporary share viewer and privacy route use the independent responsive de
   await reviewPanel.getByRole("button",{name:"Download review packet"}).click();
   const packetDownload=await packetDownloadPromise;
   expect(packetDownload.suggestedFilename()).toBe("screennote-review-packet.md");
+  const jsonDownloadPromise=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Export JSON"}).click();
+  const jsonDownload=await jsonDownloadPromise;
+  expect(jsonDownload.suggestedFilename()).toBe("screennote-review-packet.json");
+  const jsonPath=await jsonDownload.path();if(!jsonPath)throw new Error("Review packet JSON download did not produce a file.");
+  const packet=JSON.parse(await readFile(jsonPath,"utf8"));
+  expect(packet.schema).toBe("screennote.review-packet");
+  expect(packet.shareUrl).toContain("/s/"+token);
+  expect(packet.guestDecisions).toContainEqual(expect.objectContaining({decision:"changes-requested",comment:"Please adjust the payment state.",reviewerLabel:"Luke"}));
+  expect(packet.discussion).toContainEqual(expect.objectContaining({id:"visual-comment-deleted",text:"[Comment deleted]",deleted:true}));
+  expect(JSON.stringify(packet)).not.toContain("deleted private feedback must not leak");
+  const markdownDownloadPromise=page.waitForEvent("download");
+  await page.getByRole("button",{name:"Export Markdown"}).click();
+  const markdownDownload=await markdownDownloadPromise;
+  expect(markdownDownload.suggestedFilename()).toBe("screennote-review-packet.md");
+  const markdownPath=await markdownDownload.path();if(!markdownPath)throw new Error("Review packet Markdown download did not produce a file.");
+  const markdown=await readFile(markdownPath,"utf8");
+  expect(markdown).toContain("Review packet — A product walkthrough");
+  expect(markdown).toContain("Review the checkout flow");
+  expect(markdown).toContain("Please adjust the payment state.");
+  expect(markdown).toContain("[Comment deleted]");
+  expect(markdown).not.toContain("deleted private feedback must not leak");
   await expect(page.locator(".share-video-wrap")).toBeVisible();
   await expect(page.locator(".shared-annotation-overlay .shared-mark")).toHaveCount(1); // Only the untimed legacy mark is active at 0s.
   await expect(page.locator(".share-discussion")).toBeVisible();
