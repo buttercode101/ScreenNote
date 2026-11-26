@@ -78,6 +78,7 @@ function EditorWorkspace({clip,url,onClose,onUpdated,onShare,onDownload,onDelete
     setBusy(true);setExportProgress(0);setStatus("Preparing annotated copy…");
     const previousControls=source.controls,originalTime=source.currentTime,wasPaused=source.paused;
     let raf=0,stream:MediaStream|undefined,sourceCapture:MediaStream|undefined,recorder:MediaRecorder|undefined,recorderDone:Promise<Blob>|undefined,recorderStarted=false;
+    let sourceFailed=false;
     const stopRecorder=()=>{if(recorder&&recorder.state!=="inactive"){try{recorder.stop()}catch{/* Recorder may already be stopping. */}}};
     const seekTo=(time:number)=>new Promise<void>((resolve,reject)=>{
       if(Math.abs(source.currentTime-time)<.02)return resolve();
@@ -88,6 +89,7 @@ function EditorWorkspace({clip,url,onClose,onUpdated,onShare,onDownload,onDelete
       try{source.currentTime=time}catch{cleanup();reject(new Error("Could not seek the source video."))}
     });
     let onEnded=()=>stopRecorder();
+    const onSourceError=()=>{sourceFailed=true;stopRecorder()};
     try{
       source.controls=false;source.pause();
       const captureSource=source as HTMLVideoElement&{captureStream?:()=>MediaStream;mozCaptureStream?:()=>MediaStream};
@@ -108,6 +110,7 @@ function EditorWorkspace({clip,url,onClose,onUpdated,onShare,onDownload,onDelete
       });
       recorder.start(250);recorderStarted=true;
       source.addEventListener("ended",onEnded,{once:true});
+      source.addEventListener("error",onSourceError,{once:true});
       const draw=()=>{
         if(source.readyState>=2)ctx.drawImage(source,0,0,width,height);else{ctx.fillStyle="#111";ctx.fillRect(0,0,width,height)}
         paint(ctx,width,height,visibleAnnotations(marks,source.currentTime),scratch);
@@ -115,13 +118,13 @@ function EditorWorkspace({clip,url,onClose,onUpdated,onShare,onDownload,onDelete
         if(source.ended)stopRecorder();else raf=requestAnimationFrame(draw);
       };
       raf=requestAnimationFrame(draw);await source.play();
-      const blob=await recorderDone;if(!blob.size)throw new Error("The annotated export was empty.");
+      const blob=await Promise.race([recorderDone,new Promise<Blob>((_,reject)=>window.setTimeout(()=>reject(new Error("The annotated export timed out. The original remains unchanged.")),45000))]);if(sourceFailed)throw new Error("The source video failed during export. No incomplete copy was saved.");if(!blob.size)throw new Error("The annotated export was empty.");
       const next:Clip={...clip,id:crypto.randomUUID(),title:(title.trim()||clip.title)+" — annotated",createdAt:Date.now(),size:blob.size,mimeType:blob.type,blob,annotations:marks,thumbnail:await createVideoThumbnail(blob)};
       await saveClip(next);onUpdated();setStatus("Annotated copy saved. The original remains unchanged.");
     }catch(error){setStatus(error instanceof Error?error.message:"Could not export annotations. The original remains unchanged.")}
     finally{
-      cancelAnimationFrame(raf);source.removeEventListener("ended",onEnded);stopRecorder();
-      if(recorderStarted&&recorderDone)await recorderDone.catch(()=>undefined);
+      cancelAnimationFrame(raf);source.removeEventListener("ended",onEnded);source.removeEventListener("error",onSourceError);stopRecorder();
+      if(recorderStarted&&recorderDone)await Promise.race([recorderDone.then(()=>undefined,()=>undefined),new Promise<void>(resolve=>window.setTimeout(resolve,2500))]);
       stream?.getTracks().forEach(track=>track.stop());sourceCapture?.getTracks().forEach(track=>track.stop());
       source.controls=previousControls;source.pause();
       if(Number.isFinite(originalTime))await seekTo(Math.min(originalTime,Number.isFinite(source.duration)?source.duration:originalTime)).catch(()=>undefined);
