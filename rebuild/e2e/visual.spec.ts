@@ -451,7 +451,7 @@ test("transient share and alert surfaces keep readable contrast in both themes",
   });
   for(const theme of ["light","dark"]){
     if(theme==="dark")await page.getByRole("button",{name:"Toggle appearance"}).click();
-    for(const selector of [".share-link-toast",".share-link-toast span",".share-link-toast button",".share-error",".shared-review-status.changes-requested",".review-decision-options button[aria-pressed=true]",".editor-status",".offline-banner",".capture-unavailable"]){
+    for(const selector of [".share-link-toast",".share-link-toast span",".share-link-toast button",".share-error",".shared-review-status.changes-requested",".review-decision-options button[aria-pressed=true]",".editor-status",".offline-banner",".capture-unavailable",".button.danger",".duration"]){
       expect(await contrast(selector),selector+" contrast in "+theme).toBeGreaterThanOrEqual(4.5);
     }
   }
