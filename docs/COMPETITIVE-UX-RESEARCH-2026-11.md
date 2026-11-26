@@ -88,3 +88,57 @@ Browser recording reference: MediaRecorder supports timesliced chunks via start(
 
 ## Evidence discipline
 Competitor feature lists are sourced from official product/help pages and may change. Performance values are acceptance targets, not competitor measurements. Do not claim “10x faster” or “better than Loom” without reproducible matched-device, network, and media-size tests.
+
+
+## Extended competitor landscape — checked 26 November 2026
+### Tella
+Tella is the strongest creator/editor reference in this set: separate screen and camera tracks, multiple takes/clips, transcript-based editing, automatic captions, silence/filler removal, zooms, layouts, auto-upload, 4K export, hosted share pages, analytics, and team workspace. Its published pricing/feature pages indicate paid tiers and credit-metered AI workflows.
+Sources: https://www.tella.com/features ; https://www.tella.com/recorder ; https://www.tella.com/pricing
+
+### ScreenPal
+ScreenPal combines screen/webcam recording, an editor, screenshot capture and annotation, online video hosting, and a growing set of AI-assisted transcript, caption, chapter, text-based editing, quiz, and audio-description tools.
+Source: https://screenpal.com/features
+
+### Vidyard
+Vidyard's strength is business communication: screen/webcam capture through extension/desktop/mobile, branded video landing pages, view notifications, responsive hosted playback, playlists, chapters, captions/transcription, upload widgets, and analytics.
+Source: https://www.vidyard.com/products/features/
+
+## Qualitative friction signals (use as hypotheses, not prevalence claims)
+- Public browser-extension reviews include reports of camera/microphone detection failures, disabled start controls, and unreliable capture. A November 2026 review aggregation is anecdotal and not a representative usability study.
+  Source: https://chrome-stats.com/d/liecbddmkiiihnedobmlmillhodjkdmb/reviews
+- A December 2025 Reddit thread describes a user unable to start or select devices in Loom and Claap extensions. This is a single-user report, not proof of a general defect.
+  Source: https://www.reddit.com/r/chrome/comments/1pnaylv/unable_to_record_screen_with_extensions/
+- A 2025 qualitative study found setup burden, privacy concerns about notifications appearing in captures, and upload delays causing repeat attempts for some participants.
+  Source: https://doi.org/10.1017/S1368980025000515
+- A usability evaluation of recording controls noted confusion between record affordances, desired countdown/confirmation, and need for clear upload-completion feedback. This is older foundational evidence, not a current competitor score.
+  Source: https://www.project-easier.eu/wp-content/uploads/sites/67/2024/02/EASIER_D1.4_Report-on-final-evaluation-study.pdf
+
+## ScreenNote verified capability baseline (26 Nov 2026)
+The current build is an early-access, local-first beta with: desktop browser screen capture; microphone/camera and optional shared-screen audio; countdown and pause/resume; local recovery and download; import on mobile; local trim/compress and fixed mask/mark copy; manually supplied captions and chapters; local searchable library; unlisted sharing; expiry options; optional password protection; revoke; timestamped comments/replies, reactions, and review status. Current help copy sets local recording/import limits at 30 min / 250 MB, shared video at 10 min / 50 MB, and shared storage budget at 1 GB. Basic viewers do not need an account.
+
+## Gap matrix and recommended position
+| Capability | ScreenNote today | Leading competitor expectation | Recommended next step |
+|---|---|---|---|
+| Capture | Browser desktop; mobile import | Native desktop/mobile, source selection, system audio | Keep permission/device diagnostics first-class; native capture only where justified |
+| Recovery | Local-first, recovery export, resumable part upload | Upload while recording, autosave, recoverable drafts | Make saved/uploading/recoverable states unmistakable; test interruption paths |
+| Editing | Local trim/compress, masks/marks | Multi-take, separate tracks, transcript editing, zoom/layout effects | Prioritize fast trim, timestamp annotation and undo before complex timeline |
+| Accessibility | User-provided captions/chapters | Auto transcripts, captions, chapters | Add accessible transcript/caption workflow; auto-transcription only with sustainable cost and quality |
+| Review | Timestamp comments/replies, reactions, status | Resolve threads, transcript comments, viewer analytics | Improve timestamp pinning, resolve/reopen, share-at-time |
+| Sharing | No-account viewer, password, expiry, revoke | Embed, branding, CTA, custom domains, analytics | Recipient page clarity and safe sharing before branding upsell |
+| Workspace | Device-local library | Team workspace, search, shared library, integrations | Validate collaboration demand before adding accounts/teams |
+| Monetization | Early-access beta; no payment enabled | Free and paid tiers with feature limits | Do not gate core reliability; validate willingness to pay before implementing plans |
+
+## Research-derived product strategy
+ScreenNote's credible differentiation is not “more AI” or “more effects.” It is **privacy-first, no-account viewing, local-first recoverability, and feedback anchored to the exact moment**. Compete on the trust and completion of the record → review → share → respond loop. Avoid feature parity with Tella's full creator editor until ScreenNote's capture, recovery, recipient page, and annotation are measurably excellent.
+
+## ScreenNote production verification — 26 Nov 2026
+- Unit/integration suite: 120 passed, 0 failed.
+- Build: passed.
+- Responsive browser pass: 320, 375, 390, 768, 1024, 1440 px; no document overflow, no JS errors, no failed network requests on the main view.
+- Mobile import/download flow: passed.
+- Sample import, title save, local trim-copy, library search: passed.
+- Production live-smoke: both unprotected and password-protected test videos published, playback hashes verified, and test records cleaned up.
+- Mobile Lighthouse lab run after contrast correction: Performance 93, Accessibility 100, Best Practices 100; FCP 0.8 s, LCP 1.6 s, TBT 330 ms, CLS 0.
+- Production dependency audit: 0 vulnerabilities with dev dependencies omitted. Full audit still reports moderate findings in development-only c8/test-exclude/glob/minimatch chain; see npm audit output before deciding whether to replace the coverage tool.
+
+These are observed results from this test pass, not guarantees across every device/network/browser.
