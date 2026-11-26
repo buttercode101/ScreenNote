@@ -380,7 +380,7 @@ function App() {
         throw new Error("The video uploaded, but its review context could not be saved. The incomplete share was rolled back; your local original is safe.");
       }
       const next = { ...clip, reviewBrief: hasBrief ? brief : undefined, shareHistory:versionPlan.history, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt, version:versionPlan.version, publishedAt:publishTimestamp } };
-      await saveClip(next); await refresh();
+      await saveClip(next); setPreviewClip(next); await refresh();
       let previousShareWarning = "";
       if (versionPlan.previousToRevoke && previousShare && previousShare.token !== result.token) {
         const stopped = await fetch("/api/share/" + previousShare.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: previousShare.ownerKey }) }).catch(() => null);
@@ -444,10 +444,12 @@ function App() {
     try{
       await revokeRemoteShare(version);
       const clip=await getClip(id);if(!clip)return;
-      await saveClip({...clip,shareHistory:(clip.shareHistory||[]).filter(item=>item.token!==version.token)});
+      const next={...clip,shareHistory:(clip.shareHistory||[]).filter(item=>item.token!==version.token)};
+      await saveClip(next);if(previewClip?.id===id)setPreviewClip(next);
       await refresh();setMessage("Share version "+version.version+" was revoked.");
     }catch(error){setMessage(error instanceof Error?error.message:"Could not revoke this share version.");}
   }
+
   async function stopSharing(id: string) {
     const clip = await getClip(id);
     if (!clip || (!clip.share && !clip.shareHistory?.length)) return;
@@ -455,7 +457,7 @@ function App() {
       const shares=[...(clip.share?[clip.share]:[]),...(clip.shareHistory||[])];
       for(const share of shares)await revokeRemoteShare(share);
       const next={...clip};delete next.share;delete next.shareHistory;
-      await saveClip(next);await refresh();
+      await saveClip(next);if(previewClip?.id===id)setPreviewClip(next);await refresh();
       setMessage("All shared versions and their discussions have been deleted. Your local original is still here.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't stop sharing."); }
   }
