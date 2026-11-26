@@ -352,6 +352,7 @@ function App() {
       setShareLink(url);setShareLinkVersion(clip.share.version||1); await navigator.clipboard?.writeText(url).catch(() => undefined);
       return;
     }
+    setShareLink("");setShareLinkVersion(null);
     setKeepPreviousShare(false);
     setPublishId(id);
   }
