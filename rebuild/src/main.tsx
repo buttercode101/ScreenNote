@@ -125,7 +125,7 @@ function App() {
     window.addEventListener("online", onlineNow); window.addEventListener("offline", offlineNow);
     return () => { window.removeEventListener("online", onlineNow); window.removeEventListener("offline", offlineNow); };
   }, []);
-  useEffect(() => { document.documentElement.dataset.theme = dark ? "dark" : "light"; try { localStorage.setItem("screennote-theme", dark ? "dark" : "light"); } catch { /* Appearance remains usable when storage is blocked. */ } }, [dark]);
+  useEffect(() => { const theme = dark ? "dark" : "light"; document.documentElement.dataset.theme = theme; document.documentElement.style.colorScheme = theme; document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#171d19" : "#f4f2ec"); try { localStorage.setItem("screennote-theme", theme); } catch { /* Appearance remains usable when storage is blocked. */ } }, [dark]);
   useEffect(() => {
     if ("serviceWorker" in navigator && window.isSecureContext) {
       navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => setMessage("Offline support could not be enabled in this browser."));
