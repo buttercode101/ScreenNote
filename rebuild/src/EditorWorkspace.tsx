@@ -4,7 +4,8 @@ import { saveClip, type Annotation, type BugReport, type CaptionCue, type Chapte
 import { clampTrimRange, trimVideoElement } from "./trim";
 import { createVideoThumbnail } from "./media";
 import { trimAnnotations, visibleAnnotations } from "./annotationTiming";
-import { useDialogFocus } from "./useDialogFocus";\nimport { formatReproCapsuleSteps, parseReproCapsule } from "./reproCapsule";
+import { useDialogFocus } from "./useDialogFocus";
+import { formatReproCapsuleSteps, parseReproCapsule } from "./reproCapsule";
 // @ts-expect-error Shared browser-safe JavaScript enrichment module has no declaration file.
 import { captionsVTT, parseCaptions, parseChapters, reportMarkdown, trimExtras, validateExtras } from "../legacy/lib/enrichment.js";
 
@@ -69,7 +70,7 @@ function EditorWorkspace({clip,url,onClose,onUpdated,onShare,onDownload,onDelete
     if(file.size>256*1024){setStatus("Repro Capsules must be 256 KB or smaller.");return}
     try{
       const capsule=parseReproCapsule(JSON.parse(await file.text()));
-      const environment=[capsule.page.userAgent,capsule.page.viewport.width+"×"+capsule.page.viewport.height+" viewport"].filter(Boolean).join("\\n");
+      const environment=[capsule.page.userAgent,capsule.page.viewport.width+"×"+capsule.page.viewport.height+" viewport"].filter(Boolean).join("\n");
       setReport(old=>({...old,url:capsule.page.url,steps:formatReproCapsuleSteps(capsule),environment}));
       setStatus("Repro Capsule imported locally. Review the URL, steps and environment; remove anything sensitive before saving or publishing.");
     }catch(error){setStatus(error instanceof Error?error.message:"This Repro Capsule could not be imported.");}
