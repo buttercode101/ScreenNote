@@ -47,11 +47,39 @@ async function assertNamedControls(page:import("@playwright/test").Page){
   expect(missing, "visible controls must expose an accessible name").toEqual([]);
 }
 
+async function assertTextContrast(page:import("@playwright/test").Page,label:string){
+  const violations=await page.evaluate(()=>{
+    const parse=(value:string)=>{const numbers=value.match(/[\d.]+/g)?.map(Number)||[];return numbers.length>=3?{r:numbers[0],g:numbers[1],b:numbers[2],a:numbers.length>3?numbers[3]:1}:null};
+    const linear=(v:number)=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4};
+    const luminance=(v:{r:number;g:number;b:number})=>.2126*linear(v.r)+.7152*linear(v.g)+.0722*linear(v.b);
+    const ratio=(a:{r:number;g:number;b:number},b:{r:number;g:number;b:number})=>{const values=[luminance(a),luminance(b)].sort((x,y)=>y-x);return(values[0]+.05)/(values[1]+.05)};
+    const nodes=[...document.querySelectorAll<HTMLElement>("body *")];
+    const failures:string[]=[];
+    for(const el of nodes){
+      const own=getComputedStyle(el),rect=el.getBoundingClientRect();
+      if(own.display==="none"||own.visibility==="hidden"||!rect.width||!rect.height||el.closest('[aria-hidden="true"]'))continue;
+      const text=Array.from(el.childNodes).filter(n=>n.nodeType===Node.TEXT_NODE).map(n=>n.textContent||"").join(" ").trim();
+      if(!text)continue;
+      const foreground=parse(own.color);if(!foreground)continue;
+      let background={r:255,g:255,b:255};
+      const chain:HTMLElement[]=[];let parent:HTMLElement|null=el;while(parent){chain.unshift(parent);parent=parent.parentElement;}
+      for(const ancestor of chain){const color=parse(getComputedStyle(ancestor).backgroundColor);if(color&&color.a>0){background={r:color.r*color.a+background.r*(1-color.a),g:color.g*color.a+background.g*(1-color.a),b:color.b*color.a+background.b*(1-color.a)};}}
+      const fg={r:foreground.r*foreground.a+background.r*(1-foreground.a),g:foreground.g*foreground.a+background.g*(1-foreground.a),b:foreground.b*foreground.a+background.b*(1-foreground.a)};
+      const size=parseFloat(own.fontSize)||16,weight=parseInt(own.fontWeight)||400,minimum=size>=24||(size>=18.66&&weight>=700)?3:4.5;
+      const value=ratio(fg,background);
+      if(value+0.01<minimum)failures.push(el.tagName.toLowerCase()+"."+String(el.className||"").toString().replace(/\s+/g,".")+" text="+text.slice(0,72)+" contrast="+value.toFixed(2)+" required="+minimum);
+    }
+    return failures.slice(0,80);
+  });
+  expect(violations,label+" visible text must meet WCAG AA contrast").toEqual([]);
+}
+
 test.beforeAll(async()=>{await mkdir("test-results/screenshots",{recursive:true});});
 
 test("independent React workspace is contained at 13 widths, short landscape heights and light/dark",async({page})=>{
   await page.goto("/");
   await expect(page.getByRole("heading",{level:1,name:/Make it clear/i})).toBeVisible();
+  await assertTextContrast(page,"workspace light");
   await page.setViewportSize({width:320,height:780});
   const mobileHeader=await page.evaluate(()=>({topbar:document.querySelector(".topbar")?.getBoundingClientRect().height,breadcrumb:document.querySelector(".breadcrumb")?.getBoundingClientRect().height,secure:document.querySelector(".secure-label")?.getBoundingClientRect().width}));
   expect(mobileHeader.topbar, "mobile utility bar should remain compact").toBeLessThanOrEqual(64);
@@ -67,6 +95,7 @@ test("independent React workspace is contained at 13 widths, short landscape hei
   }
   await page.getByRole("button",{name:"Toggle appearance"}).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
+  await assertTextContrast(page,"workspace dark");
   await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content","#171d19");
   await expect(page.locator(".capture-panel")).toHaveCSS("background-color","rgb(41, 59, 46)");
   for(const v of viewports){
@@ -112,6 +141,10 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.setViewportSize({width:1280,height:900});
   await page.getByRole("button",{name:/Preview/i}).click();
   await expect(page.locator(".preview-workspace")).toBeVisible();
+  await assertTextContrast(page,"preview light");
+  await page.evaluate(()=>document.documentElement.setAttribute("data-theme","dark"));
+  await assertTextContrast(page,"preview dark");
+  await page.evaluate(()=>document.documentElement.setAttribute("data-theme","light"));
   await expect(page.locator(".preview-workspace video")).toBeVisible();
   await assertNamedControls(page);
   const previewDialog=page.locator(".preview-workspace"),previewButtons=previewDialog.locator("button");
@@ -120,6 +153,10 @@ test("imported recording opens the full editor with preview, annotations, captio
   for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width)){await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});await page.screenshot({path:`test-results/screenshots/preview-viewport-${width}.png`});}}
   await page.getByRole("button",{name:/Open editor/i}).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
+  await assertTextContrast(page,"editor light");
+  await page.evaluate(()=>document.documentElement.setAttribute("data-theme","dark"));
+  await assertTextContrast(page,"editor dark");
+  await page.evaluate(()=>document.documentElement.setAttribute("data-theme","light"));
   await assertNamedControls(page);
   await expect(page.locator(".editor-video-wrap video")).toBeVisible();
   await page.locator(".editor-title-button").click();
@@ -300,6 +337,10 @@ test("temporary share viewer and privacy route use the independent responsive de
   });
   await page.goto("/s/"+token+"?campaign=private#review");
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
+  await assertTextContrast(page,"guest share light");
+  await page.evaluate(()=>document.documentElement.setAttribute("data-theme","dark"));
+  await assertTextContrast(page,"guest share dark");
+  await page.evaluate(()=>document.documentElement.setAttribute("data-theme","light"));
   await assertNamedControls(page);
   await expect(page.getByText("Approved",{exact:true})).toBeVisible();
   await expect(page.getByRole("region",{name:"Review brief"})).toContainText("Review the checkout flow");
