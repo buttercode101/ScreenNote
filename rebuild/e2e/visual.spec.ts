@@ -63,6 +63,10 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(page.locator(".clip-thumb img, .clip-thumb-fallback").first()).toBeVisible({timeout:10000});
   await expect(page.getByRole("button",{name:/Preview/i})).toBeVisible();
   await expect(page.getByRole("button",{name:/Edit/i})).toBeVisible();
+  await page.setViewportSize({width:320,height:780});
+  const clipActionHeights=await page.locator(".clip-actions .icon-button").evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
+  expect(clipActionHeights.length).toBeGreaterThan(0);expect(clipActionHeights.every(height=>height>=44)).toBe(true);
+  await page.setViewportSize({width:1280,height:900});
   await page.getByRole("button",{name:/Preview/i}).click();
   await expect(page.locator(".preview-workspace")).toBeVisible();
   await expect(page.locator(".preview-workspace video")).toBeVisible();
@@ -113,7 +117,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   const restored=await editorVideo.evaluate(node=>({time:(node as HTMLVideoElement).currentTime,paused:(node as HTMLVideoElement).paused}));expect(restored.paused).toBe(true);expect(Math.abs(restored.time-originalPlayhead)).toBeLessThan(.1);
   await page.getByRole("button",{name:/Save all changes/i}).click();
   await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
-  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
+  for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if(width===320){const heights=await page.locator(".editor-toolbar button,.editor-tabs button").evaluateAll(nodes=>nodes.filter(node=>getComputedStyle(node).display!=="none").map(node=>node.getBoundingClientRect().height));expect(heights.length).toBeGreaterThan(0);expect(heights.every(height=>height>=44)).toBe(true);}if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
   await page.getByRole("button",{name:/Share a reviewed copy/i}).click();
   await expect(page.getByRole("heading",{name:"Make a temporary link"})).toBeVisible();
   const modalLayer=await page.locator(".modal-backdrop").evaluate(el=>Number(getComputedStyle(el).zIndex));

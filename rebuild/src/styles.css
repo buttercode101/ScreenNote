@@ -298,3 +298,13 @@
 .review-owner-actions{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}.review-owner-actions>div{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}.review-owner-actions .button{width:100%;justify-content:center;white-space:normal;text-align:center;overflow-wrap:anywhere}
 
 .camera-position-preview{grid-column:1/-1;min-width:0;margin-top:4px}.camera-position-stage{position:relative;width:100%;max-width:560px;aspect-ratio:16/9;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:linear-gradient(135deg,#272c27,#151815);touch-action:none;isolation:isolate}.camera-position-screen-label{position:absolute;left:12px;top:10px;font:500 10px 'DM Mono',monospace;letter-spacing:.12em;color:#aeb4a8}.camera-position-lines{position:absolute;left:12%;top:25%;width:60%;height:56%;display:flex;flex-direction:column;gap:8%;opacity:.5}.camera-position-lines i{display:block;height:12%;border-radius:3px;background:#687064}.camera-position-lines i:nth-child(2){width:70%}.camera-position-lines i:nth-child(3){width:88%}.camera-position-lines i:nth-child(4){width:52%}.camera-bubble-handle{position:absolute;display:grid;place-items:center;min-width:24px;min-height:24px;border:3px solid #f7f8ef;border-radius:50%;background:#b5d84a;box-shadow:0 3px 12px #0008;touch-action:none;cursor:grab;outline-offset:4px}.camera-bubble-handle:active{cursor:grabbing}.camera-bubble-handle span{width:34%;height:34%;border-radius:50%;background:#30392b}.camera-bubble-handle:focus-visible{outline:3px solid #e9f8a0}.camera-position-preview p{max-width:560px;margin:8px 0 0;color:var(--muted);font-size:11px;line-height:1.45}
+
+/* Mobile interaction targets: keep compact controls comfortably tappable. */
+.icon-button{width:44px;height:44px;min-width:44px;min-height:44px}
+.clip-actions .icon-button{width:44px;height:44px;min-width:44px;min-height:44px}
+@media(max-width:600px){
+ .editor-tabs button,.editor-toolbar button,.editor-inline-actions button,.annotation-row button,.editor-actions-card button,.caption-results button,.preview-workspace>header button,.preview-workspace-content aside button,.shared-chapters button,.shared-transcript button,.share-topbar button,.share-comment-form button,.guest-review-panel button,.review-decision-options button{min-height:44px}
+ .capture-settings-grid select,.capture-settings-grid input[type=range]{min-height:44px}
+ .toggle-option{min-height:44px}
+ .editor-card input,.editor-card select,.editor-card textarea,.context-editor input,.context-editor select,.context-editor textarea,.share-comment-form input,.share-comment-form textarea,.guest-review-panel input,.guest-review-panel textarea{min-height:44px}
+}
