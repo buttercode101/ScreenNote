@@ -336,7 +336,8 @@ test("temporary share viewer and privacy route use the independent responsive de
     await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({details:currentDetails})});
   });
   await page.goto("/s/"+token+"?campaign=private#review");
-  await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();\n  await expect(page.locator(".share-version-badge")).toHaveText("Version 2");
+  await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
+  await expect(page.locator(".share-version-badge")).toHaveText("Version 2");
   await assertTextContrast(page,"guest share light");
   await page.evaluate(()=>document.documentElement.setAttribute("data-theme","dark"));
   await assertTextContrast(page,"guest share dark");
