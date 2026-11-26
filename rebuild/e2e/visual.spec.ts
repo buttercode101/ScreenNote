@@ -293,3 +293,31 @@ test("temporary share viewer and privacy route use the independent responsive de
   await expect(page.locator(".privacy-document")).toBeVisible();
   for(const width of [320,1440]){await page.setViewportSize({width,height:900});await page.screenshot({path:`test-results/screenshots/privacy-${width}.png`,fullPage:true});}
 });
+
+test("password-protected share keeps the gate closed until correct unlock and remains responsive",async({page})=>{
+  const token="d".repeat(40);let unlocked=false;
+  await page.route("**/api/share/"+token,route=>route.fulfill({status:unlocked?200:401,contentType:"application/json",body:JSON.stringify(unlocked?{title:"Protected walkthrough",mimeType:"video/webm",size:2048,duration:12,expiresAt:Math.floor(Date.now()/1000)+86400,passwordRequired:true}:{error:"Enter the sharing password."})}));
+  await page.route("**/api/share/"+token+"/access",async route=>{
+    const password=route.request().postDataJSON()?.password;
+    if(password!=="correct-share-password"){await route.fulfill({status:401,contentType:"application/json",body:JSON.stringify({error:"That password isn't correct."})});return;}
+    unlocked=true;await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({access:true})});
+  });
+  await page.route("**/api/share/"+token+"/comments",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({comments:[]})}));
+  await page.route("**/api/share/"+token+"/details",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({details:{}})}));
+  await page.route("**/api/share/"+token+"/reactions",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({counts:{like:0,thanks:0,idea:0},myReaction:""})}));
+  await page.route("**/api/share/"+token+"/reviews",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({reviews:[],myReview:null})}));
+  await page.route("**/api/share/"+token+"/media",route=>route.fulfill({status:200,headers:{"content-type":"video/webm"},body:Buffer.from([0x1a,0x45,0xdf,0xa3])}));
+  await page.goto("/s/"+token);
+  await expect(page.getByRole("heading",{name:"This ScreenNote is private."})).toBeVisible();
+  await assertNamedControls(page);
+  for(const width of [320,375,768,1440]){await page.setViewportSize({width,height:900});await contained(page,width);}
+  await page.getByLabel("Password").fill("wrong-password");
+  await page.getByRole("button",{name:"Unlock video"}).click();
+  await expect(page.locator(".share-error")).toContainText("That password isn't correct.");
+  await expect(page.getByRole("heading",{name:"This ScreenNote is private."})).toBeVisible();
+  await page.getByLabel("Password").fill("correct-share-password");
+  await page.getByRole("button",{name:"Unlock video"}).click();
+  await expect(page.getByRole("heading",{name:"Protected walkthrough"})).toBeVisible();
+  await expect(page.locator(".password-gate")).toHaveCount(0);
+  for(const width of [320,375,768,1440]){await page.setViewportSize({width,height:900});await contained(page,width);}
+});

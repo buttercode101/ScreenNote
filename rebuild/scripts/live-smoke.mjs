@@ -179,6 +179,12 @@ const deleted = await request(commentsPath + "/" + comment.id, {
   body: JSON.stringify({ authorKey })
 });
 assert.equal(deleted.status, 200, "comment author can delete");
+for (let i = 0; i < 10; i++) {
+  const allowed = await request(commentsPath, { method:"POST", headers:viewerHeaders, body:JSON.stringify({authorKey:randomBytes(24).toString("hex"),text:"Live rate limit probe "+i,time:4,viewerLabel:"Live QA"}) });
+  assert.equal(allowed.status, 201, "comment action remains available up to its configured limit");
+}
+const throttledComment = await request(commentsPath, { method:"POST", headers:viewerHeaders, body:JSON.stringify({authorKey:randomBytes(24).toString("hex"),text:"Live rate limit overflow",time:4,viewerLabel:"Live QA"}) });
+assert.equal(throttledComment.status,429,"deployed share comment endpoint throttles excessive guest writes");
 
 const stopped = await request(sharePath + "/manage", {
   method: "DELETE", headers: { origin, "content-type": "application/json" },
@@ -188,7 +194,7 @@ assert.equal(stopped.status, 200, "owner can stop share and delete shared object
 assert.equal((await request(sharePath)).status, 404, "stopped share is no longer available");
 shareToken = null;
 recordingId = null;
-console.log("Live ScreenNote acceptance passed: assets, guest session, resumable D1/R2 upload, password gate and lockout, byte-range media, comments/replies/edit/delete, resolve, and stop-share deletion.");
+console.log("Live ScreenNote acceptance passed: assets, guest session, resumable D1/R2 upload, password gate and lockout, byte-range media, comments/replies/edit/delete, comment rate limiting, resolve, and stop-share deletion.");
 } catch (error) {
   if (shareToken) {
     await request(`/api/share/${shareToken}/manage`, { method:"DELETE", headers:{origin,"content-type":"application/json"}, body:JSON.stringify({ownerKey}) }).catch(() => undefined);
