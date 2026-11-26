@@ -298,7 +298,7 @@ test("temporary share viewer and privacy route use the independent responsive de
     if(route.request().method()==="PUT"){currentDetails=route.request().postDataJSON().details;await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({saved:true})});return;}
     await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({details:currentDetails})});
   });
-  await page.goto("/s/"+token);
+  await page.goto("/s/"+token+"?campaign=private#review");
   await expect(page.getByRole("heading",{name:"A product walkthrough"})).toBeVisible();
   await assertNamedControls(page);
   await expect(page.getByText("Approved",{exact:true})).toBeVisible();
@@ -329,7 +329,7 @@ test("temporary share viewer and privacy route use the independent responsive de
   const jsonPath=await jsonDownload.path();if(!jsonPath)throw new Error("Review packet JSON download did not produce a file.");
   const packet=JSON.parse(await readFile(jsonPath,"utf8"));
   expect(packet.schema).toBe("screennote.review-packet");
-  expect(packet.shareUrl).toContain("/s/"+token);
+  expect(packet.shareUrl).toContain("/s/"+token);\n  expect(packet.shareUrl).not.toContain("campaign=private");\n  expect(packet.shareUrl).not.toContain("#review");
   expect(packet.guestDecisions).toContainEqual(expect.objectContaining({decision:"changes-requested",comment:"Please adjust the payment state.",reviewerLabel:"Luke"}));
   expect(packet.discussion).toContainEqual(expect.objectContaining({id:"visual-comment-deleted",text:"[Comment deleted]",deleted:true}));
   expect(JSON.stringify(packet)).not.toContain("deleted private feedback must not leak");
