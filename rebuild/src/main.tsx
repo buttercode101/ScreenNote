@@ -90,7 +90,8 @@ function App() {
   const [storageEstimate, setStorageEstimate] = useState<{usage:number;quota:number}|null>(null);
   const [persistentStorage, setPersistentStorage] = useState<boolean|null>(null);
   const [storageStatus, setStorageStatus] = useState("");
-  const [shareLink, setShareLink] = useState("");\n  const [shareLinkVersion,setShareLinkVersion]=useState<number|null>(null);
+  const [shareLink, setShareLink] = useState("");
+  const [shareLinkVersion,setShareLinkVersion]=useState<number|null>(null);
   const [recoveryData, setRecoveryData] = useState("");
   const recoveryFileRef = useRef<HTMLInputElement>(null);
   const backupFileRef = useRef<HTMLInputElement>(null);
@@ -475,7 +476,9 @@ function App() {
     }
   }
 
-  const publishClipMeta=publishId?clips.find(clip=>clip.id===publishId):undefined;\n  const canKeepPreviousShare=Boolean(publishClipMeta?.share&&publishClipMeta.share.expiresAt*1000>Date.now());\n  return <div className="app-shell">
+  const publishClipMeta=publishId?clips.find(clip=>clip.id===publishId):undefined;
+  const canKeepPreviousShare=Boolean(publishClipMeta?.share&&publishClipMeta.share.expiresAt*1000>Date.now());
+  return <div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="/" aria-label="ScreenNote home"><span className="brand-mark"><Video size={18}/></span><span>screen<span className="brand-light">note</span></span></a>
       <div className="workspace-label">WORKSPACE <span className="local-pill"><span/> LOCAL</span></div>
