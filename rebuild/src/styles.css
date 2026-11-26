@@ -79,7 +79,7 @@
 .privacy-document .privacy-lead{font-size:18px;color:var(--ink)}
 .privacy-document .privacy-updated{margin-top:38px;padding-top:18px;border-top:1px solid var(--line);font:10px ui-monospace,monospace}
 @media(max-width:760px){.share-page{padding-inline:14px}.share-topbar{padding:13px 0;gap:12px}.share-header-actions{margin-left:0;width:100%;gap:14px}.share-layout{grid-template-columns:minmax(0,1fr);gap:24px;margin:26px auto 36px}.share-discussion{padding:16px}.discussion-list{max-height:none}.share-video-meta{font-size:9px}.share-footer{font-size:9px}.privacy-document{margin:25px auto 45px;padding:22px}}
-@media(max-width:760px){.share-comment-actions .text-action{min-height:44px}}
+@media(max-width:760px){.share-comment-actions .text-action,.share-header-actions .text-action{min-height:44px;padding-block:10px}.share-comment-meta .timestamp-link{min-height:44px;padding:8px 10px}}
 @media(max-width:420px){.share-header-actions{gap:10px}.share-header-actions .text-action{font-size:11px}.share-heading h1{font-size:32px}.share-comment-form{padding:14px}.share-footer{flex-direction:column}}
 
 
