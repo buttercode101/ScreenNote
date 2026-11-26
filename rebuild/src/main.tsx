@@ -79,7 +79,8 @@ function App() {
   const [backupBusy, setBackupBusy] = useState(false);
   const [publishId, setPublishId] = useState<string | null>(null);
   const [expiryDays, setExpiryDays] = useState(3);
-  const [sharePassword, setSharePassword] = useState("");\n  const [keepPreviousShare,setKeepPreviousShare]=useState(false);
+  const [sharePassword, setSharePassword] = useState("");
+  const [keepPreviousShare,setKeepPreviousShare]=useState(false);
   const [reviewPurpose, setReviewPurpose] = useState("");
   const [reviewFocus, setReviewFocus] = useState("");
   const [reviewExpected, setReviewExpected] = useState("");
@@ -89,7 +90,7 @@ function App() {
   const [storageEstimate, setStorageEstimate] = useState<{usage:number;quota:number}|null>(null);
   const [persistentStorage, setPersistentStorage] = useState<boolean|null>(null);
   const [storageStatus, setStorageStatus] = useState("");
-  const [shareLink, setShareLink] = useState("");
+  const [shareLink, setShareLink] = useState("");\n  const [shareLinkVersion,setShareLinkVersion]=useState<number|null>(null);
   const [recoveryData, setRecoveryData] = useState("");
   const recoveryFileRef = useRef<HTMLInputElement>(null);
   const backupFileRef = useRef<HTMLInputElement>(null);
@@ -347,7 +348,7 @@ function App() {
     setReviewAction(clip?.reviewBrief?.requestedAction || "review");
     if (clip?.share && clip.share.expiresAt * 1000 > Date.now() && !forceNew) {
       const url = new URL(clip.share.url, location.origin).toString();
-      setShareLink(url); await navigator.clipboard?.writeText(url).catch(() => undefined);
+      setShareLink(url);setShareLinkVersion(clip.share.version||1); await navigator.clipboard?.writeText(url).catch(() => undefined);
       return;
     }
     setKeepPreviousShare(false);
@@ -385,7 +386,7 @@ function App() {
       }
       if(versionPlan.previousKept)previousShareWarning=" Previous version "+versionPlan.previousKept.version+" remains available in local version history; its feedback stays attached to that version.";
       const fullUrl = new URL(result.url, location.origin).toString();
-      setShareLink(fullUrl);
+      setShareLink(fullUrl);setShareLinkVersion(versionPlan.version);
       setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey: resolvedOwnerKey, recordingId: result.id, expiresAt: result.expiresAt, reviewVersion:versionPlan.version }, null, 2));
       await navigator.clipboard?.writeText(fullUrl).catch(() => undefined);
       setPublishId(null); setSharePassword("");setKeepPreviousShare(false);
@@ -474,7 +475,7 @@ function App() {
     }
   }
 
-  return <div className="app-shell">
+  const publishClipMeta=publishId?clips.find(clip=>clip.id===publishId):undefined;\n  const canKeepPreviousShare=Boolean(publishClipMeta?.share&&publishClipMeta.share.expiresAt*1000>Date.now());\n  return <div className="app-shell">
     <aside className="sidebar">
       <a className="brand" href="/" aria-label="ScreenNote home"><span className="brand-mark"><Video size={18}/></span><span>screen<span className="brand-light">note</span></span></a>
       <div className="workspace-label">WORKSPACE <span className="local-pill"><span/> LOCAL</span></div>
@@ -519,7 +520,7 @@ function App() {
         <footer><span>© {new Date().getFullYear()} ScreenNote</span><span>Made for clear communication.</span><a href="/privacy">Privacy</a></footer>
       </div>
     </main>
-    {previewClip && previewUrl && (previewMode === "edit" ? <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} /> : <PreviewWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onEdit={() => setPreviewMode("edit")} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />)}
+    {previewClip && previewUrl && (previewMode === "edit" ? <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id)} onNewVersion={() => shareClip(previewClip.id,true)} onRevokeVersion={version=>revokeShareVersion(previewClip.id,version)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} /> : <PreviewWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onEdit={() => setPreviewMode("edit")} onShare={() => shareClip(previewClip.id,Boolean(previewClip.share))} shareLabel={previewClip.share?"Publish new version":"Share a reviewed copy"} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />)}
     {showSettings && <div className="modal-backdrop" role="presentation" onClick={() => setShowSettings(false)}><section ref={settingsDialogRef} className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()}>
       <header><div><span className="eyebrow">YOUR SPACE</span><h2 id="settings-title">Preferences & backups</h2><p>Keep control of your recordings, appearance and recovery keys.</p></div><button className="icon-button" onClick={() => setShowSettings(false)} aria-label="Close preferences"><X size={18}/></button></header>
       <div className="settings-section"><strong>Appearance</strong><p>Choose the workspace presentation.</p><button className="button secondary" onClick={() => setDark(!dark)}>{dark ? <Sun size={16}/> : <Moon size={16}/>} Switch to {dark ? "light" : "dark"} appearance</button></div>
@@ -539,7 +540,7 @@ function App() {
       {!publishing && message && <p className="publish-status" role="status">{message}</p>}
       <button className="button primary publish-submit" disabled={publishing || (sharePassword.length>0&&sharePassword.length<8)} onClick={publishSelected}>{publishing?"Uploading securely…":"Publish temporary link"} <ArrowUpRight size={16}/></button>
     </section></div>}
-    {shareLink && <div className="share-link-toast" role="status"><div><strong>Temporary link ready</strong><span>{shareLink}</span></div><a className="button secondary" href={shareLink} target="_blank" rel="noopener noreferrer">Open preview</a><button className="button secondary" onClick={()=>navigator.clipboard?.writeText(shareLink)}>Copy link</button><button className="button secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([recoveryData],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="screennote-recovery.json";a.click();URL.revokeObjectURL(url);}}>Recovery key</button><button className="icon-button" onClick={()=>setShareLink("")} aria-label="Dismiss"><X size={16}/></button></div>}
+    {shareLink && <div className="share-link-toast" role="status"><div><strong>{shareLinkVersion?"Version "+shareLinkVersion+" link ready":"Temporary link ready"}</strong><span>{shareLink}</span></div><a className="button secondary" href={shareLink} target="_blank" rel="noopener noreferrer">Open preview</a><button className="button secondary" onClick={()=>navigator.clipboard?.writeText(shareLink)}>Copy link</button><button className="button secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([recoveryData],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="screennote-recovery.json";a.click();URL.revokeObjectURL(url);}}>Recovery key</button><button className="icon-button" onClick={()=>{setShareLink("");setShareLinkVersion(null)}} aria-label="Dismiss"><X size={16}/></button></div>}
     <input ref={fileRef} type="file" accept="video/mp4,video/webm" hidden onChange={(e) => importFile(e.target.files?.[0])}/><input ref={recoveryFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => importRecovery(e.target.files?.[0])}/><input ref={backupFileRef} type="file" accept=".zip,application/zip" hidden onChange={(e) => restoreLibraryBackup(e.target.files?.[0])}/>
   </div>;
 }
