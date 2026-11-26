@@ -6,7 +6,7 @@ import { chromium } from "@playwright/test";
 
 const base = process.env.SCREENNOTE_LIVE_URL || "https://screennote-dev.buttercoder-dev.workers.dev";
 const origin = new URL(base).origin;
-const sample = fileURLToPath(new URL("../../legacy/public/sample.webm", import.meta.url));
+const sample = fileURLToPath(new URL("../legacy/public/sample.webm", import.meta.url));
 const output = path.resolve("test-results/live-browser-smoke");
 const password = "LiveScreenNote2026";
 await mkdir(output, { recursive: true });
