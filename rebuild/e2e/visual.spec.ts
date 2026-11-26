@@ -343,6 +343,6 @@ test("light and dark text tokens meet WCAG AA contrast",async({page})=>{
   for(const theme of ["light","dark"]){
     if(theme==="dark")await page.getByRole("button",{name:"Toggle appearance"}).click();
     const ratios=await readRatios();
-    expect(ratios,theme+" text contrast ratios: "+ratios.join(", ")).toEqual(ratios.map(value=>expect(value).toBeGreaterThanOrEqual(4.5)));
+    for(const value of ratios)expect(value,theme+" contrast ratio").toBeGreaterThanOrEqual(4.5);
   }
 });
