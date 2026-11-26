@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { recordingProfile, supportedMimeType } from "../src/recorder";
+import { cameraBubbleFootprint, recordingProfile, supportedMimeType } from "../src/recorder";
 
 describe("recording format selection", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -29,5 +29,16 @@ describe("recording quality presets",()=>{
   it("uses balanced 1080p defaults and a sharper high-quality preset",()=>{
     expect(recordingProfile("balanced")).toMatchObject({width:1920,height:1080,fps:30});
     expect(recordingProfile("clear")).toMatchObject({width:2560,height:1440,fps:30});
+  });
+});
+
+describe("camera bubble bounds",()=>{
+  it("accounts for the shorter canvas dimension on landscape and portrait screens",()=>{
+    expect(cameraBubbleFootprint(.27,16/9)).toEqual({width:.27*9/16,height:.27});
+    expect(cameraBubbleFootprint(.27,9/16)).toEqual({width:.27,height:.27*9/16});
+  });
+  it("clamps invalid size and aspect inputs to a safe preview footprint",()=>{
+    expect(cameraBubbleFootprint(Number.NaN,0)).toEqual({width:.27*9/16,height:.27});
+    expect(cameraBubbleFootprint(2,16/9).height).toBe(.4);
   });
 });

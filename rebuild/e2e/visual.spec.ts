@@ -141,6 +141,13 @@ test("recording setup exposes quality, microphone and camera placement controls"
   await expect(page.getByLabel("Camera bubble horizontal position")).toBeVisible();
   await page.getByLabel("Camera bubble horizontal position").fill("0.3");
   await expect(page.getByLabel("Camera bubble horizontal position")).toHaveValue("0.3");
+  const stage=page.getByRole("group",{name:"16 by 9 screen preview"}),handle=page.getByRole("slider",{name:"Camera bubble position"});
+  await expect(handle).toBeVisible();const before=await handle.getAttribute("aria-valuetext");
+  await handle.focus();await handle.press("ArrowRight");await expect(handle).not.toHaveAttribute("aria-valuetext",before!);
+  const stageBox=await stage.boundingBox(),handleBox=await handle.boundingBox();expect(stageBox&&handleBox).toBeTruthy();
+  await page.mouse.move(handleBox!.x+handleBox!.width/2,handleBox!.y+handleBox!.height/2);await page.mouse.down();
+  await page.mouse.move(stageBox!.x+stageBox!.width*.65,stageBox!.y+stageBox!.height*.45);await page.mouse.up();
+  await expect(handle).toHaveAttribute("aria-valuetext",/Horizontal 6[0-9]%, vertical 4[0-9]%/);
 });
 test("preferences export and restore a portable local library backup",async({page})=>{
   test.setTimeout(90000);

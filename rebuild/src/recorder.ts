@@ -172,3 +172,12 @@ export class ScreenRecorder {
     this.stream = undefined; this.sourceStreams = []; this.audioContext = undefined; this.cleanupVideo = undefined; this.displayTrack = undefined; this.displayEndedHandler = undefined; this.recorder = undefined; this.chunks = []; this.pendingWrites = []; this.onTick = undefined; this.onSourceEnded = undefined;
   }
 }
+
+export type CameraBubbleFootprint = { width: number; height: number };
+/** Normalized overlay bounds for a square camera bubble on a screen of the given aspect ratio. */
+export function cameraBubbleFootprint(size: number, aspectRatio = 16 / 9): CameraBubbleFootprint {
+  const safeSize = Number.isFinite(size) ? Math.max(.12, Math.min(.4, size)) : .27;
+  const aspect = Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 16 / 9;
+  const shortSide = Math.min(1, aspect);
+  return { width: safeSize * shortSide / aspect, height: safeSize * shortSide };
+}
