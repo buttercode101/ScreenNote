@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "ScreenNote Repro Capsule",
+  "version": "1.0.0",
+  "description": "Capture a user-approved interaction outline locally and export a reviewable ScreenNote Repro Capsule.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "ScreenNote Repro Capsule",
+    "default_popup": "popup.html"
+  }
+}
