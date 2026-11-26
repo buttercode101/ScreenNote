@@ -448,12 +448,12 @@ test("transient share and alert surfaces keep readable contrast in both themes",
     const rgb=(value:string)=>value.match(/[\d.]+/g)!.slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});
     const lum=(v:number[])=>.2126*v[0]+.7152*v[1]+.0722*v[2];
     const style=getComputedStyle(el),fg=lum(rgb(style.color));let bgColor=style.backgroundColor;
-    if(bgColor==="transparent"||bgColor==="rgba(0, 0, 0, 0)")bgColor=getComputedStyle(el.closest(".share-link-toast")||document.body).backgroundColor;
+    if(bgColor==="transparent"||bgColor==="rgba(0, 0, 0, 0)"){let parent=el.parentElement;while(parent){const candidate=getComputedStyle(parent).backgroundColor;if(candidate!=="transparent"&&candidate!=="rgba(0, 0, 0, 0)"){bgColor=candidate;break;}parent=parent.parentElement;}}
     const bg=lum(rgb(bgColor));return (Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);
   });
   for(const theme of ["light","dark"]){
     if(theme==="dark")await page.getByRole("button",{name:"Toggle appearance"}).click();
-    for(const selector of [".share-link-toast",".share-link-toast span",".share-link-toast button",".share-error",".shared-review-status.changes-requested",".review-decision-options button[aria-pressed=true]",".editor-status",".offline-banner",".capture-unavailable",".button.danger",".duration",".button.danger",".duration"]){
+    for(const selector of [".share-link-toast",".share-link-toast span",".share-link-toast button",".share-error",".shared-review-status.changes-requested",".review-decision-options button[aria-pressed=true]",".editor-status",".offline-banner",".capture-unavailable",".button.danger",".duration",".capture-panel",".capture-panel .button.primary",".capture-panel .capture-advanced summary",".toggle-option",".button.danger",".duration"]){
       expect(await contrast(selector),selector+" contrast in "+theme).toBeGreaterThanOrEqual(4.5);
     }
   }
