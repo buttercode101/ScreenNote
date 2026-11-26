@@ -624,3 +624,9 @@ footer a{color:var(--sn-accent)}
  .secure-label svg{width:16px;height:16px;flex:none}
  .top-actions .icon-button{width:40px;height:40px;min-width:40px}
 }
+
+
+/* Long recording names must never take over the editor's control bar. */
+.editor-title-wrap{min-width:0;max-width:min(620px,calc(100vw - 180px));flex:1 1 auto}
+.editor-title-button{max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+.editor-title-wrap input{max-width:100%;min-width:0}
