@@ -317,6 +317,7 @@ test("temporary share viewer and privacy route use the independent responsive de
   await expect(page.locator(".share-video-wrap")).toBeVisible();
   await expect(page.locator(".shared-annotation-overlay .shared-mark")).toHaveCount(1); // Only the untimed legacy mark is active at 0s.
   await expect(page.locator(".share-discussion")).toBeVisible();
+  await expect(page.locator(".discussion-title h2")).toHaveText("1 comment");
   await expect(page.locator(".share-comment-actions")).toHaveCSS("display","flex");
   await expect(page.locator(".share-comment-actions button")).toHaveCount(3);
   await page.setViewportSize({width:320,height:900});
