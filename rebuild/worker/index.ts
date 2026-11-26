@@ -55,11 +55,11 @@ async function allowShareAction(request: Request, env: Bindings, shareId: string
   const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
   const ipHash = await digest(`${shareId}:${action}:${ip}`);
   const now = Math.floor(Date.now() / 1000), windowStarted = Math.floor(now / SHARE_ACTION_WINDOW_SECONDS) * SHARE_ACTION_WINDOW_SECONDS;
-  await env.DB.prepare("INSERT INTO share_action_rate_limits (share_id, ip_hash, action, window_started, count) VALUES (?, ?, ?, ?, 1) ON CONFLICT (share_id, ip_hash, action) DO UPDATE SET window_started = excluded.window_started, count = CASE WHEN share_action_rate_limits.window_started = excluded.window_started THEN share_action_rate_limits.count + 1 ELSE 1 END")
-    .bind(shareId, ipHash, action, windowStarted).run();
-  const row = await env.DB.prepare("SELECT count FROM share_action_rate_limits WHERE share_id = ? AND ip_hash = ? AND action = ?")
-    .bind(shareId, ipHash, action).first<{count:number}>();
-  return (row?.count ?? 0) <= limit;
+  // Increment and read the counter in one SQLite statement so concurrent requests
+  // cannot race between a separate UPSERT and SELECT.
+  const row = await env.DB.prepare("INSERT INTO share_action_rate_limits (share_id, ip_hash, action, window_started, count) VALUES (?, ?, ?, ?, 1) ON CONFLICT (share_id, ip_hash, action) DO UPDATE SET window_started = excluded.window_started, count = CASE WHEN share_action_rate_limits.window_started = excluded.window_started THEN share_action_rate_limits.count + 1 ELSE 1 END RETURNING count")
+    .bind(shareId, ipHash, action, windowStarted).first<{count:number}>();
+  return (row?.count ?? limit + 1) <= limit;
 }
 async function readJsonLimited<T>(request: Request, maxBytes = 64 * 1024): Promise<T | null> {
   const declared = request.headers.get("content-length");

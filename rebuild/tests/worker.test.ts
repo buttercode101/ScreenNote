@@ -41,6 +41,7 @@ class FakeD1 {
     return { bind(...v: any[]) {
       return {
         async first() {
+          if (sql.startsWith("INSERT INTO share_action_rate_limits") && sql.includes("RETURNING count")) { const key=`${v[0]}:${v[1]}:${v[2]}`,old=db.actionLimits.get(key),count=old&&old.window_started===v[3]?old.count+1:1;db.actionLimits.set(key,{share_id:v[0],ip_hash:v[1],action:v[2],window_started:v[3],count});return {count}; }
           if (sql.includes("FROM guest_sessions")) return db.sessions.has(v[0]) ? { token_hash: v[0] } : null;
           if (sql.includes("FROM recordings") && sql.includes("JOIN shares")) {
             for (const s of db.shares.values()) if (s.token_hash === v[0]) return { ...db.recordings.get(s.recording_id), ...s };
