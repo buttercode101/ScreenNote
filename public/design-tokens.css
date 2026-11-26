@@ -3,7 +3,7 @@
    Preserves the existing system font stack and semantic CSS interface. */
 :root {
   --sn-canvas:#f5f3ee; --sn-surface:#fcfbf8; --sn-raised:#fff; --sn-muted-surface:#eae7df;
-  --sn-ink:#20241f; --sn-ink-secondary:#656b62; --sn-ink-tertiary:#7d8279;
+  --sn-ink:#20241f; --sn-ink-secondary:#5e645b; --sn-ink-tertiary:#7d8279;
   --sn-border:#d9d8d0; --sn-border-strong:#c7c7bd;
   --sn-clay:#9e472f; --sn-clay-hover:#873a27; --sn-clay-wash:#f2e5dd;
   --sn-sage:#596b56; --sn-sage-wash:#e7ebe3; --sn-success:#356747; --sn-warning:#8a5b24; --sn-danger:#a23c31;
