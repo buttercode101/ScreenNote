@@ -81,7 +81,7 @@ class FakeD1 {
           if (sql.startsWith("INSERT OR REPLACE INTO share_password_attempts")) db.passwordAttempts.set(`${v[0]}:${v[1]}`, { share_id:v[0], ip_hash:v[1], window_started:v[2], attempts:v[3], locked_until:v[4] });
           if (sql.startsWith("INSERT INTO share_action_rate_limits")) { const key=`${v[0]}:${v[1]}:${v[2]}`,old=db.actionLimits.get(key);db.actionLimits.set(key,{share_id:v[0],ip_hash:v[1],action:v[2],window_started:v[3],count:old&&old.window_started===v[3]?old.count+1:1}); }
           if (sql.startsWith("DELETE FROM share_password_attempts")) {
-            if (sql.includes("window_started")) { for (const [key,row] of db.passwordAttempts) if (row.window_started <= v[0]) db.passwordAttempts.delete(key); }
+            if (sql.includes("window_started")) { for (const [key,row] of db.passwordAttempts) if (row.window_started <= v[0] || (sql.includes("locked_until > 0") && row.locked_until > 0 && row.locked_until <= v[1])) db.passwordAttempts.delete(key); }
             else db.passwordAttempts.delete(`${v[0]}:${v[1]}`);
           }
           if (sql.startsWith("INSERT INTO share_access_sessions")) db.access.add(v[0]);
