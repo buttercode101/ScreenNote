@@ -212,13 +212,14 @@ test("offline mode preserves local preview and editing while preventing publishi
   await page.context().setOffline(false);
 });
 test("new frontend contains no legacy stylesheet or legacy app script requests",async({page})=>{
-  const requested:string[]=[];
-  page.on("request",request=>requested.push(new URL(request.url()).pathname));
+  const requested:string[]=[],fontRequests:string[]=[];
+  page.on("request",request=>{const url=request.url();requested.push(new URL(url).pathname);if(/fonts\.googleapis\.com|fonts\.gstatic\.com/i.test(url))fontRequests.push(url)});
   await page.goto("/");
   await expect(page.getByRole("heading",{level:1})).toBeVisible();
   expect(requested).not.toContain("/style.css");
   expect(requested).not.toContain("/app.js");
   expect(requested).toContain("/src/main.tsx");
+  expect(fontRequests,"the private workspace must not request third-party fonts").toEqual([]);
 });
 
 
