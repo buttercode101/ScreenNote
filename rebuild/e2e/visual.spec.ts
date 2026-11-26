@@ -61,6 +61,7 @@ test("independent React workspace is contained at 13 widths, short landscape hei
   }
   await page.getByRole("button",{name:"Toggle appearance"}).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content","#171d19");
   await expect(page.locator(".capture-panel")).toHaveCSS("background-color","rgb(41, 59, 46)");
   for(const v of viewports){
     await page.setViewportSize({width:v.width,height:v.height});
@@ -70,6 +71,7 @@ test("independent React workspace is contained at 13 widths, short landscape hei
   const landscape=[{width:320,height:480},{width:568,height:320},{width:844,height:390},{width:1024,height:600}];
   for(const v of landscape){await page.setViewportSize(v);await contained(page,v.width);}
   await page.getByRole("button",{name:"Toggle appearance"}).click();
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content","#f4f2ec");
   for(const v of landscape){await page.setViewportSize(v);await contained(page,v.width);}
   await page.setViewportSize({width:320,height:640});
   await contained(page,320);
