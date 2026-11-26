@@ -14,6 +14,7 @@ import EditorWorkspace from "./EditorWorkspace";
 import PreviewWorkspace from "./PreviewWorkspace";
 import ClipThumbnail from "./ClipThumbnail";
 import { createVideoThumbnail } from "./media";
+import { useDialogFocus } from "./useDialogFocus";
 // @ts-expect-error Shared browser-safe media validation helper has no declaration file.
 import { importMedia } from "../legacy/lib/import-media.js";
 import "./styles.css";
@@ -73,6 +74,7 @@ function App() {
   const [trimEnd, setTrimEnd] = useState(0);
   const [trimming, setTrimming] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const settingsDialogRef=useRef<HTMLElement|null>(null),publishDialogRef=useRef<HTMLElement|null>(null);
   const [backupBusy, setBackupBusy] = useState(false);
   const [publishId, setPublishId] = useState<string | null>(null);
   const [expiryDays, setExpiryDays] = useState(3);
@@ -115,7 +117,8 @@ function App() {
     } catch { setStorageStatus("Could not request persistent storage protection."); }
   }
 
-  useEffect(() => { const key=(event:KeyboardEvent)=>{if(event.key==="Escape"){if(showSettings)setShowSettings(false);else if(publishId&&!publishing)setPublishId(null)}};window.addEventListener("keydown",key);return()=>window.removeEventListener("keydown",key)},[showSettings,publishId,publishing]);
+  useDialogFocus(settingsDialogRef,showSettings,()=>setShowSettings(false));
+  useDialogFocus(publishDialogRef,Boolean(publishId),()=>{if(!publishing)setPublishId(null)});
   useEffect(() => { if(showSettings) void refreshStorageInfo(); },[showSettings]);
   useEffect(() => {
     const onlineNow = () => setOnline(true), offlineNow = () => setOnline(false);
@@ -498,7 +501,7 @@ function App() {
       </div>
     </main>
     {previewClip && previewUrl && (previewMode === "edit" ? <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} /> : <PreviewWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onEdit={() => setPreviewMode("edit")} onShare={() => shareClip(previewClip.id)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />)}
-    {showSettings && <div className="modal-backdrop" role="presentation" onClick={() => setShowSettings(false)}><section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()}>
+    {showSettings && <div className="modal-backdrop" role="presentation" onClick={() => setShowSettings(false)}><section ref={settingsDialogRef} className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()}>
       <header><div><span className="eyebrow">YOUR SPACE</span><h2 id="settings-title">Preferences & backups</h2><p>Keep control of your recordings, appearance and recovery keys.</p></div><button className="icon-button" onClick={() => setShowSettings(false)} aria-label="Close preferences"><X size={18}/></button></header>
       <div className="settings-section"><strong>Appearance</strong><p>Choose the workspace presentation.</p><button className="button secondary" onClick={() => setDark(!dark)}>{dark ? <Sun size={16}/> : <Moon size={16}/>} Switch to {dark ? "light" : "dark"} appearance</button></div>
       <div className="settings-section"><strong>On-device storage</strong><p>Recordings stay in this browser. Check available space and ask the browser to protect ScreenNote data from automatic eviction where supported.</p>{storageEstimate&&<div className="storage-meter"><div><span>Site storage used</span><strong>{formatBytes(storageEstimate.usage)} / {formatBytes(storageEstimate.quota)}</strong></div><progress max={Math.max(1,storageEstimate.quota)} value={storageEstimate.usage}/></div>}{persistentStorage===true?<p className="storage-protected"><ShieldCheck size={14}/> Persistent storage protection is enabled.</p>:persistentStorage===false?<button className="button secondary" onClick={requestPersistentStorage}>Protect local recordings</button>:<p className="storage-status">Storage protection is not available in this browser.</p>}{storageStatus&&<p className="storage-status" role="status">{storageStatus}</p>}</div>
@@ -506,7 +509,7 @@ function App() {
       <div className="settings-section"><strong>Share recovery key</strong><p>Import a private key to manage a share from this browser. Keep the key secret.</p><button className="button secondary" onClick={() => recoveryFileRef.current?.click()}><ShieldCheck size={16}/> Import share recovery key</button></div>
       <div className="settings-footnote"><ShieldCheck size={15}/> Originals and backups stay on your device unless you explicitly share a video.</div>
     </section></div>}
-    {publishId && <div className="modal-backdrop" role="presentation" onClick={() => !publishing && setPublishId(null)}><section className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
+    {publishId && <div className="modal-backdrop" role="presentation" onClick={() => !publishing && setPublishId(null)}><section ref={publishDialogRef} className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
       <div className="publish-modal-head"><div><span className="eyebrow">SHARE A MOMENT</span><h2 id="publish-title">Make a temporary link</h2><p>Your original stays on this device. Only this shared copy is uploaded.</p></div><button className="icon-button" onClick={()=>setPublishId(null)} aria-label="Close share settings"><X size={18}/></button></div>
       <label className="field-label">Link expires after<select value={expiryDays} onChange={e=>setExpiryDays(Number(e.target.value))}><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option></select></label>
       <label className="field-label">Password protection <span className="optional-label">Optional</span><input type="password" minLength={8} maxLength={128} value={sharePassword} onChange={e=>setSharePassword(e.target.value)} placeholder="Add a password (8+ characters)"/></label>

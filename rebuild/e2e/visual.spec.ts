@@ -66,6 +66,8 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:/Preview/i}).click();
   await expect(page.locator(".preview-workspace")).toBeVisible();
   await expect(page.locator(".preview-workspace video")).toBeVisible();
+  const previewDialog=page.locator(".preview-workspace"),previewButtons=previewDialog.locator("button");
+  await previewButtons.first().focus();await page.keyboard.press("Shift+Tab");await expect(previewButtons.last()).toBeFocused();await page.keyboard.press("Tab");await expect(previewButtons.first()).toBeFocused();
   for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/preview-${width}.png`,fullPage:true});}
   await page.getByRole("button",{name:/Open editor/i}).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
@@ -158,6 +160,8 @@ test("preferences export and restore a portable local library backup",async({pag
   await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
   await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
   await page.getByRole("button",{name:"Open preferences"}).click();
+  const preferences=page.getByRole("dialog",{name:/Preferences & backups/i}),preferenceControls=preferences.locator('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex="0"]');
+  await preferenceControls.last().focus();await page.keyboard.press("Tab");await expect(preferenceControls.first()).toBeFocused();
   await expect(page.getByRole("dialog",{name:/Preferences & backups/i})).toBeVisible();
   const downloadPromise=page.waitForEvent("download");
   await page.getByRole("button",{name:/Back up my library/i}).click();
