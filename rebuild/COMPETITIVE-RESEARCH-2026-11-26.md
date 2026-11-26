@@ -70,6 +70,23 @@ These are the public web baselines, not ScreenNote's stretch goals. ScreenNote s
 Chrome's screen-capture documentation confirms that `getDisplayMedia()` invokes the browser's user-facing picker and can return selected tab/window/screen video (and audio where supported); browser permission and supported audio tracks are not controllable by ScreenNote.
 Source: https://developer.chrome.com/docs/extensions/how-to/web-platform/screen-capture
 
+## Free-tier and pricing reality (checked 26 November 2026)
+
+| Product | Current public entry point | What the free/entry tier tells us |
+|---|---|---|
+| Loom | Starter $0; Business listed at $18/user/month and Business + AI at $24/user/month | Starter lists 25 videos, 5-minute screen recordings, up to 720p, comments/reactions and transcription. Paid plans remove recording/storage limits and add editing. |
+| Tella | Free trial; paid Pro/Premium plans | Competes on creator-quality editing: 4K, clip/timeline editing, transcript edits, captions, layouts, zooms and long clips. Exact pricing varies by billing cadence/plan; do not hard-code it into product strategy. |
+| Zight | Share $0; Create listed at $9.95/user/month billed annually | Free Share supports screen recording, video requests, screenshots and short GIFs; paid Create adds unlimited recording/uploads, annotation/editing, transcription and limited AI actions. |
+| Claap | Basic free license; Pro/Business paid | Free users can participate in a workspace with limited recording/upload minutes and core comments/reactions; advanced collaboration/privacy/AI capacity is plan-dependent. |
+
+**Strategic implication:** do not try to win by copying a paid editor's entire feature checklist. ScreenNote's creator value should be local recording/import, precise review, and a polished temporary share workflow with clear lifecycle controls. Keep local creation generous; make cloud retention, storage volume, team administration and advanced workflow capabilities the cost-aware monetization boundary. No competitor prices or limits should be hard-coded into ScreenNote.
+
+Official sources:
+- Loom pricing: https://www.loom.com/pricing and https://www.atlassian.com/software/loom/pricing
+- Tella feature/pricing overview: https://www.tella.com/features and https://www.tella.com/pricing
+- Zight plans: https://zight.com/pricing
+- Claap licenses: https://help.claap.io/en/articles/6517952-understanding-claap-plans-licenses-and-pricing
+
 ## Feature-gap matrix and response
 
 | Workflow | Competitor evidence | ScreenNote response / gap to close |
