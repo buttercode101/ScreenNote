@@ -630,3 +630,7 @@ footer a{color:var(--sn-accent)}
 .editor-title-wrap{min-width:0;max-width:min(620px,calc(100vw - 180px));flex:1 1 auto}
 .editor-title-button{max-width:100%;overflow-wrap:anywhere;word-break:break-word}
 .editor-title-wrap input{max-width:100%;min-width:0}
+
+
+/* Keyboard focus follows the brand accent; rust is reserved for alerts. */
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--sn-accent)!important;outline-offset:3px}
