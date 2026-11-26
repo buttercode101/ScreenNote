@@ -139,6 +139,10 @@ ScreenNote's credible differentiation is not “more AI” or “more effects.�
 - Sample import, title save, local trim-copy, library search: passed.
 - Production live-smoke: both unprotected and password-protected test videos published, playback hashes verified, and test records cleaned up.
 - Mobile Lighthouse lab run after contrast correction: Performance 93, Accessibility 100, Best Practices 100; FCP 0.8 s, LCP 1.6 s, TBT 330 ms, CLS 0.
-- Production dependency audit: 0 vulnerabilities with dev dependencies omitted. Full audit still reports moderate findings in development-only c8/test-exclude/glob/minimatch chain; see npm audit output before deciding whether to replace the coverage tool.
+- Production dependency audit: 0 vulnerabilities with dev dependencies omitted. Full npm audit: 0 vulnerabilities after moving c8/esbuild to devDependencies and updating c8 to 9.1.0.
 
 These are observed results from this test pass, not guarantees across every device/network/browser.
+
+- Browser capture E2E: fake screen source, begin, pause, resume, stop, local save and playback passed; 6.46-second media sample.
+- Annotation E2E: draw one mark and save marked copy passed; original retained; no console errors after preview cleanup fix.
+- Permission-denied E2E: clear decline message, no upload, recording inactive.
