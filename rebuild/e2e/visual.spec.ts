@@ -67,6 +67,14 @@ test("independent React workspace is contained at 13 widths in light and dark",a
     await contained(page,v.width);
     if([320,375,768,1120,1440].includes(v.width))await page.screenshot({path:`test-results/screenshots/${v.name}-dark.png`,fullPage:true});
   }
+  const landscape=[{width:320,height:480},{width:568,height:320},{width:844,height:390},{width:1024,height:600}];
+  for(const v of landscape){await page.setViewportSize(v);await contained(page,v.width);}
+  await page.getByRole("button",{name:"Toggle appearance"}).click();
+  for(const v of landscape){await page.setViewportSize(v);await contained(page,v.width);}
+  await page.setViewportSize({width:320,height:640});
+  await page.evaluate(()=>{document.documentElement.style.zoom="1.5"});
+  await contained(page,320);
+  await page.evaluate(()=>{document.documentElement.style.zoom="1"});
 });
 
 test("imported recording opens the full editor with preview, annotations, captions and sharing",async({page})=>{
@@ -143,6 +151,8 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(savedLongTitle).toBeVisible();
   await expect(savedLongTitle).toHaveCSS("-webkit-line-clamp","2");
   for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if(width===320){const heights=await page.locator(".editor-toolbar button,.editor-tabs button").evaluateAll(nodes=>nodes.filter(node=>getComputedStyle(node).display!=="none").map(node=>node.getBoundingClientRect().height));expect(heights.length).toBeGreaterThan(0);expect(heights.every(height=>height>=44)).toBe(true);}if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
+  for(const v of [{width:568,height:320},{width:844,height:390},{width:1024,height:600}]){await page.setViewportSize(v);await contained(page,v.width);await expect(page.getByRole("button",{name:"Close editor"})).toBeVisible();}
+  await page.setViewportSize({width:1280,height:900});
   await page.getByRole("button",{name:/Share a reviewed copy/i}).click();
   await expect(page.getByRole("heading",{name:"Make a temporary link"})).toBeVisible();
   const modalLayer=await page.locator(".modal-backdrop").evaluate(el=>Number(getComputedStyle(el).zIndex));
@@ -318,6 +328,7 @@ test("password-protected share keeps the gate closed until correct unlock and re
   await expect(page.getByRole("heading",{name:"This ScreenNote is private."})).toBeVisible();
   await assertNamedControls(page);
   for(const width of [320,375,768,1440]){await page.setViewportSize({width,height:900});await contained(page,width);}
+  for(const v of [{width:320,height:480},{width:568,height:320},{width:844,height:390}]){await page.setViewportSize(v);await contained(page,v.width);await expect(page.getByLabel("Password")).toBeVisible();}
   await page.getByLabel("Password").fill("wrong-password");
   await page.getByRole("button",{name:"Unlock video"}).click();
   await expect(page.locator(".share-error")).toContainText("That password isn't correct.");
@@ -327,6 +338,7 @@ test("password-protected share keeps the gate closed until correct unlock and re
   await expect(page.getByRole("heading",{name:"Protected walkthrough"})).toBeVisible();
   await expect(page.locator(".password-gate")).toHaveCount(0);
   for(const width of [320,375,768,1440]){await page.setViewportSize({width,height:900});await contained(page,width);}
+  for(const v of [{width:320,height:480},{width:568,height:320},{width:844,height:390}]){await page.setViewportSize(v);await contained(page,v.width);await expect(page.getByRole("heading",{name:"Protected walkthrough"})).toBeVisible();}
 });
 
 test("light and dark text tokens meet WCAG AA contrast",async({page})=>{
