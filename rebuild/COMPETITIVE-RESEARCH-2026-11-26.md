@@ -134,10 +134,24 @@ The most defensible product focus:
 
 Light and dark modes use the same semantic tokens. Dark mode is warm charcoal/forest rather than pure black; the accent becomes a muted light sage for accessible contrast.
 
-## Remaining proof required before release
+## Verification status — 26 November 2026
 
-- Validate contrast for all semantic states, including disabled, hover, focus, destructive, error and success.
-- Test layout and interaction at 320, 360, 390, 768, 1024 and wide desktop widths.
-- Test screen and camera capture, import, local persistence, trim, annotations, publish, expiry, revoke, password, anonymous review and comment resolution.
-- Verify deployed Cloudflare Worker + D1 + private R2 paths, not just local mocks.
-- Measure performance on a real mid-range Android device and a desktop browser; report measured results, not estimated benchmarks.
+### Completed on the isolated Cloudflare rebuild
+
+- Automated responsive containment at 13 widths from 320px through 1920px, in light and dark modes, plus short landscape viewports; no document or tested control-panel horizontal escape.
+- Screenshot evidence captured for 320/375px mobile, 768px tablet, 1120px laptop and 1440px desktop, with dedicated editor and preview viewport captures.
+- Automated keyboard focus traversal, accessible names, 44px mobile targets for primary controls and the share/comment actions, and light/dark text contrast checks.
+- End-to-end coverage for local import, preview/editor, recording settings, captions and chapter exports, annotations/undo/delete, annotated-frame and annotated-copy export, library backup/restore, offline local editing, guest share/review, password gate, review decisions, reactions, creator controls, and privacy route.
+- Production-built client budget passes: JavaScript 112.9 KiB gzip against 130 KiB; CSS 12.8 KiB gzip against 16 KiB. These are transfer-size checks, not Core Web Vitals measurements.
+- Latest isolated Cloudflare deployment passed live API acceptance against D1/R2 and a separate guest browser: resumable upload, password protection/lockout, byte-range media, comments/replies/edit/delete, rate limiting, resolve, review/reaction, owner controls, revoke and cleanup.
+- The latest live guest-review screenshots were inspected at 320px and 1440px. The comment-action spacing and singular comment-count details were corrected and verified in the final evidence.
+
+### Remaining real-device proof before public launch
+
+- Run Lighthouse/CrUX or equivalent real-user measurement on physical mid-range Android and desktop hardware; report p75 LCP, INP and CLS. The stretch targets remain goals, not measured results.
+- Confirm capture permission/audio-track behavior on real Chrome/Edge/Safari/Firefox devices; browser picker and system-audio availability vary by platform.
+- Repeat long-duration recording, thermal/memory and constrained-network upload tests on actual mobile hardware.
+
+### Deployment and schema note
+
+The rebuild is deployed only to the isolated development Worker; the existing Vercel production app remains untouched. CI did not apply D1 migrations because the dedicated D1 write token is not configured. No migration files changed in the latest UI/research revisions, and the deployed live D1/R2 acceptance passed against the current schema. Configure the dedicated D1 token before making or deploying any future migration change.
