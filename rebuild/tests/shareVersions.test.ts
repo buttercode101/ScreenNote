@@ -14,7 +14,7 @@ describe("safe share version publishing",()=>{
   expect(planShareVersion({...current,version:1},[],false,1000,"Clip").previousToRevoke).toEqual({...current,version:1});
  });
  it("never preserves expired links and caps history at ten unique versions",()=>{
-  expect(planShareVersion({...current,expiresAt:900},[],true,1000,"Clip").previousToRevoke).toBeTruthy();
+  expect(planShareVersion({...current,expiresAt:900},[],true,1000000,"Clip").previousToRevoke).toBeTruthy();
   const history=Array.from({length:10},(_,i)=>prior(10-i,"v"+(10-i)));
   const plan=planShareVersion({...current,version:11},history,true,1000,"Clip");
   expect(plan.history).toHaveLength(10);expect(new Set(plan.history.map(v=>v.token)).size).toBe(10);expect(plan.history[0].version).toBe(11);expect(plan.historyToRevoke.map(v=>v.version)).toEqual([1]);
