@@ -1,6 +1,6 @@
 export type ReviewBrief = { purpose: string; focus: string; expectedOutcome: string; requestedAction: "review" | "approve" | "reproduce" | "fix" };
 
-export type ShareVersion = { version:number; recordingId:string; token:string; url:string; ownerKey:string; expiresAt:number; publishedAt:number; title:string };
+export type ShareVersion = { version:number; recordingId:string; token:string; url:string; ownerKey:string; expiresAt:number; publishedAt:number; title:string; revocationPending?:boolean };
 
 export type Clip = {
   id: string;
