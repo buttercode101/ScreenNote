@@ -43,7 +43,7 @@ Status meanings:
 | Local trim preserving original | Release verdict | Trim to WebM copy documented | Compare original bytes and output playback/duration/audio |
 | Explicit temporary publishing | Vercel live smoke and API tests | Worker lifecycle documented and live smoke reported | Real publish from UI through storage, retry and rollback |
 | Expiring links (1/3/7 days) | Root README | Documented | Clock-controlled tests plus real elapsed-time expiry |
-| Password-protected shares | Release verdict | Documented; lockout described | Brute force, rate limits, password rotation and enumeration review |
+| Password-protected shares | Release verdict | Password UI E2E plus live D1 lockout smoke; wrong-password and five-attempt lockout verified | Independent brute-force/enumeration review, password rotation policy and broader abuse testing |
 | Private video delivery / range seeking | Technical notes | R2 private media and byte ranges documented | Unauthorized access, range edge cases, cache headers and revoked URL behavior |
 | Comments/replies/edit/delete | Release verdict | Nested comments documented | Ownership, concurrency, idempotency, refresh and deep links |
 | Resolve/reopen moderation | Release verdict | Documented | All creator/author permission combinations |
@@ -59,10 +59,10 @@ Status meanings:
 | Offline behavior | Release verdict confirms offline banner/publish gate | Offline/online events update the connection banner; service-worker offline library E2E exists | Verify all routes/assets cached, offline editing/import/trim, stale API failures and retry/reconnect behavior |
 | Upload resume/retry | Release verdict confirms per-part retry and resume | `app.js` resumes from `upload-state`, skips acknowledged chunks and retries transfers | Verify real interrupted network resume, duplicate part idempotency, expiry/re-reservation and orphan cleanup under live R2/D1 |
 | Storage/capacity handling | 50 MB per clip; 10 min; 1 GB budget; 100 comments | 100 MB per upload; 10 min; 200 comments; dev R2/D1 | Confirm actual quotas, atomic reservations, concurrency, cleanup and abuse cost |
-| Accessibility | 44px targets, focus, skip link, aria-live documented for Vercel | Manual keyboard/screen-reader review remains open | WCAG-oriented keyboard, focus, names, contrast, announcements, reduced motion |
-| Responsive visual QA | 11-viewport re-run explicitly outstanding in Vercel verdict | 320/375/768/1120/1440 visual tests documented | Add missing breakpoints/orientations/heights and verify screenshots on candidate |
+| Accessibility | 44px targets, focus, skip link, aria-live documented for Vercel | E2E checks visible control names, modal focus cycling and 44px touch controls; automated light/dark text-token contrast meets WCAG AA | Manual screen-reader, reduced-motion and full component contrast review remains open |
+| Responsive visual QA | 11-viewport re-run explicitly outstanding in Vercel verdict | 13 widths from 320 to 1920 CSS px in light/dark; screenshot evidence; share/password and editor states; horizontal containment and long-title wrapping tested | Short landscape heights, browser zoom, orientation changes and physical-device acceptance remain open |
 | Physical Android/iOS | Explicitly unverified in Vercel verdict | Explicitly outstanding | External device acceptance; no false certification |
-| Security review | Existing CSP, IDOR/storage gateway tests; remaining P2 items listed | Independent security review explicitly outstanding | Threat model, authz, CSRF/CORS, upload validation, abuse/rate limits, secrets, data deletion |
+| Security review | Existing CSP, IDOR/storage gateway tests; remaining P2 items listed | Worker tests and live D1/R2 smoke cover origin rejection, headers, owner-key controls, password lockout, comment throttling, range access and deletion; scheduled rate-limit cleanup added | Independent threat model/security review, storage-abuse/concurrency tests and full secrets/data-deletion review remain open |
 
 ## 3. Independent frontend acceptance
 
@@ -77,7 +77,7 @@ Verified by the rebuild workflow:
 
 The frontend is independent; the service is not yet fully Vercel-independent. A compatibility fallback remains for the old `/api/clip` contract so existing legacy shares are not silently abandoned. The new React frontend uses Cloudflare's Worker API for new sharing flows.
 
-## 3A. 25 November implementation update — pending full acceptance
+## 3A. 25–26 November implementation update — pending full acceptance
 
 The Cloudflare branch has moved beyond the earlier primary-flow-only UI. The following capabilities are now surfaced in the independent React application. They are **implemented in the branch**, but must not be marked release-accepted until the current Worker build, live D1/R2 smoke, Playwright evidence and failure-path tests pass.
 
@@ -101,17 +101,17 @@ The Cloudflare branch has moved beyond the earlier primary-flow-only UI. The fol
 Important distinctions:
 - Captions are owner-supplied. There is no automatic speech-to-text transcription.
 - The current markup tools apply spatial marks to the video image; they are not a frame-by-frame keyframe editor.
-- Camera placement now offers four corners plus independent custom horizontal/vertical positioning sliders and size selection; direct drag-to-position remains a usability improvement.
+- Camera placement offers four corners, custom horizontal/vertical sliders, size selection, direct pointer drag and keyboard-arrow positioning. Bounds now match the recorder's shorter-dimension bubble geometry for landscape and portrait canvases.
 - Resumable upload uses application-level R2 part objects and a streamed final assembly, not R2's native multipart API.
 - Browser viewport emulation is not physical Android/iOS acceptance.
 
 ## 4. Immediate parity blockers
 
-1. The advanced editing and context surfaces have now been added to the React frontend, but their deployed integration and output correctness are still being verified. The new features must not be called complete until the live workflow and artifact checks pass.
+1. The core editor/context and sharing flows now have deployed Worker smoke and Playwright evidence, including annotated export playhead/pause restoration, frame capture, captions/chapters, review settings and responsive states. Full Vercel-vs-Cloudflare output parity (including encoded pixels/audio) is still not established.
 2. Automatic transcript extraction, generated keyframes and frame-by-frame keyframe editing are not implemented. Transcript search is over owner-supplied captions only.
-3. Camera bubble drag positioning is not yet restored; only size and four-corner placement are available. Native desktop capture remains browser/platform-dependent.
+3. Camera bubble drag positioning and keyboard placement are implemented and covered by Playwright. Native desktop capture, real display-source selection, actual microphone/camera track selection and browser-specific permission behavior still require physical desktop/mobile testing.
 4. Recovery-key restore in a separate browser, real elapsed-time expiry, independent security review, manual accessibility and physical-device QA remain open.
-5. Candidate upload/comment limits differ from Vercel. Resumable uploads now exist in the new Worker API, but interruption/retry/expiry and storage-abuse acceptance remain open.
+5. Candidate upload/comment limits differ from Vercel. Live tests now cover resumable upload assembly and comment throttling; real interrupted-network resume, reservation expiry, concurrency and storage-abuse acceptance remain open.
 6. Existing production data must not be copied, migrated, deleted, or invalidated as part of development smoke tests.
 
 ## 5. Required engineering sequence
@@ -152,3 +152,30 @@ Only after all prior gates pass: rehearse backup/restore, define an explicit dat
 **Production replacement: not approved.**
 
 The next engineering work must be source-level inventory and parity implementation, not another claim of completion based on a narrow smoke suite.
+
+
+## 7. 26 November execution audit — verified progress, remaining gates
+
+Latest verified rebuild commit: `9eb964193055569fb064aca67113e2609c895526`  
+Cloudflare dev Worker version serving 100%: `45659cc8-70c9-427a-b456-4eedb7b2d821`  
+GitHub Actions push workflow: `45771276867` — typecheck, unit tests, build, Playwright E2E, isolated Worker deploy and live D1/R2 smoke all passed. The paired verification workflow also passed.
+
+Verified in this audit pass:
+- Annotated-video export now stops on source errors, rejects incomplete output, bounds completion/cleanup, and restores the original playhead and paused/playing state; Playwright checks restoration.
+- Recording bubble geometry uses normalized aspect-aware bounds; pointer drag and keyboard arrows are covered.
+- Recording-card actions wrap at narrow widths; metadata keeps usable width; titles are visually clamped to two lines at all widths with the complete title retained in the DOM/title attribute.
+- Share password gate wrong/correct UI flow and responsive state are covered; deployed password lockout is verified after fixing a cleanup query that had reset active attempts.
+- Live comment throttling is verified against the deployed Worker; scheduled maintenance prunes stale rate-limit/password-attempt rows.
+- Live D1/R2 smoke verifies guest upload/resume state, password access/lockout, range playback, review decisions/status, reactions, comments/replies/edit/delete/resolve, and share revocation/deletion.
+- Responsive Playwright coverage checks 13 viewport widths (320, 360, 375, 390, 414, 600, 768, 834, 1024, 1120, 1280, 1440, 1920) in light and dark themes. Screenshot artifacts were inspected at 320px and 1440px.
+- Automated contrast assertions now check text-token combinations against WCAG AA 4.5:1 in light and dark themes; light muted and rust tokens were darkened to pass.
+
+Still not release-accepted:
+- Physical Android/iOS, real display-capture source picker, actual camera/microphone hardware selection, browser-specific permissions and short-landscape behavior.
+- Manual screen-reader/reduced-motion review, browser zoom and full component/state contrast audit.
+- Separate-profile recovery-key restore, real elapsed-time expiry and full upload interruption/concurrency/storage-quota testing.
+- Black-box parity comparison against Vercel for every shipped capability, media bytes/audio/encoded markup correctness, and removal of the legacy `/api/clip` compatibility proxy after a migration plan.
+- Automatic speech-to-text and frame-by-frame keyframe editing remain intentionally unimplemented; transcript search is owner-supplied captions only.
+- The repository secret `CLOUDFLARE_D1_API_TOKEN` is not configured. No migration was needed for the latest verified commits because the rate-limit table was already present and directly verified in dev D1; future schema-changing deploys must supply the dedicated D1 edit token. Do not broaden the Worker deploy token.
+
+Vercel production remains untouched. This is a verified Cloudflare development candidate, not a feature-complete or production-approved replacement.
