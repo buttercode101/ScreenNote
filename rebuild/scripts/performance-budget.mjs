@@ -1,11 +1,11 @@
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 
 const assetsDir = path.resolve(".cloudflare/output/v1/workers/default/assets/assets");
 const files = await readdir(assetsDir);
-const jsFiles = files.filter((name) => /\\.m?js$/.test(name) && name !== "sw.js");
-const cssFiles = files.filter((name) => /\\.css$/.test(name));
+const jsFiles = files.filter((name) => /\.m?js$/.test(name) && name !== "sw.js");
+const cssFiles = files.filter((name) => /\.css$/.test(name));
 
 if (jsFiles.length === 0 || cssFiles.length === 0) {
   throw new Error(`Performance budget could not find built JS/CSS assets in ${assetsDir}`);
