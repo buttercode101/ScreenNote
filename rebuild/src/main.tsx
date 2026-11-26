@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Camera, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Scissors, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, WifiOff, X } from "lucide-react";
-import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listFullClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession } from "./library";
+import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listFullClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession, type ShareVersion } from "./library";
 // @ts-expect-error Shared browser-safe backup helper has no declaration file.
 import { makeLibraryBackup, readLibraryBackup } from "../legacy/lib/library-backup.js";
 import { ScreenRecorder, cameraBubbleFootprint, supportedMimeType, type RecordingResult, type QualityPreset } from "./recorder";
 import CameraBubblePosition from "./CameraBubblePosition";
-import { newOwnerKey, publishRecording } from "./sharing";
+import { newOwnerKey, publishRecording } from "./sharing";\nimport { planShareVersion } from "./shareVersions";
 import { clampTrimRange, trimVideoElement } from "./trim";
 import ShareViewer from "./ShareViewer";
 import PrivacyPage from "./PrivacyPage";
@@ -78,7 +78,7 @@ function App() {
   const [backupBusy, setBackupBusy] = useState(false);
   const [publishId, setPublishId] = useState<string | null>(null);
   const [expiryDays, setExpiryDays] = useState(3);
-  const [sharePassword, setSharePassword] = useState("");
+  const [sharePassword, setSharePassword] = useState("");\n  const [keepPreviousShare,setKeepPreviousShare]=useState(false);
   const [reviewPurpose, setReviewPurpose] = useState("");
   const [reviewFocus, setReviewFocus] = useState("");
   const [reviewExpected, setReviewExpected] = useState("");
@@ -337,18 +337,19 @@ function App() {
     a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
-  async function shareClip(id: string) {
+  async function shareClip(id:string,forceNew=false) {
     if (!online) { setMessage("Sharing needs an internet connection. Your local recording is still available to preview, edit and download."); return; }
     const clip = await getClip(id);
     setReviewPurpose(clip?.reviewBrief?.purpose || "");
     setReviewFocus(clip?.reviewBrief?.focus || "");
     setReviewExpected(clip?.reviewBrief?.expectedOutcome || "");
     setReviewAction(clip?.reviewBrief?.requestedAction || "review");
-    if (clip?.share && clip.share.expiresAt * 1000 > Date.now()) {
+    if (clip?.share && clip.share.expiresAt * 1000 > Date.now() && !forceNew) {
       const url = new URL(clip.share.url, location.origin).toString();
       setShareLink(url); await navigator.clipboard?.writeText(url).catch(() => undefined);
       return;
     }
+    setKeepPreviousShare(false);
     setPublishId(id);
   }
 
@@ -361,30 +362,33 @@ function App() {
       if (!clip) throw new Error("This local recording is no longer available.");
       if (!clip.duration || clip.duration > 600) throw new Error("This clip needs a valid duration of 10 minutes or less before it can be shared.");
       const previousShare = clip.share;
+      const publishTimestamp=Date.now();
+      const versionPlan=planShareVersion(previousShare,clip.shareHistory||[],keepPreviousShare,publishTimestamp,clip.title);
       const brief = { purpose: reviewPurpose.trim().slice(0,160), focus: reviewFocus.trim().slice(0,400), expectedOutcome: reviewExpected.trim().slice(0,400), requestedAction: reviewAction };
       const hasBrief = Boolean(brief.purpose || brief.focus || brief.expectedOutcome);
       const ownerKey = newOwnerKey();
       setUploadProgress(0);
       const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey, setUploadProgress);
       const resolvedOwnerKey = result.ownerKey || ownerKey;
-      const detailsResponse = await fetch("/api/share/" + result.token + "/details", { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey, details: { annotations: clip.annotations || [], captions: clip.captions || [], chapters: clip.chapters || [], report: clip.report || null, reviewStatus: clip.reviewStatus || "needs-feedback", reviewBrief: hasBrief ? brief : null } }) });
+      const detailsResponse = await fetch("/api/share/" + result.token + "/details", { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey, details: { annotations: clip.annotations || [], captions: clip.captions || [], chapters: clip.chapters || [], report: clip.report || null, reviewStatus: clip.reviewStatus || "needs-feedback", reviewBrief: hasBrief ? brief : null, reviewVersion:{number:versionPlan.version,publishedAt:publishTimestamp} } }) });
       if (!detailsResponse.ok) {
         await fetch("/api/share/" + result.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey }) }).catch(() => undefined);
         throw new Error("The video uploaded, but its review context could not be saved. The incomplete share was rolled back; your local original is safe.");
       }
-      const next = { ...clip, reviewBrief: hasBrief ? brief : undefined, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt } };
+      const next = { ...clip, reviewBrief: hasBrief ? brief : undefined, shareHistory:versionPlan.history, share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt, version:versionPlan.version, publishedAt:publishTimestamp } };
       await saveClip(next); await refresh();
       let previousShareWarning = "";
-      if (previousShare && previousShare.token !== result.token) {
+      if (versionPlan.previousToRevoke && previousShare && previousShare.token !== result.token) {
         const stopped = await fetch("/api/share/" + previousShare.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: previousShare.ownerKey }) }).catch(() => null);
         if (stopped && !stopped.ok && stopped.status !== 404) previousShareWarning = " The previous link could not be revoked and may remain active until it expires.";
       }
+      if(versionPlan.previousKept)previousShareWarning=" Previous version "+versionPlan.previousKept.version+" remains available in local version history; its feedback stays attached to that version.";
       const fullUrl = new URL(result.url, location.origin).toString();
       setShareLink(fullUrl);
-      setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey: resolvedOwnerKey, recordingId: result.id, expiresAt: result.expiresAt }, null, 2));
+      setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey: resolvedOwnerKey, recordingId: result.id, expiresAt: result.expiresAt, reviewVersion:versionPlan.version }, null, 2));
       await navigator.clipboard?.writeText(fullUrl).catch(() => undefined);
-      setPublishId(null); setSharePassword("");
-      setMessage("Your temporary link is ready. The link has been copied if clipboard access is available."+previousShareWarning);
+      setPublishId(null); setSharePassword("");setKeepPreviousShare(false);
+      setMessage("Version "+versionPlan.version+" is ready. The link has been copied if clipboard access is available."+previousShareWarning);
     } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't publish this recording."); }
     finally { setPublishing(false); setUploadProgress(0); }
   }
