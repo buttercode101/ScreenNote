@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 
 const base = process.env.SCREENNOTE_LIVE_URL || "https://screennote-dev.buttercoder-dev.workers.dev";
 const origin = new URL(base).origin;
@@ -85,8 +85,7 @@ try {
 
   const like = guest.getByRole("button", { name: /Like/ }).first();
   await like.click();
-  await like.waitFor({ state: "visible" });
-  assert.equal(await like.getAttribute("aria-pressed"), "true", "guest reaction must persist");
+  await expect(like).toHaveAttribute("aria-pressed", "true", { timeout: 15000 });
 
   await guest.getByLabel("Timestamped comment").fill("Live browser QA note");
   await guest.getByRole("button", { name: "Post comment" }).click();
