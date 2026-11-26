@@ -441,6 +441,8 @@ test("transient share and alert surfaces keep readable contrast in both themes",
     const editorStatus=document.createElement("div");editorStatus.className="editor-status";editorStatus.textContent="Saved";document.body.append(editorStatus);
     const offline=document.createElement("div");offline.className="offline-banner";offline.textContent="Offline";document.body.append(offline);
     const unavailable=document.createElement("div");unavailable.className="capture-unavailable";unavailable.textContent="Capture unavailable";document.body.append(unavailable);
+    const danger=document.createElement("button");danger.className="button danger";danger.textContent="Delete";document.body.append(danger);
+    const duration=document.createElement("span");duration.className="duration";duration.textContent="0:45";document.body.append(duration);
   });
   const contrast=async(selector:string)=>page.locator(selector).evaluate(el=>{
     const rgb=(value:string)=>value.match(/[\d.]+/g)!.slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});
@@ -451,7 +453,7 @@ test("transient share and alert surfaces keep readable contrast in both themes",
   });
   for(const theme of ["light","dark"]){
     if(theme==="dark")await page.getByRole("button",{name:"Toggle appearance"}).click();
-    for(const selector of [".share-link-toast",".share-link-toast span",".share-link-toast button",".share-error",".shared-review-status.changes-requested",".review-decision-options button[aria-pressed=true]",".editor-status",".offline-banner",".capture-unavailable",".button.danger",".duration"]){
+    for(const selector of [".share-link-toast",".share-link-toast span",".share-link-toast button",".share-error",".shared-review-status.changes-requested",".review-decision-options button[aria-pressed=true]",".editor-status",".offline-banner",".capture-unavailable",".button.danger",".duration",".button.danger",".duration"]){
       expect(await contrast(selector),selector+" contrast in "+theme).toBeGreaterThanOrEqual(4.5);
     }
   }
