@@ -7,6 +7,8 @@ export function planShareVersion(current:CurrentShare|undefined,history:ShareVer
   const canKeep=Boolean(current&&current.expiresAt*1000>now);
   const previous:ShareVersion|null=current&&canKeep?{...current,version:current.version??currentVersion,publishedAt:current.publishedAt??now,title}:null;
   const previousKept=Boolean(previous&&keepPrevious);
-  const nextHistory=previousKept&&previous?[previous,...history.filter(item=>item.token!==previous.token).sort((a,b)=>b.version-a.version)].slice(0,10):history;
-  return{version,history:nextHistory,previousToRevoke:current&&!previousKept?current:null,previousKept:previousKept?previous:null};
+  const candidates=previousKept&&previous?[previous,...history.filter(item=>item.token!==previous.token).sort((a,b)=>b.version-a.version)]:history;
+  const nextHistory=candidates.slice(0,10);
+  const historyToRevoke=candidates.slice(10);
+  return{version,history:nextHistory,historyToRevoke,previousToRevoke:current&&!previousKept?current:null,previousKept:previousKept?previous:null};
 }
