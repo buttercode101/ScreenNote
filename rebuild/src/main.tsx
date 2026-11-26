@@ -384,7 +384,12 @@ function App() {
       let previousShareWarning = "";
       if (versionPlan.previousToRevoke && previousShare && previousShare.token !== result.token) {
         const stopped = await fetch("/api/share/" + previousShare.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: previousShare.ownerKey }) }).catch(() => null);
-        if (stopped && !stopped.ok && stopped.status !== 404) previousShareWarning = " The previous link could not be revoked and may remain active until it expires.";
+        if (!stopped || (!stopped.ok && stopped.status !== 404)) {
+          const failedVersion:ShareVersion={...previousShare,version:previousShare.version??Math.max(1,versionPlan.version-1),publishedAt:previousShare.publishedAt??publishTimestamp,title:clip.title,revocationPending:true};
+          const recoverable={...next,shareHistory:[failedVersion,...versionPlan.history.filter(item=>item.token!==failedVersion.token)].slice(0,10)};
+          await saveClip(recoverable);setPreviewClip(recoverable);await refresh();
+          previousShareWarning = " The previous link could not be revoked. It was retained in version history so you can retry; it may remain active until revoked or expired.";
+        }
       }
       if(versionPlan.previousKept)previousShareWarning=" Previous version "+versionPlan.previousKept.version+" remains available in local version history; its feedback stays attached to that version.";
       const fullUrl = new URL(result.url, location.origin).toString();
