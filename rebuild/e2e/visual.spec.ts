@@ -450,6 +450,59 @@ test("password-protected share keeps the gate closed until correct unlock and re
   for(const v of [{width:320,height:480},{width:568,height:320},{width:844,height:390}]){await page.setViewportSize(v);await contained(page,v.width);await expect(page.getByRole("heading",{name:"Protected walkthrough"})).toBeVisible();}
 });
 
+test("publishing new versions retains links only by consent and stop-sharing revokes all versions",async({page})=>{
+  test.setTimeout(90000);
+  let reservations=0,publishes=0;const tokens=["v1"+"a".repeat(38),"v2"+"b".repeat(38),"v3"+"c".repeat(38)];const revoked:string[]=[];
+  await page.route("**/api/session",route=>route.fulfill({status:200,contentType:"application/json",body:"{}"}));
+  await page.route("**/api/recordings",async route=>{
+    if(route.request().method()!=="POST"){await route.continue();return;}
+    reservations++;await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({id:"reservation-"+reservations,chunkBytes:2097152})});
+  });
+  await page.route("**/api/recordings/*/upload-state",route=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({status:"ready",parts:[],chunkBytes:2097152})}));
+  await page.route("**/api/recordings/*/publish",route=>{
+    const index=publishes++;const token=tokens[index];
+    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({id:"share-id-"+(index+1),token,url:"/s/"+token,expiresAt:Math.floor(Date.now()/1000)+86400,passwordProtected:false})});
+  });
+  await page.route("**/api/share/*/details",route=>route.request().method()==="PUT"?route.fulfill({status:200,contentType:"application/json",body:"{}"}):route.continue());
+  await page.route("**/api/share/*/manage",async route=>{
+    if(route.request().method()!=="DELETE"){await route.continue();return;}
+    const token=new URL(route.request().url()).pathname.split("/")[3];revoked.push(token);
+    await route.fulfill({status:200,contentType:"application/json",body:"{}"});
+  });
+  await page.goto("/");
+  await page.locator('input[type="file"]').first().setInputFiles(path.resolve("legacy/public/sample.webm"));
+  await expect(page.getByRole("heading",{name:"sample"})).toBeVisible({timeout:15000});
+  await page.getByRole("button",{name:/Preview/i}).click();
+  await page.getByRole("button",{name:"Share temporarily"}).click();
+  await page.getByRole("button",{name:"Publish temporary link"}).click();
+  await expect(page.getByText("Version 1 link ready")).toBeVisible({timeout:20000});
+  await page.getByRole("button",{name:"Dismiss"}).click();
+  await page.getByRole("button",{name:"Publish new version"}).click();
+  await page.getByRole("checkbox",{name:/Keep previous share as a version/i}).check();
+  await page.getByRole("button",{name:"Publish new version"}).last().click();
+  await expect(page.getByText("Version 2 link ready")).toBeVisible({timeout:20000});
+  await page.getByRole("button",{name:"Dismiss"}).click();
+  const history=page.getByRole("region",{name:"Previous share versions"});
+  await expect(history).toContainText("Version 1");
+  await expect(history.getByRole("link",{name:/Open/i})).toHaveAttribute("href","/s/"+tokens[0]);
+  expect(revoked).not.toContain(tokens[0]);
+  page.once("dialog",dialog=>dialog.accept());
+  await page.getByRole("button",{name:"Revoke share version 1"}).click();
+  await expect(history).toHaveCount(0);
+  expect(revoked).toContain(tokens[0]);
+  await page.getByRole("button",{name:"Publish new version"}).click();
+  await page.getByRole("checkbox",{name:/Keep previous share as a version/i}).check();
+  await page.getByRole("button",{name:"Publish new version"}).last().click();
+  await expect(page.getByText("Version 3 link ready")).toBeVisible({timeout:20000});
+  await page.getByRole("button",{name:"Dismiss"}).click();
+  await expect(page.getByRole("region",{name:"Previous share versions"})).toContainText("Version 2");
+  await page.getByRole("button",{name:"Close preview"}).click();
+  await page.getByRole("button",{name:"Stop sharing sample"}).click();
+  await expect(page.getByRole("status").filter({hasText:/All shared versions/i})).toBeVisible();
+  expect(new Set(revoked)).toEqual(new Set(tokens));
+  await expect(page.getByRole("heading",{name:"sample"})).toBeVisible();
+});
+
 test("light and dark text tokens meet WCAG AA contrast",async({page})=>{
   await page.goto("/");
   const readRatios=()=>page.evaluate(()=>{
