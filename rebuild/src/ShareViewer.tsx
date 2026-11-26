@@ -148,7 +148,7 @@ function ShareViewer({token}:{token:string}) {
       version:1,
       product:"ScreenNote",
       title:share.title,
-      shareUrl:window.location.href,
+      shareUrl:new URL(window.location.pathname,window.location.origin).href,
       media:{url:new URL("/api/share/"+token+"/media",window.location.origin).href,mimeType:share.mimeType,sizeBytes:share.size,durationSeconds:share.duration},
       share:{expiresAt:new Date(share.expiresAt*1000).toISOString(),passwordProtected:share.passwordRequired},
       reviewStatus:details.reviewStatus||"needs-feedback",
