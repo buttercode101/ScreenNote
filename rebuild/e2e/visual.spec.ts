@@ -146,7 +146,7 @@ test("recording setup exposes quality, microphone and camera placement controls"
   await handle.focus();await handle.press("ArrowRight");await expect(handle).not.toHaveAttribute("aria-valuetext",before!);
   const stageBox=await stage.boundingBox(),handleBox=await handle.boundingBox();expect(stageBox&&handleBox).toBeTruthy();
   await page.mouse.move(handleBox!.x+handleBox!.width/2,handleBox!.y+handleBox!.height/2);await page.mouse.down();
-  await page.mouse.move(stageBox!.x+stageBox!.width*.65,stageBox!.y+stageBox!.height*.45);await page.mouse.up();
+  await page.mouse.move(stageBox!.x+stageBox!.width*.65+handleBox!.width/2,stageBox!.y+stageBox!.height*.45+handleBox!.height/2);await page.mouse.up();
   await expect(handle).toHaveAttribute("aria-valuetext",/Horizontal 6[0-9]%, vertical 4[0-9]%/);
 });
 test("preferences export and restore a portable local library backup",async({page})=>{
