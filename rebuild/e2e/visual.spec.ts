@@ -82,6 +82,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.setViewportSize({width:320,height:780});
   const clipActionHeights=await page.locator(".clip-actions .icon-button").evaluateAll(nodes=>nodes.map(node=>node.getBoundingClientRect().height));
   expect(clipActionHeights.length).toBeGreaterThan(0);expect(clipActionHeights.every(height=>height>=44)).toBe(true);
+  const clipTitleBlock=await page.locator(".clip-info > div:first-child").first().boundingBox();expect(clipTitleBlock?.width).toBeGreaterThan(180);
   await page.setViewportSize({width:1280,height:900});
   await page.getByRole("button",{name:/Preview/i}).click();
   await expect(page.locator(".preview-workspace")).toBeVisible();
@@ -97,6 +98,8 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.locator(".editor-title-button").click();
   await page.locator(".editor-title-wrap input").fill("A".repeat(100));
   await page.keyboard.press("Enter");
+  await expect(page.locator(".clip-card h3").first()).toHaveAttribute("title","A".repeat(100));
+  await expect(page.locator(".clip-card h3").first()).toHaveCSS("-webkit-line-clamp","2");
   await page.getByRole("button",{name:/Captions & context/i}).click();
   await expect(page.getByText(/OWNER-SUPPLIED CAPTIONS/i)).toBeVisible();
   await page.locator(".context-editor textarea").first().fill("WEBVTT\n\n00:00:00.100 --> 00:00:00.500\nOpening frame");
