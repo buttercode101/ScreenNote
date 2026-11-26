@@ -1,6 +1,6 @@
 # ScreenNote design system — Field Notes
 
-**Status:** implemented in `rebuild/src/styles.css`  
+**Status:** semantic token foundation exists in `rebuild/src/styles.css`; full legacy selector migration and light/dark acceptance remain in progress. Do not treat the token table as proof that every component is already compliant.  
 **Font policy:** retain the existing system font stack; no remote font or subscription dependency.
 
 ## Brand direction
@@ -82,3 +82,8 @@ Shadows are layered and restrained:
 ## Performance guardrails
 
 These are product targets, not measured field results: p75 LCP <= 1.8s, INP <= 150ms, CLS <= 0.05. Measure separately on mobile and desktop; never state competitor superiority without matched-device/network tests.
+
+
+## 26 November execution note
+
+The base legacy root palette declarations were removed in favor of the semantic token layer. The UI stack now uses `--sn-font-ui`, and shared line-height tokens are applied to the main reading surfaces and headings. Theme-specific toast/error contrast and review-status surfaces were corrected. This is an incremental migration; remaining hard-coded component colors and all real-device/theme-state evidence still require full audit.
