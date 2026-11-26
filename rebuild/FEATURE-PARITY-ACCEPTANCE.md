@@ -60,7 +60,7 @@ Status meanings:
 | Upload resume/retry | Release verdict confirms per-part retry and resume | `app.js` resumes from `upload-state`, skips acknowledged chunks and retries transfers | Verify real interrupted network resume, duplicate part idempotency, expiry/re-reservation and orphan cleanup under live R2/D1 |
 | Storage/capacity handling | 50 MB per clip; 10 min; 1 GB budget; 100 comments | 100 MB per upload; 10 min; 200 comments; dev R2/D1 | Confirm actual quotas, atomic reservations, concurrency, cleanup and abuse cost |
 | Accessibility | 44px targets, focus, skip link, aria-live documented for Vercel | E2E checks visible control names, modal focus cycling and 44px touch controls; automated light/dark text-token contrast meets WCAG AA | Manual screen-reader, reduced-motion and full component contrast review remains open |
-| Responsive visual QA | 11-viewport re-run explicitly outstanding in Vercel verdict | 13 widths from 320 to 1920 CSS px in light/dark; screenshot evidence; share/password and editor states; horizontal containment and long-title wrapping tested | Short landscape heights, browser zoom, orientation changes and physical-device acceptance remain open |
+| Responsive visual QA | 11-viewport re-run explicitly outstanding in Vercel verdict | 13 widths in light/dark, short-landscape heights, 320px 2× device-scale, screenshot evidence and containment checks pass | Real browser zoom, device orientation changes and physical-device acceptance remain open |
 | Physical Android/iOS | Explicitly unverified in Vercel verdict | Explicitly outstanding | External device acceptance; no false certification |
 | Security review | Existing CSP, IDOR/storage gateway tests; remaining P2 items listed | Worker tests and live D1/R2 smoke cover origin rejection, headers, owner-key controls, password lockout, comment throttling, range access and deletion; scheduled rate-limit cleanup added | Independent threat model/security review, storage-abuse/concurrency tests and full secrets/data-deletion review remain open |
 
@@ -156,9 +156,9 @@ The next engineering work must be source-level inventory and parity implementati
 
 ## 7. 26 November execution audit — verified progress, remaining gates
 
-Latest verified rebuild commit: `9eb964193055569fb064aca67113e2609c895526`  
-Cloudflare dev Worker version serving 100%: `45659cc8-70c9-427a-b456-4eedb7b2d821`  
-GitHub Actions push workflow: `45771276867` — typecheck, unit tests, build, Playwright E2E, isolated Worker deploy and live D1/R2 smoke all passed. The paired verification workflow also passed.
+Latest verified rebuild commit: `e5886ac9480a19762a6ac85cec7aa5851122df5a`  
+Cloudflare dev Worker version serving 100%: `ad557a01-0150-4414-9856-4347b8e35e3e`  
+GitHub Actions push workflow: `45772322115` — typecheck, unit tests, build, Playwright E2E, isolated Worker deploy and live D1/R2 smoke all passed. The paired verification workflow also passed.
 
 Verified in this audit pass:
 - Annotated-video export now stops on source errors, rejects incomplete output, bounds completion/cleanup, and restores the original playhead and paused/playing state; Playwright checks restoration.
@@ -167,11 +167,11 @@ Verified in this audit pass:
 - Share password gate wrong/correct UI flow and responsive state are covered; deployed password lockout is verified after fixing a cleanup query that had reset active attempts.
 - Live comment throttling is verified against the deployed Worker; scheduled maintenance prunes stale rate-limit/password-attempt rows.
 - Live D1/R2 smoke verifies guest upload/resume state, password access/lockout, range playback, review decisions/status, reactions, comments/replies/edit/delete/resolve, and share revocation/deletion.
-- Responsive Playwright coverage checks 13 viewport widths (320, 360, 375, 390, 414, 600, 768, 834, 1024, 1120, 1280, 1440, 1920) in light and dark themes. Screenshot artifacts were inspected at 320px and 1440px.
+- Responsive Playwright coverage checks 13 viewport widths (320, 360, 375, 390, 414, 600, 768, 834, 1024, 1120, 1280, 1440, 1920) in light and dark themes, plus 320×480, 568×320, 844×390 and 1024×600 short-landscape heights and a 320 CSS-pixel 2× device-scale context. Screenshot artifacts were inspected at 320px and 1440px.
 - Automated contrast assertions now check text-token combinations against WCAG AA 4.5:1 in light and dark themes; light muted and rust tokens were darkened to pass.
 
 Still not release-accepted:
-- Physical Android/iOS, real display-capture source picker, actual camera/microphone hardware selection, browser-specific permissions and short-landscape behavior.
+- Physical Android/iOS, real display-capture source picker, actual camera/microphone hardware selection, browser-specific permissions and device orientation changes.
 - Manual screen-reader/reduced-motion review, browser zoom and full component/state contrast audit.
 - Separate-profile recovery-key restore, real elapsed-time expiry and full upload interruption/concurrency/storage-quota testing.
 - Black-box parity comparison against Vercel for every shipped capability, media bytes/audio/encoded markup correctness, and removal of the legacy `/api/clip` compatibility proxy after a migration plan.
