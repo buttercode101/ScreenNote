@@ -104,8 +104,11 @@ test("imported recording opens the full editor with preview, annotations, captio
   await page.getByRole("button",{name:/Capture annotated frame/i}).click();
   expect((await frameDownloadPromise).suggestedFilename()).toMatch(/-frame-\d+ms\.png$/);
   await expect(page.getByRole("status").filter({hasText:/Annotated frame saved as PNG/i})).toBeVisible();
+  const editorVideo=page.locator(".editor-video-wrap video");
+  const originalPlayhead=await editorVideo.evaluate(async node=>{const v=node as HTMLVideoElement;v.pause();const target=Math.min(.35,Math.max(.1,(v.duration||1)*.3));if(Math.abs(v.currentTime-target)>.02)await new Promise<void>(resolve=>{const done=()=>resolve();v.addEventListener("seeked",done,{once:true});v.currentTime=target;window.setTimeout(done,1500)});return target;});
   await page.getByRole("button",{name:/Export annotated copy/i}).click();
   await expect(page.getByRole("status").filter({hasText:/Annotated copy saved/i})).toBeVisible({timeout:30000});
+  const restored=await editorVideo.evaluate(node=>({time:(node as HTMLVideoElement).currentTime,paused:(node as HTMLVideoElement).paused}));expect(restored.paused).toBe(true);expect(Math.abs(restored.time-originalPlayhead)).toBeLessThan(.1);
   await page.getByRole("button",{name:/Save all changes/i}).click();
   await expect(page.getByRole("status").filter({hasText:/Changes saved/i})).toBeVisible();
   for(const width of [320,375,768,1120,1440]){await page.setViewportSize({width,height:900});await contained(page,width);if([320,1440].includes(width))await page.screenshot({path:`test-results/screenshots/editor-${width}.png`,fullPage:true});}
@@ -141,7 +144,7 @@ test("recording setup exposes quality, microphone and camera placement controls"
   await expect(page.getByLabel("Camera bubble horizontal position")).toBeVisible();
   await page.getByLabel("Camera bubble horizontal position").fill("0.3");
   await expect(page.getByLabel("Camera bubble horizontal position")).toHaveValue("0.3");
-  const stage=page.getByRole("group",{name:"16 by 9 screen preview"}),handle=page.getByRole("slider",{name:"Camera bubble position"});
+  const stage=page.getByRole("group",{name:"16 by 9 screen preview"}),handle=page.getByRole("slider",{name:"Move camera bubble"});
   await expect(handle).toBeVisible();const before=await handle.getAttribute("aria-valuetext");
   await handle.focus();await handle.press("ArrowRight");await expect(handle).not.toHaveAttribute("aria-valuetext",before!);
   const stageBox=await stage.boundingBox(),handleBox=await handle.boundingBox();expect(stageBox&&handleBox).toBeTruthy();
