@@ -57,6 +57,7 @@ jobs:
       - run: npm run build
         env:
           SCREENNOTE_WORKER_FIRST_ALL: "1"
+      - run: npm run perf:budget
       - run: npm run e2e
       - uses: actions/upload-artifact@v4
         if: failure()
