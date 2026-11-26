@@ -146,3 +146,11 @@ These are observed results from this test pass, not guarantees across every devi
 - Browser capture E2E: fake screen source, begin, pause, resume, stop, local save and playback passed; 6.46-second media sample.
 - Annotation E2E: draw one mark and save marked copy passed; original retained; no console errors after preview cleanup fix.
 - Permission-denied E2E: clear decline message, no upload, recording inactive.
+
+
+## Local code-split build verification — 26 Nov 2026
+The local production build now splits capture, annotation, import, and editor/collaboration modules into ESM chunks and loads them only when their workflows are used. The initial `dist/app.js` entry is 75 KB uncompressed versus the previous 129 KB bundled entry (about 42% smaller); lazy chunks total about 84 KB and are not all requested on the home screen.
+- Local Lighthouse lab (localhost static production build, Chromium mobile emulation): Performance 94, Accessibility 100, Best Practices 100, LCP 2.0 s, TBT 260 ms, CLS 0. Localhost has no CDN/edge path; this is not a production network measurement.
+- Local browser E2E against the split build: sample/import/title, trim-copy, annotation-copy, record/pause/resume/stop/playback, permission-denied, mobile import/download, library search, dark mode and 320–1440 px responsive checks passed.
+- Media URL cleanup: preview URLs are released after detach; local download uses its own URL so a download does not depend on the preview element's lifetime.
+- Production deployment of this code split is pending Vercel deployment API quota reset or an authenticated deployment path. Current live production remains the last successful deployment; do not interpret local Lighthouse numbers as live production results.

@@ -7,5 +7,5 @@ const names=[...(await files('public')),...(await files('lib')),...(await files(
 const sourceFiles={};const hash=createHash('sha256');for(const p of names){hash.update(p+'\0');const bytes=await readFile(p);hash.update(bytes);sourceFiles[p]=createHash('sha256').update(bytes).digest('hex');hash.update('\0')}
 const pkg=JSON.parse(await readFile('package.json','utf8'));
 await rm('dist',{recursive:true,force:true});await mkdir('dist',{recursive:true});await cp('public','dist',{recursive:true});
-await build({entryPoints:['public/app.js'],bundle:true,format:'esm',target:'es2022',outfile:'dist/app.js',minify:true});
+await build({entryPoints:['public/app.js'],bundle:true,format:'esm',target:'es2022',outdir:'dist',entryNames:'app',chunkNames:'chunks/[name]-[hash]',splitting:true,minify:true});
 await writeFile('dist/release.json',JSON.stringify({version:pkg.version,sourceFingerprint:hash.digest('hex'),sourceFiles}));
