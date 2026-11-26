@@ -438,7 +438,9 @@ test("transient share and alert surfaces keep readable contrast in both themes",
     const error=document.createElement("p");error.className="share-error";error.textContent="The share could not be published.";document.body.append(error);
     const status=document.createElement("span");status.className="shared-review-status changes-requested";status.textContent="Changes requested";document.body.append(status);
     const selected=document.createElement("div");selected.className="review-decision-options";const selectedButton=document.createElement("button");selectedButton.setAttribute("aria-pressed","true");selectedButton.textContent="Selected review";selected.append(selectedButton);document.body.append(selected);
-    const editorStatus=document.createElement("div");editorStatus.className="editor-status";editorStatus.textContent="Saved";document.body.append(editorStatus);\n    const offline=document.createElement("div");offline.className="offline-banner";offline.textContent="Offline";document.body.append(offline);\n    const unavailable=document.createElement("div");unavailable.className="capture-unavailable";unavailable.textContent="Capture unavailable";document.body.append(unavailable);
+    const editorStatus=document.createElement("div");editorStatus.className="editor-status";editorStatus.textContent="Saved";document.body.append(editorStatus);
+    const offline=document.createElement("div");offline.className="offline-banner";offline.textContent="Offline";document.body.append(offline);
+    const unavailable=document.createElement("div");unavailable.className="capture-unavailable";unavailable.textContent="Capture unavailable";document.body.append(unavailable);
   });
   const contrast=async(selector:string)=>page.locator(selector).evaluate(el=>{
     const rgb=(value:string)=>value.match(/[\d.]+/g)!.slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});
