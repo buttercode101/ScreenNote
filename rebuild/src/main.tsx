@@ -162,7 +162,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator && window.isSecureContext) {
+    // Android WebView serves app assets from the packaged bundle; its native offline path is not a service worker.
+    const nativeShell = (window as Window & { __ANDROID_APP__?: boolean }).__ANDROID_APP__ === true;
+    if (!nativeShell && "serviceWorker" in navigator && window.isSecureContext) {
       navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => setMessage("Offline support could not be enabled in this browser."));
     }
   }, []);

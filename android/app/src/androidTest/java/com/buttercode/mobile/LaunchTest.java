@@ -26,7 +26,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
  @androidx.test.filters.SdkSuppress(minSdkVersion=29) @Test public void integratedChromeTracksThemeAndDoesNotStealContentSpace()throws Exception{
   Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
   try(ActivityScenario<MainActivity> scenario=launch()){
-   ready(scenario);js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true})()");
+   ready(scenario);
+   assertEquals("true",js(scenario,"window.__ANDROID_APP__===true"));
+   assertEquals("false",js(scenario,"document.body.innerText.includes('Offline support could not be enabled in this browser.')"));
+   js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true})()");
    for(int n=0;n<60&&!"1".equals(js(scenario,"document.querySelectorAll('[data-android-menu]').length"));n++)Thread.sleep(100);
    assertEquals("1",js(scenario,"document.querySelectorAll('[data-android-menu]').length"));
    scenario.onActivity(a->{android.view.ViewGroup parent=(android.view.ViewGroup)a.web.getParent();assertSame("No native toolbar may sit below the product",a.web,parent.getChildAt(parent.getChildCount()-1));});
@@ -96,6 +99,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
   for(int n=0;n<60&&ScreenRecordingService.active;n++)Thread.sleep(200);
   assertFalse("Native recorder did not stop",ScreenRecordingService.active);
   assertEquals("true",js(scenario,"(()=>{const w=document.querySelector('.capture-panel .capture-unavailable');return !w||getComputedStyle(w).display==='none'})()"));
+  assertEquals("false",js(scenario,"document.body.innerText.includes('Offline support could not be enabled in this browser.')"));
   File video=new File(new File(context.getFilesDir(),"recordings"),name);assertTrue(video.exists());assertTrue(video.length()>0);
   return name;
  }
