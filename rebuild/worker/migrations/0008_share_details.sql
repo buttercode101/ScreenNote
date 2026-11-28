@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS share_details (
+  share_id TEXT PRIMARY KEY REFERENCES shares(id) ON DELETE CASCADE,
+  payload TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);

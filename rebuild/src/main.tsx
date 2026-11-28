@@ -1,0 +1,657 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { Activity, ArrowDownToLine, ArrowUpRight, Check, ChevronDown, CircleHelp, Download, Camera, Clapperboard, Clock3, FileVideo2, FolderOpen, LayoutGrid, Mic, Moon, MoreHorizontal, Pause, Play, Plus, Scissors, Search, Settings2, Share2, ShieldCheck, Sparkles, Sun, Trash2, Video, WifiOff, X } from "lucide-react";
+import { appendRecordingChunk, beginRecordingSession, deleteClip, deleteRecordingSession, finalizeRecordingSession, getClip, listClips, listFullClips, listRecoverableSessions, restoreRecordingSession, saveClip, type Clip, type RecoverySession, type ShareVersion } from "./library";
+// @ts-expect-error Shared browser-safe backup helper has no declaration file.
+import { makeLibraryBackup, readLibraryBackup } from "../legacy/lib/library-backup.js";
+import { ScreenRecorder, cameraBubbleFootprint, supportedMimeType, type RecordingResult, type QualityPreset } from "./recorder";
+import CameraBubblePosition from "./CameraBubblePosition";
+import { newOwnerKey, publishRecording } from "./sharing";
+import { planShareVersion } from "./shareVersions";
+import { clampTrimRange, trimVideoElement } from "./trim";
+import ShareViewer from "./ShareViewer";
+import PrivacyPage from "./PrivacyPage";
+import EditorWorkspace from "./EditorWorkspace";
+import PreviewWorkspace from "./PreviewWorkspace";
+import ClipThumbnail from "./ClipThumbnail";
+import { createVideoThumbnail } from "./media";
+import { useDialogFocus } from "./useDialogFocus";
+// @ts-expect-error Shared browser-safe media validation helper has no declaration file.
+import { importMedia } from "../legacy/lib/import-media.js";
+import "./styles.css";
+
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+type StandaloneNavigator = Navigator & { standalone?: boolean };
+
+const recorder = new ScreenRecorder();
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+};
+const formatDate = (time: number) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(time);
+async function readVideoDuration(file: Blob): Promise<number> {
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => { const duration = video.duration; video.src = ""; resolve(Number.isFinite(duration) ? Math.ceil(duration) : 0); };
+      video.onerror = () => resolve(0);
+      video.src = url;
+    });
+  } finally { URL.revokeObjectURL(url); }
+}
+const formatBytes = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+function App() {
+  const [clips, setClips] = useState<Omit<Clip, "blob">[]>([]);
+  const [recoverable, setRecoverable] = useState<RecoverySession[]>([]);
+  const activeSessionId = useRef<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const [mic, setMic] = useState(true);
+  const [camera, setCamera] = useState(false);
+  const [systemAudio, setSystemAudio] = useState(true);
+  const [quality, setQuality] = useState<QualityPreset>("balanced");
+  const [microphones, setMicrophones] = useState<MediaDeviceInfo[]>([]);
+  const [microphoneId, setMicrophoneId] = useState("");
+  const [bubbleSize, setBubbleSize] = useState(.27);
+  const [bubbleCorner, setBubbleCorner] = useState("bottom-right");
+  const [bubbleX, setBubbleX] = useState(.69);
+  const [bubbleY, setBubbleY] = useState(.69);
+  const bubbleFootprint = cameraBubbleFootprint(bubbleSize);
+  const [countdown, setCountdown] = useState(0);
+  const [captureSupported, setCaptureSupported] = useState(true);
+  const countdownTimer = useRef<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [installed, setInstalled] = useState(() => window.matchMedia("(display-mode: standalone)").matches || (navigator as StandaloneNavigator).standalone === true);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const isIosBrowser = /iphone|ipad|ipod/i.test(navigator.userAgent) && (navigator as StandaloneNavigator).standalone !== true;
+  const [dark, setDark] = useState(() => { try { return localStorage.getItem("screennote-theme") === "dark"; } catch { return false; } });
+  const [query, setQuery] = useState("");
+  const [previewClip, setPreviewClip] = useState<Clip | null>(null);
+  const [previewMode, setPreviewMode] = useState<"preview" | "edit">("preview");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(0);
+  const [trimming, setTrimming] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const settingsDialogRef=useRef<HTMLElement|null>(null),publishDialogRef=useRef<HTMLElement|null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [publishId, setPublishId] = useState<string | null>(null);
+  const [expiryDays, setExpiryDays] = useState(3);
+  const [sharePassword, setSharePassword] = useState("");
+  const [keepPreviousShare,setKeepPreviousShare]=useState(false);
+  const [reviewPurpose, setReviewPurpose] = useState("");
+  const [reviewFocus, setReviewFocus] = useState("");
+  const [reviewExpected, setReviewExpected] = useState("");
+  const [reviewAction, setReviewAction] = useState<"review"|"approve"|"reproduce"|"fix">("review");
+  const [publishing, setPublishing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [storageEstimate, setStorageEstimate] = useState<{usage:number;quota:number}|null>(null);
+  const [persistentStorage, setPersistentStorage] = useState<boolean|null>(null);
+  const [storageStatus, setStorageStatus] = useState("");
+  const [shareLink, setShareLink] = useState("");
+  const [shareLinkVersion,setShareLinkVersion]=useState<number|null>(null);
+  const [recoveryData, setRecoveryData] = useState("");
+  const recoveryFileRef = useRef<HTMLInputElement>(null);
+  const backupFileRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const refresh = async () => {
+    const [nextClips, nextRecoverable] = await Promise.all([listClips(), listRecoverableSessions()]);
+    setClips(nextClips);
+    setRecoverable(nextRecoverable);
+  };
+  useEffect(() => { refresh().catch(() => setMessage("Your browser's local storage is unavailable.")); }, []);
+  useEffect(() => { setCaptureSupported(Boolean(navigator.mediaDevices?.getDisplayMedia)); }, []);
+  async function refreshStorageInfo() {
+    try {
+      if (!navigator.storage?.estimate) { setStorageEstimate(null); setPersistentStorage(null); return; }
+      const estimate=await navigator.storage.estimate();
+      setStorageEstimate({usage:estimate.usage||0,quota:estimate.quota||0});
+      setPersistentStorage(navigator.storage.persisted?await navigator.storage.persisted():null);
+    } catch { setStorageStatus("Storage information is unavailable in this browser."); }
+  }
+  async function requestPersistentStorage() {
+    try {
+      if (!navigator.storage?.persist) { setStorageStatus("This browser does not offer persistent storage protection."); return; }
+      const granted=await navigator.storage.persist();setPersistentStorage(granted);
+      setStorageStatus(granted?"The browser granted persistent storage protection.":"The browser did not grant persistent storage protection. Back up important recordings regularly.");
+    } catch { setStorageStatus("Could not request persistent storage protection."); }
+  }
+
+  useDialogFocus(settingsDialogRef,showSettings,()=>setShowSettings(false));
+  useDialogFocus(publishDialogRef,Boolean(publishId),()=>{if(!publishing)setPublishId(null)});
+  useEffect(() => { if(showSettings) void refreshStorageInfo(); },[showSettings]);
+  useEffect(() => {
+    const onlineNow = () => setOnline(true), offlineNow = () => setOnline(false);
+    window.addEventListener("online", onlineNow); window.addEventListener("offline", offlineNow);
+    return () => { window.removeEventListener("online", onlineNow); window.removeEventListener("offline", offlineNow); };
+  }, []);
+  useEffect(() => { const theme = dark ? "dark" : "light"; document.documentElement.dataset.theme = theme; document.documentElement.style.colorScheme = theme; document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#171d19" : "#f4f2ec"); try { localStorage.setItem("screennote-theme", theme); } catch { /* Appearance remains usable when storage is blocked. */ } }, [dark]);
+  useEffect(() => {
+    const beforeInstall = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const appInstalled = () => {
+      setInstalled(true);
+      setInstallPrompt(null);
+      setShowInstallHelp(false);
+    };
+    const displayMode = window.matchMedia("(display-mode: standalone)");
+    const syncDisplayMode = () => setInstalled(displayMode.matches || (navigator as StandaloneNavigator).standalone === true);
+    window.addEventListener("beforeinstallprompt", beforeInstall);
+    window.addEventListener("appinstalled", appInstalled);
+    displayMode.addEventListener("change", syncDisplayMode);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", beforeInstall);
+      window.removeEventListener("appinstalled", appInstalled);
+      displayMode.removeEventListener("change", syncDisplayMode);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Android WebView serves app assets from the packaged bundle; its native offline path is not a service worker.
+    const nativeShell = (window as Window & { __ANDROID_APP__?: boolean }).__ANDROID_APP__ === true;
+    if (!nativeShell && "serviceWorker" in navigator && window.isSecureContext) {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => setMessage("Offline support could not be enabled in this browser."));
+    }
+  }, []);
+
+  async function installApp() {
+    if (!installPrompt) {
+      setShowInstallHelp(true);
+      return;
+    }
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === "accepted") setInstalled(true);
+      setInstallPrompt(null);
+    } catch {
+      setMessage("The install prompt could not be opened. Use your browser menu to install ScreenNote.");
+      setInstallPrompt(null);
+    }
+  }
+
+  const showInstallButton = !installed && (Boolean(installPrompt) || isIosBrowser);
+  const visibleClips = useMemo(() => clips.filter((clip) => clip.title.toLowerCase().includes(query.toLowerCase())), [clips, query]);
+
+  async function start() {
+    setMessage("");
+    setBusy(true);
+    const id = crypto.randomUUID();
+    const createdAt = Date.now();
+    const title = `Screen recording — ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(createdAt)}`;
+    try {
+      await beginRecordingSession({ id, title, createdAt, mimeType: supportedMimeType() || "video/webm", chunkCount: 0, totalBytes: 0, updatedAt: createdAt });
+      activeSessionId.current = id;
+      const corners: Record<string, {x:number;y:number}> = {
+        "top-left": {x:.04,y:.04}, "top-right": {x:1-bubbleSize-.04,y:.04},
+        "bottom-left": {x:.04,y:1-bubbleSize-.04}, "bottom-right": {x:1-bubbleSize-.04,y:1-bubbleSize-.04}
+      };
+      const customBubble = { x: Math.max(0,Math.min(1-bubbleSize,bubbleX)), y: Math.max(0,Math.min(1-bubbleSize,bubbleY)) };
+      await recorder.start(
+        { microphone: mic, systemAudio, camera, quality, microphoneId: microphoneId || undefined, cameraBubble: { ...(bubbleCorner==="custom"?customBubble:corners[bubbleCorner]), size: bubbleSize } },
+        setSeconds,
+        (chunk, index) => appendRecordingChunk(id, chunk, index),
+        () => {
+          if (countdownTimer.current !== null) window.clearInterval(countdownTimer.current);
+          countdownTimer.current = null; setCountdown(0); setBusy(false);
+          const sessionId = activeSessionId.current; activeSessionId.current = null;
+          if (sessionId) void deleteRecordingSession(sessionId).then(refresh);
+          setMessage("Screen sharing ended before recording began. Nothing was recorded.");
+        }
+      );
+      setCountdown(3);
+      let remaining = 3;
+      countdownTimer.current = window.setInterval(() => {
+        remaining -= 1; setCountdown(remaining);
+        if (remaining <= 0) {
+          if (countdownTimer.current !== null) window.clearInterval(countdownTimer.current);
+          countdownTimer.current = null;
+          try { recorder.begin(); setRecording(true); setPaused(false); setSeconds(0); }
+          catch (error) {
+            recorder.cancel(); const sessionId = activeSessionId.current; activeSessionId.current = null;
+            if (sessionId) void deleteRecordingSession(sessionId).then(refresh);
+            setMessage(error instanceof Error ? error.message : "Could not begin recording.");
+          }
+          setCountdown(0);
+        }
+      }, 1000);
+    } catch (error) {
+      await deleteRecordingSession(id).catch(() => undefined);
+      activeSessionId.current = null;
+      setMessage(error instanceof Error ? error.message : "Could not start recording.");
+    } finally { setBusy(false); }
+  }
+
+  async function persistResult(result: RecordingResult) {
+    const id = activeSessionId.current ?? crypto.randomUUID();
+    const createdAt = Date.now();
+    const clip: Clip = {
+      id,
+      title: `Screen recording — ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(createdAt)}`,
+      createdAt,
+      duration: result.duration,
+      size: result.blob.size,
+      mimeType: result.mimeType,
+      blob: result.blob,
+      thumbnail: await createVideoThumbnail(result.blob)
+    };
+    if (activeSessionId.current) await finalizeRecordingSession(id, clip);
+    else await saveClip(clip);
+    activeSessionId.current = null;
+    await refresh();
+    setMessage(result.recoveryWarning ? "Recording saved privately, but interruption-recovery chunks could not all be stored. Download a backup before leaving this page." : "Recording saved privately on this device.");
+  }
+
+  useEffect(() => {
+    const handleExternalStop = (event: Event) => {
+      const result = (event as CustomEvent<RecordingResult>).detail;
+      setRecording(false); setPaused(false); setSeconds(0);
+      void persistResult(result).catch(() => setMessage("The recording could not be saved locally."));
+    };
+    window.addEventListener("screennote:recording-finished", handleExternalStop);
+    return () => window.removeEventListener("screennote:recording-finished", handleExternalStop);
+  }, []);
+
+  function cancelCountdown() {
+    if (countdownTimer.current !== null) window.clearInterval(countdownTimer.current);
+    countdownTimer.current = null; recorder.cancel(); setCountdown(0);
+    const sessionId = activeSessionId.current; activeSessionId.current = null;
+    if (sessionId) void deleteRecordingSession(sessionId).then(refresh);
+    setMessage("Recording cancelled before it began. Nothing was saved.");
+  }
+
+  async function refreshMicrophones() {
+    if (!navigator.mediaDevices?.enumerateDevices) { setMessage("This browser does not expose microphone selection."); return; }
+    let permission: MediaStream | undefined;
+    try {
+      permission = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const devices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "audioinput");
+      setMicrophones(devices);
+      if (microphoneId && !devices.some(device => device.deviceId === microphoneId)) setMicrophoneId("");
+      setMessage(devices.length ? "Microphone sources refreshed." : "No microphone inputs were found.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Microphone access was not granted."); }
+    finally { permission?.getTracks().forEach(track => track.stop()); }
+  }
+
+  function togglePause() {
+    try {
+      if (paused) { recorder.resume(); setPaused(false); }
+      else { recorder.pause(); setPaused(true); }
+    } catch (error) {
+      setPaused(recorder.state === "paused");
+      setMessage(error instanceof Error ? error.message : "Could not change recording state.");
+    }
+  }
+
+  async function finish() {
+    setBusy(true);
+    try {
+      const result = await recorder.stop();
+      await persistResult(result);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not save this recording.");
+    } finally {
+      setRecording(false); setPaused(false); setSeconds(0); setBusy(false);
+    }
+  }
+
+  async function recoverSession(id: string) {
+    try {
+      await restoreRecordingSession(id);
+      const recovered = await getClip(id);
+      if (recovered && !recovered.thumbnail) { const thumbnail = await createVideoThumbnail(recovered.blob); if (thumbnail) await saveClip({ ...recovered, thumbnail }); }
+      await refresh();
+      setMessage("Your interrupted recording was recovered.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not recover this recording.");
+    }
+  }
+
+  async function discardSession(id: string) {
+    if (!window.confirm("Discard this unfinished recording and its saved chunks?")) return;
+    try { await deleteRecordingSession(id); await refresh(); }
+    catch { setMessage("Could not discard the unfinished recording."); }
+  }
+
+  async function importFile(file?: File): Promise<Clip | undefined> {
+    if (!file) return;
+    try {
+      const media = await importMedia(file);
+      const duration = await readVideoDuration(media.blob);
+      if (!duration) throw new Error("This video has no readable duration.");
+      const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\.[^.]+$/, ""), createdAt: Date.now(), duration, size: media.blob.size, mimeType: media.type, blob: media.blob, thumbnail: await createVideoThumbnail(media.blob) };
+      await saveClip(clip); await refresh(); setMessage("Video added to your private library.");
+      return clip;
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this file. Check available device storage."); return undefined; }
+    finally { if (fileRef.current) fileRef.current.value = ""; }
+  }
+
+  // Native Android recording stays private until the user imports and shares it.
+  const nativeImportStarted = useRef(false);
+  useEffect(() => {
+    if (!(window as Window & { __ANDROID_APP__?: boolean }).__ANDROID_APP__ || nativeImportStarted.current) return;
+    const url = new URL(window.location.href);
+    const id = url.searchParams.get("nativeRecording");
+    if (!id) return;
+    nativeImportStarted.current = true;
+    url.searchParams.delete("nativeRecording");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    void (async () => {
+      try {
+        if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new Error("The native recording reference is invalid.");
+        setBusy(true); setMessage("Importing your native recording…");
+        const response = await fetch("/__native_recordings/" + encodeURIComponent(id), { cache: "no-store" });
+        if (!response.ok) throw new Error(response.status === 404 ? "That native recording is no longer available on this device." : "Could not read the native recording.");
+        const blob = await response.blob();
+        if (!blob.size || blob.size > 250 * 1024 * 1024) throw new Error("This native recording is empty or exceeds the 250 MB import limit.");
+        const file = new File([blob], "ScreenNote native recording " + id + ".mp4", { type: blob.type || "video/mp4" });
+        const imported = await importFile(file);
+        if (imported) await openPreview(imported.id);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not import the native recording.");
+      } finally { setBusy(false); }
+    })();
+  }, []);
+
+  async function openPreview(id: string) {
+    setPreviewMode("preview");
+    const clip = await getClip(id);
+    if (!clip) { setMessage("This recording is no longer available on this device."); return; }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (!clip.thumbnail) { const thumbnail = await createVideoThumbnail(clip.blob); if (thumbnail) { clip.thumbnail = thumbnail; await saveClip(clip); await refresh(); } }
+    setPreviewClip(clip);
+    setTrimStart(0); setTrimEnd(clip.duration);
+    setPreviewUrl(URL.createObjectURL(clip.blob));
+  }
+
+  async function openEditor(id: string) {
+    await openPreview(id);
+    setPreviewMode("edit");
+  }
+
+  async function saveTrimmedCopy() {
+    if (!previewClip || !previewVideoRef.current) return;
+    setTrimming(true);
+    try {
+      const range = clampTrimRange(trimStart, trimEnd, previewClip.duration);
+      const blob = await trimVideoElement(previewVideoRef.current, range);
+      const trimmed: Clip = { id: crypto.randomUUID(), title: previewClip.title + " — trimmed", createdAt: Date.now(), duration: Math.round(range.duration), size: blob.size, mimeType: blob.type, blob };
+      await saveClip(trimmed); await refresh();
+      setMessage("Trimmed copy saved locally. Your original is unchanged.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't trim this video."); }
+    finally { setTrimming(false); }
+  }
+
+  function closePreview() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewClip(null);
+  }
+
+  useEffect(() => {
+    if (!previewClip) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closePreview(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [previewClip, previewUrl]);
+
+  async function download(id: string) {
+    const clip = await (await import("./library")).getClip(id);
+    if (!clip) return;
+    const url = URL.createObjectURL(clip.blob);
+    const a = document.createElement("a");
+    a.href = url; const extension = clip.mimeType === "video/mp4" ? "mp4" : clip.mimeType === "video/quicktime" ? "mov" : "webm"; a.download = `${clip.title.replace(/[^a-z0-9-_ ]/gi, "").trim() || "screennote"}.${extension}`;
+    a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  async function shareClip(id:string,forceNew=false) {
+    if (!online) { setMessage("Sharing needs an internet connection. Your local recording is still available to preview, edit and download."); return; }
+    const clip = await getClip(id);
+    setReviewPurpose(clip?.reviewBrief?.purpose || "");
+    setReviewFocus(clip?.reviewBrief?.focus || "");
+    setReviewExpected(clip?.reviewBrief?.expectedOutcome || "");
+    setReviewAction(clip?.reviewBrief?.requestedAction || "review");
+    if (clip?.share && clip.share.expiresAt * 1000 > Date.now() && !forceNew) {
+      const url = new URL(clip.share.url, location.origin).toString();
+      setShareLink(url);setShareLinkVersion(clip.share.version||1); await navigator.clipboard?.writeText(url).catch(() => undefined);
+      return;
+    }
+    setShareLink("");setShareLinkVersion(null);
+    setKeepPreviousShare(false);
+    setPublishId(id);
+  }
+
+  async function publishSelected() {
+    if (!online) { setMessage("Connect to the internet before publishing. Your original remains safely stored on this device."); return; }
+    if (!publishId) return;
+    setPublishing(true); setMessage("");
+    try {
+      const clip = await getClip(publishId);
+      if (!clip) throw new Error("This local recording is no longer available.");
+      if (!clip.duration || clip.duration > 600) throw new Error("This clip needs a valid duration of 10 minutes or less before it can be shared.");
+      const previousShare = clip.share;
+      const publishTimestamp=Date.now();
+      const versionPlan=planShareVersion(previousShare,clip.shareHistory||[],keepPreviousShare,publishTimestamp,clip.title);
+      const brief = { purpose: reviewPurpose.trim().slice(0,160), focus: reviewFocus.trim().slice(0,400), expectedOutcome: reviewExpected.trim().slice(0,400), requestedAction: reviewAction };
+      const hasBrief = Boolean(brief.purpose || brief.focus || brief.expectedOutcome);
+      const ownerKey = newOwnerKey();
+      setUploadProgress(0);
+      const result = await publishRecording(clip, expiryDays, sharePassword, ownerKey, setUploadProgress);
+      const resolvedOwnerKey = result.ownerKey || ownerKey;
+      const detailsResponse = await fetch("/api/share/" + result.token + "/details", { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey, details: { annotations: clip.annotations || [], captions: clip.captions || [], chapters: clip.chapters || [], report: clip.report || null, reviewStatus: clip.reviewStatus || "needs-feedback", reviewBrief: hasBrief ? brief : null, reviewVersion:{number:versionPlan.version,publishedAt:publishTimestamp} } }) });
+      if (!detailsResponse.ok) {
+        await fetch("/api/share/" + result.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: resolvedOwnerKey }) }).catch(() => undefined);
+        throw new Error("The video uploaded, but its review context could not be saved. The incomplete share was rolled back; your local original is safe.");
+      }
+      const next = { ...clip, reviewBrief: hasBrief ? brief : undefined, shareHistory:[...versionPlan.history,...versionPlan.historyToRevoke], share: { recordingId: result.id, token: result.token, url: result.url, ownerKey: resolvedOwnerKey, expiresAt: result.expiresAt, version:versionPlan.version, publishedAt:publishTimestamp } };
+      await saveClip(next); setPreviewClip(next); await refresh();
+      let previousShareWarning = "";
+      if (versionPlan.previousToRevoke && previousShare && previousShare.token !== result.token) {
+        const stopped = await fetch("/api/share/" + previousShare.token + "/manage", { method: "DELETE", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ ownerKey: previousShare.ownerKey }) }).catch(() => null);
+        if (!stopped || (!stopped.ok && stopped.status !== 404)) {
+          const failedVersion:ShareVersion={...previousShare,version:previousShare.version??Math.max(1,versionPlan.version-1),publishedAt:previousShare.publishedAt??publishTimestamp,title:clip.title,revocationPending:true};
+          const latest=await getClip(publishId)||next;
+          const recoverable={...latest,shareHistory:[failedVersion,...(latest.shareHistory||[]).filter(item=>item.token!==failedVersion.token)].sort((a,b)=>b.version-a.version)};
+          await saveClip(recoverable);setPreviewClip(recoverable);await refresh();
+          previousShareWarning += " The previous link could not be revoked. It was retained in version history so you can retry; it may remain active until revoked or expired.";
+        }
+      }
+      for(const oldVersion of versionPlan.historyToRevoke){
+        const stopped=await fetch("/api/share/"+oldVersion.token+"/manage",{method:"DELETE",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({ownerKey:oldVersion.ownerKey})}).catch(()=>null);
+        const latest=await getClip(publishId)||next;
+        if(stopped&&(stopped.ok||stopped.status===404)){
+          const cleaned={...latest,shareHistory:(latest.shareHistory||[]).filter(item=>item.token!==oldVersion.token)};
+          await saveClip(cleaned);setPreviewClip(cleaned);await refresh();
+        }else{
+          const pending={...oldVersion,revocationPending:true};
+          const recoverable={...latest,shareHistory:[...(latest.shareHistory||[]).filter(item=>item.token!==pending.token),pending].sort((a,b)=>b.version-a.version)};
+          await saveClip(recoverable);setPreviewClip(recoverable);await refresh();
+          previousShareWarning += " Older version "+oldVersion.version+" could not be revoked and remains in history for retry.";
+        }
+      }
+      if(versionPlan.previousKept)previousShareWarning += " Previous version "+versionPlan.previousKept.version+" remains available in local version history; its feedback stays attached to that version.";
+      const fullUrl = new URL(result.url, location.origin).toString();
+      setShareLink(fullUrl);setShareLinkVersion(versionPlan.version);
+      setRecoveryData(JSON.stringify({ format: "screennote-share-recovery", version: 1, shareToken: result.token, ownerKey: resolvedOwnerKey, recordingId: result.id, expiresAt: result.expiresAt, reviewVersion:versionPlan.version }, null, 2));
+      await navigator.clipboard?.writeText(fullUrl).catch(() => undefined);
+      setPublishId(null); setSharePassword("");setKeepPreviousShare(false);
+      setMessage("Version "+versionPlan.version+" is ready. The link has been copied if clipboard access is available."+previousShareWarning);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't publish this recording."); }
+    finally { setPublishing(false); setUploadProgress(0); }
+  }
+
+  async function exportLibraryBackup() {
+    setBackupBusy(true); setMessage("");
+    try {
+      const all = await listFullClips();
+      if (!all.length) throw new Error("There are no local recordings to back up yet.");
+      const archive = await makeLibraryBackup(all);
+      const url = URL.createObjectURL(archive), anchor = document.createElement("a");
+      anchor.href = url; anchor.download = "screennote-library-backup.zip"; anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+      setMessage("Your local library backup is ready. Keep it somewhere safe.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not create a library backup."); }
+    finally { setBackupBusy(false); }
+  }
+
+  async function restoreLibraryBackup(file?: File) {
+    if (!file) return;
+    setBackupBusy(true); setMessage("");
+    try {
+      const existing = new Set((await listClips()).map(clip => clip.id));
+      const result = await readLibraryBackup(file, existing);
+      for (const clip of result.clips as Clip[]) await saveClip({ ...clip, thumbnail: await createVideoThumbnail(clip.blob) });
+      await refresh();
+      setMessage(`Restored ${result.clips.length} recording(s). ${result.duplicates} duplicate(s) were skipped.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not restore this library backup."); }
+    finally { setBackupBusy(false); if (backupFileRef.current) backupFileRef.current.value = ""; }
+  }
+
+  async function importRecovery(file?: File) {
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (data?.format !== "screennote-share-recovery" || data.version !== 1 || typeof data.shareToken !== "string" || !/^[A-Za-z0-9_-]{32,64}$/.test(data.shareToken) || typeof data.ownerKey !== "string" || !/^[a-f0-9]{64}$/.test(data.ownerKey)) throw new Error("This is not a valid ScreenNote recovery key.");
+      localStorage.setItem("screennote-recovery-" + data.shareToken, data.ownerKey);
+      setMessage("Private recovery key imported. You can now manage this share from its viewer link.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not read this recovery key."); }
+    finally { if (recoveryFileRef.current) recoveryFileRef.current.value = ""; }
+  }
+
+  async function revokeRemoteShare(share:{token:string;ownerKey:string}) {
+    const response=await fetch("/api/share/"+share.token+"/manage",{method:"DELETE",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({ownerKey:share.ownerKey})});
+    if(!response.ok&&response.status!==404)throw new Error("A shared version could not be revoked. Keep its recovery key and try again.");
+  }
+  async function revokeShareVersion(id:string,version:ShareVersion) {
+    if(!window.confirm("Revoke share version "+version.version+"? Its link and discussion will be deleted."))return;
+    try{
+      await revokeRemoteShare(version);
+      const clip=await getClip(id);if(!clip)return;
+      const next={...clip,shareHistory:(clip.shareHistory||[]).filter(item=>item.token!==version.token)};
+      await saveClip(next);if(previewClip?.id===id)setPreviewClip(next);
+      await refresh();setMessage("Share version "+version.version+" was revoked.");
+    }catch(error){setMessage(error instanceof Error?error.message:"Could not revoke this share version.");}
+  }
+
+  async function stopSharing(id: string) {
+    const clip = await getClip(id);
+    if (!clip || (!clip.share && !clip.shareHistory?.length)) return;
+    try {
+      const shares=[...(clip.share?[clip.share]:[]),...(clip.shareHistory||[])];
+      for(const share of shares)await revokeRemoteShare(share);
+      const next={...clip};delete next.share;delete next.shareHistory;
+      await saveClip(next);if(previewClip?.id===id)setPreviewClip(next);await refresh();
+      setMessage("All shared versions and their discussions have been deleted. Your local original is still here.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Couldn't stop sharing."); }
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm("Delete this recording from this device? This cannot be undone.")) return;
+    try {
+      const clip = await getClip(id);
+      if(clip){
+        const shares=[...(clip.share?[clip.share]:[]),...(clip.shareHistory||[])];
+        for(const share of shares)await revokeRemoteShare(share);
+      }
+      await deleteClip(id);
+      try { localStorage.removeItem("screennote-pending-upload-"+id); } catch { /* storage may be restricted */ }
+      await refresh();
+      setMessage("Recording and all of its shared versions deleted from this device.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Couldn't delete this recording. Your local copy is still here.");
+    }
+  }
+
+  const publishClipMeta=publishId?clips.find(clip=>clip.id===publishId):undefined;
+  const canKeepPreviousShare=Boolean(publishClipMeta?.share&&publishClipMeta.share.expiresAt*1000>Date.now());
+  return <div className="app-shell">
+    <aside className="sidebar">
+      <a className="brand" href="/" aria-label="ScreenNote home"><span className="brand-mark"><Video size={18}/></span><span>screen<span className="brand-light">note</span></span></a>
+      <div className="workspace-label">WORKSPACE <span className="local-pill"><span/> LOCAL</span></div>
+      <nav className="side-nav" aria-label="Main navigation">
+        <a className="nav-item active" href="#library"><LayoutGrid size={17}/> Overview</a>
+        <a className="nav-item" href="#library"><Clapperboard size={17}/> My recordings <span className="nav-count">{clips.length}</span></a>
+        <button className="nav-item" onClick={() => fileRef.current?.click()}><FolderOpen size={17}/> Import a video</button>
+      </nav>
+      <div className="sidebar-bottom">
+        <div className="privacy-card"><ShieldCheck size={18}/><div><strong>Your recordings stay yours.</strong><p>Saved privately on this device until you choose to share.</p></div></div>
+        <button className="nav-item" onClick={() => setShowSettings(!showSettings)}><Settings2 size={17}/> Preferences</button>
+        <button className="nav-item" onClick={() => setDark(!dark)}>{dark ? <Sun size={17}/> : <Moon size={17}/>} {dark ? "Light appearance" : "Dark appearance"}</button>
+        <button className="nav-item" onClick={() => recoveryFileRef.current?.click()}><ShieldCheck size={17}/> Restore share key</button><a className="nav-item" href="mailto:hello@buttercode.systems"><CircleHelp size={17}/> Help & feedback</a>
+        <div className="profile-row"><div className="avatar">S</div><div><strong>Personal space</strong><span>Guest workspace</span></div><MoreHorizontal size={18}/></div>
+      </div>
+    </aside>
+
+    <main className="main-content">
+      {!online && <div className="offline-banner" role="status"><WifiOff size={15}/> Offline mode — your local library, preview, editing and downloads remain available. Publishing and shared discussions need a connection.</div>}
+      <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> Overview</div><div className="top-actions"><span className="secure-label"><ShieldCheck size={14}/> Private by default</span>{showInstallButton&&<button className="button secondary install-button" aria-label="Install ScreenNote" onClick={installApp}><Download size={15}/> Install</button>}<button className="icon-button" aria-label="Open preferences" onClick={() => setShowSettings(true)}><Settings2 size={18}/></button><button className="icon-button" aria-label="Toggle appearance" onClick={() => setDark(!dark)}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><span className="avatar small" aria-label="Guest workspace">S</span></div></header>
+      <div className="page-wrap">
+        <section className="welcome-row"><div><div className="eyebrow">YOUR CREATIVE WORKSPACE</div><h1>Make it clear.<br/><span>Show what you mean.</span></h1><p className="intro">Capture a moment, explain an idea, and bring everyone onto the same page.</p></div><div className="welcome-art" aria-hidden="true"><div className="art-window"><div className="art-bar"><i/><i/><i/></div><div className="art-screen"><div className="art-sidebar"/><div className="art-content"><div/><div/><div/><div/></div><div className="art-cursor"/></div><div className="art-play"><Play size={15} fill="currentColor"/></div></div><div className="art-caption">A clearer way to communicate</div></div></section>
+
+        {recoverable.map((session) => <div className="notice recovery-notice" role="status" key={session.id}>
+          <div className="recovery-copy"><strong>An unfinished recording was found.</strong><span>{session.title} · {formatBytes(session.totalBytes)} saved locally</span></div>
+          <div className="recovery-actions"><button className="button secondary" onClick={() => recoverSession(session.id)}>Recover</button><button className="button secondary" onClick={() => discardSession(session.id)}>Discard</button></div>
+        </div>)}
+
+        <section className="capture-panel">
+          <div className="capture-copy"><div className="capture-icon"><Video size={21}/></div><div><h2>{countdown > 0 ? "Get ready" : recording ? "You're recording" : "Start with a recording"}</h2><p>{countdown > 0 ? "The countdown is running. You can cancel before capture begins." : recording ? "Take your time. Your recording is being captured in this tab." : "Record your screen or bring in a video you already have."}</p></div></div>
+          {countdown > 0 ? <div className="record-countdown" role="status"><strong>{countdown}</strong><span>Get ready. Recording begins after the countdown.</span><button className="button secondary" onClick={cancelCountdown}>Cancel</button></div> : recording ? <div className="record-controls"><div className="recording-indicator"><span/>{formatTime(seconds)} {paused ? "PAUSED" : "RECORDING"}</div><button className="button secondary" aria-pressed={paused} onClick={togglePause}>{paused ? <Play size={16}/> : <Pause size={16}/>} {paused ? "Resume" : "Pause"}</button><button className="button danger" disabled={busy} onClick={finish}><Check size={16}/> Finish</button></div> : <div className="capture-setup"><div className="capture-actions"><label className="toggle-option"><input type="checkbox" checked={mic} onChange={(e) => setMic(e.target.checked)}/><Mic size={15}/> Microphone</label><label className="toggle-option"><input type="checkbox" checked={systemAudio} onChange={(e) => setSystemAudio(e.target.checked)}/> System audio</label><label className="toggle-option"><input type="checkbox" checked={camera} onChange={(e) => setCamera(e.target.checked)}/><Camera size={15}/> Camera bubble</label><button className="button primary" disabled={busy||!captureSupported} onClick={start}><span className="record-dot"/>{busy ? "Preparing…" : captureSupported ? "Record screen" : "Screen recording unavailable"} <ArrowUpRight size={16}/></button></div>{!captureSupported&&<p className="capture-unavailable" role="status">This browser does not provide screen capture. You can still import, preview, edit and share existing recordings.</p>}<details className="capture-advanced"><summary>Recording quality, microphone and camera settings</summary><div className="capture-settings-grid"><label>Recording quality<select value={quality} onChange={e=>setQuality(e.target.value as QualityPreset)}><option value="saver">Smaller file · 720p</option><option value="balanced">Balanced · 1080p</option><option value="clear">Sharper · up to 1440p</option></select></label><label>Microphone source<select value={microphoneId} onChange={e=>setMicrophoneId(e.target.value)} disabled={!mic}><option value="">Browser default</option>{microphones.map((device,i)=><option key={device.deviceId||i} value={device.deviceId}>{device.label||"Microphone "+(i+1)}</option>)}</select></label><button className="button secondary" onClick={refreshMicrophones} disabled={!mic}>Refresh microphone list</button><label>Camera bubble size<input type="range" min=".16" max=".38" step=".01" value={bubbleSize} onChange={e=>{const size=Number(e.target.value),bounds=cameraBubbleFootprint(size);setBubbleSize(size);setBubbleX(x=>Math.min(x,1-bounds.width));setBubbleY(y=>Math.min(y,1-bounds.height));}} disabled={!camera}/></label><label>Camera bubble position<select value={bubbleCorner} onChange={e=>{const value=e.target.value;setBubbleCorner(value);const offset=.04;setBubbleX(value.endsWith("left")?offset:1-bubbleFootprint.width-offset);setBubbleY(value.startsWith("top")?offset:1-bubbleFootprint.height-offset)}} disabled={!camera}><option value="top-left">Top left</option><option value="top-right">Top right</option><option value="bottom-left">Bottom left</option><option value="bottom-right">Bottom right</option><option value="custom">Custom position</option></select></label>{bubbleCorner==="custom"&&<div className="bubble-position-controls"><label>Horizontal position<input aria-label="Camera bubble horizontal position" type="range" min="0" max={Math.max(0,1-bubbleFootprint.width)} step=".01" value={bubbleX} onChange={e=>setBubbleX(Number(e.target.value))} disabled={!camera}/></label><label>Vertical position<input aria-label="Camera bubble vertical position" type="range" min="0" max={Math.max(0,1-bubbleFootprint.height)} step=".01" value={bubbleY} onChange={e=>setBubbleY(Number(e.target.value))} disabled={!camera}/></label></div>}</div>{camera&&<CameraBubblePosition size={bubbleSize} x={bubbleX} y={bubbleY} onChange={(x,y)=>{setBubbleX(x);setBubbleY(y);setBubbleCorner("custom");}}/>}</details></div>}
+        </section>
+
+        {message && <div className="notice" role="status"><Check size={16}/>{message}<button onClick={() => setMessage("")} aria-label="Dismiss"><X size={15}/></button></div>}
+
+        <section className="library-section" id="library">
+          <div className="section-heading"><div><div className="eyebrow">YOUR LIBRARY</div><h2>Recent recordings <span className="count-badge">{clips.length}</span></h2></div><div className="library-tools"><label className="search-box"><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a recording" aria-label="Search recordings"/></label><button className="button secondary import-button" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import</button></div></div>
+          {visibleClips.length ? <div className="clip-grid">{visibleClips.map((clip) => <article className="clip-card" key={clip.id}><div className="clip-thumb"><ClipThumbnail thumbnail={clip.thumbnail} title={clip.title}/><button className="thumb-play" onClick={() => openPreview(clip.id)} aria-label={`Play ${clip.title}`}><Play size={18} fill="currentColor"/></button><span className="duration">{clip.duration ? formatTime(clip.duration) : "Imported"}</span></div><div className="clip-info"><div><h3 title={clip.title}>{clip.title}</h3><p><Clock3 size={13}/>{formatDate(clip.createdAt)} <span>·</span> {formatBytes(clip.size)}</p></div><div className="clip-actions"><button className="button secondary clip-text-action" onClick={() => openPreview(clip.id)}><Play size={14}/> Preview</button><button className="button secondary clip-text-action" onClick={() => openEditor(clip.id)}><Scissors size={14}/> Edit</button>{((clip.share && clip.share.expiresAt * 1000 > Date.now()) || clip.shareHistory?.some(version=>version.expiresAt*1000>Date.now())) && <button className="icon-button" onClick={() => stopSharing(clip.id)} aria-label={`Stop sharing ${clip.title}`} title="Stop sharing all versions"><ShieldCheck size={16}/></button>}<button className="icon-button" onClick={() => shareClip(clip.id)} aria-label={`Share ${clip.title}`}><Share2 size={16}/></button><button className="icon-button" onClick={() => remove(clip.id)} aria-label={`Delete ${clip.title}`}><Trash2 size={16}/></button></div></div></article>)}</div> : <div className="empty-state"><div className="empty-icon"><Clapperboard size={25}/></div><h3>{query ? "No matching recordings" : "Your next great explanation starts here."}</h3><p>{query ? "Try a different search." : "Record your screen or import a video. Your library is private and stays on this device."}</p><div className="empty-actions"><button className="button primary" disabled={busy || recording} onClick={start}><Video size={16}/> Record your screen</button><button className="button secondary" onClick={() => fileRef.current?.click()}><Plus size={16}/> Import a video</button></div></div>}
+        </section>
+
+        <section className="bottom-note"><div className="note-icon"><Sparkles size={18}/></div><div><strong>A little more clarity goes a long way.</strong><p>Record locally. Share temporarily. Keep the conversation tied to the exact moment—and let it end when you do.</p></div><span className="build-label"><Activity size={13}/> TEMPORARY BY DESIGN</span></section>
+        <footer><span>© {new Date().getFullYear()} ScreenNote</span><span>Made for clear communication.</span><a href="/privacy">Privacy</a></footer>
+      </div>
+    </main>
+    {showInstallHelp && <div className="modal-backdrop install-help-backdrop" role="presentation" onClick={() => setShowInstallHelp(false)}><section className="install-help-modal" role="dialog" aria-modal="true" aria-labelledby="install-help-title" onClick={e => e.stopPropagation()}><header><div><span className="eyebrow">ADD TO YOUR HOME SCREEN</span><h2 id="install-help-title">Install ScreenNote</h2><p>Use ScreenNote like an app, with its own icon and a focused workspace.</p></div><button className="icon-button" onClick={() => setShowInstallHelp(false)} aria-label="Close install instructions"><X size={18}/></button></header><ol><li>In Safari, tap the <strong>Share</strong> button.</li><li>Choose <strong>Add to Home Screen</strong>.</li><li>Tap <strong>Add</strong> to install ScreenNote.</li></ol><button className="button primary" onClick={() => setShowInstallHelp(false)}>Got it</button></section></div>}
+    {previewClip && previewUrl && (previewMode === "edit" ? <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id,Boolean(previewClip.share))} shareLabel={previewClip.share?"Publish new version":"Share a reviewed copy"} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} /> : <PreviewWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onEdit={() => setPreviewMode("edit")} onShare={() => shareClip(previewClip.id)} onNewVersion={() => shareClip(previewClip.id,true)} onRevokeVersion={version=>revokeShareVersion(previewClip.id,version)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />)}
+    {showSettings && <div className="modal-backdrop" role="presentation" onClick={() => setShowSettings(false)}><section ref={settingsDialogRef} className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()}>
+      <header><div><span className="eyebrow">YOUR SPACE</span><h2 id="settings-title">Preferences & backups</h2><p>Keep control of your recordings, appearance and recovery keys.</p></div><button className="icon-button" onClick={() => setShowSettings(false)} aria-label="Close preferences"><X size={18}/></button></header>
+      <div className="settings-section"><strong>Appearance</strong><p>Choose the workspace presentation.</p><button className="button secondary" onClick={() => setDark(!dark)}>{dark ? <Sun size={16}/> : <Moon size={16}/>} Switch to {dark ? "light" : "dark"} appearance</button></div>
+      <div className="settings-section"><strong>On-device storage</strong><p>Recordings stay in this browser. Check available space and ask the browser to protect ScreenNote data from automatic eviction where supported.</p>{storageEstimate&&<div className="storage-meter"><div><span>Site storage used</span><strong>{formatBytes(storageEstimate.usage)} / {formatBytes(storageEstimate.quota)}</strong></div><progress max={Math.max(1,storageEstimate.quota)} value={storageEstimate.usage}/></div>}{persistentStorage===true?<p className="storage-protected"><ShieldCheck size={14}/> Persistent storage protection is enabled.</p>:persistentStorage===false?<button className="button secondary" onClick={requestPersistentStorage}>Protect local recordings</button>:<p className="storage-status">Storage protection is not available in this browser.</p>}{storageStatus&&<p className="storage-status" role="status">{storageStatus}</p>}</div>
+      <div className="settings-section"><strong>Local library backup</strong><p>Export your recordings, editing context and private share-management keys to a portable ZIP file, or restore a backup. The ZIP is not encrypted: keep it private. Existing recordings with matching IDs are skipped.</p><div className="settings-actions"><button className="button primary" disabled={backupBusy || !clips.length} onClick={exportLibraryBackup}><Download size={16}/>{backupBusy ? "Working…" : "Back up my library"}</button><button className="button secondary" disabled={backupBusy} onClick={() => backupFileRef.current?.click()}><ArrowDownToLine size={16}/> Restore a library backup</button></div></div>
+      <div className="settings-section"><strong>Share recovery key</strong><p>Import a private key to manage a share from this browser. Keep the key secret.</p><button className="button secondary" onClick={() => recoveryFileRef.current?.click()}><ShieldCheck size={16}/> Import share recovery key</button></div>
+      <div className="settings-footnote"><ShieldCheck size={15}/> Originals and backups stay on your device unless you explicitly share a video.</div>
+    </section></div>}
+    {publishId && <div className="modal-backdrop" role="presentation" onClick={() => {if(!publishing){setPublishId(null);setKeepPreviousShare(false);}}}><section ref={publishDialogRef} className="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-title" onClick={e=>e.stopPropagation()}>
+      <div className="publish-modal-head"><div><span className="eyebrow">SHARE A MOMENT</span><h2 id="publish-title">{publishClipMeta?.share?"Publish a new version":"Make a temporary link"}</h2><p>Your original stays on this device. Only the new shared copy is uploaded.</p></div><button className="icon-button" onClick={()=>{setPublishId(null);setKeepPreviousShare(false)}} aria-label="Close share settings"><X size={18}/></button></div>
+      <label className="field-label">Link expires after<select value={expiryDays} onChange={e=>setExpiryDays(Number(e.target.value))}><option value={1}>1 day</option><option value={3}>3 days</option><option value={7}>7 days</option></select></label>
+      <label className="field-label">Password protection <span className="optional-label">Optional</span><input type="password" minLength={8} maxLength={128} value={sharePassword} onChange={e=>setSharePassword(e.target.value)} placeholder="Add a password (8+ characters)"/></label>{publishClipMeta?.share&&<div className="keep-version-option"><label><input type="checkbox" checked={keepPreviousShare} disabled={publishing||!canKeepPreviousShare} onChange={e=>setKeepPreviousShare(e.target.checked)}/> Keep previous share as a version</label><p>{canKeepPreviousShare?"The old link stays active until its own expiry. Its comments and review decisions stay attached to that video version.":"The previous share has expired and cannot be retained."}</p></div>}
+      <details className="review-brief-fields"><summary>Set a review brief (optional)</summary><p>Give your guest enough context to leave useful feedback.</p><label className="field-label">Review purpose<input aria-label="Review purpose" maxLength={160} value={reviewPurpose} onChange={e=>setReviewPurpose(e.target.value)} placeholder="What are they reviewing?"/></label><label className="field-label">Focus areas<textarea aria-label="Review focus areas" maxLength={400} rows={2} value={reviewFocus} onChange={e=>setReviewFocus(e.target.value)} placeholder="What should they look at?"/></label><label className="field-label">Expected outcome<textarea aria-label="Expected outcome" maxLength={400} rows={2} value={reviewExpected} onChange={e=>setReviewExpected(e.target.value)} placeholder="What should be true when this is correct?"/></label><label className="field-label">Requested action<select aria-label="Requested action" value={reviewAction} onChange={e=>setReviewAction(e.target.value as typeof reviewAction)}><option value="review">Review and give feedback</option><option value="approve">Approve</option><option value="reproduce">Reproduce this issue</option><option value="fix">Help fix this</option></select></label></details>
+      <div className="privacy-explainer"><ShieldCheck size={17}/><span>Viewers don't need an account. Your shared copy and discussion are deleted when the link expires or you stop sharing.</span></div>
+      <p className="upload-resume-note">Large uploads are sent in resumable parts. If your connection drops, retry sharing and completed parts will be reused.</p>
+      {publishing && <div className="publish-progress"><div><span>Secure upload</span><strong>{uploadProgress}%</strong></div><progress max="100" value={uploadProgress}/></div>}
+      {!publishing && message && <p className="publish-status" role="status">{message}</p>}
+      <button className="button primary publish-submit" disabled={publishing || (sharePassword.length>0&&sharePassword.length<8)} onClick={publishSelected}>{publishing?"Uploading securely…":publishClipMeta?.share?"Publish new version":"Publish temporary link"} <ArrowUpRight size={16}/></button>
+    </section></div>}
+    {shareLink && <div className="share-link-toast" role="status"><div><strong>{shareLinkVersion?"Version "+shareLinkVersion+" link ready":"Temporary link ready"}</strong><span>{shareLink}</span></div><a className="button secondary" href={shareLink} target="_blank" rel="noopener noreferrer">Open preview</a><button className="button secondary" onClick={()=>navigator.clipboard?.writeText(shareLink)}>Copy link</button><button className="button secondary" onClick={()=>{const url=URL.createObjectURL(new Blob([recoveryData],{type:"application/json"}));const a=document.createElement("a");a.href=url;a.download="screennote-recovery.json";a.click();URL.revokeObjectURL(url);}}>Recovery key</button><button className="icon-button" onClick={()=>{setShareLink("");setShareLinkVersion(null)}} aria-label="Dismiss"><X size={16}/></button></div>}
+    <input ref={fileRef} type="file" accept="video/mp4,video/webm" hidden onChange={(e) => importFile(e.target.files?.[0])}/><input ref={recoveryFileRef} type="file" accept="application/json,.json" hidden onChange={(e) => importRecovery(e.target.files?.[0])}/><input ref={backupFileRef} type="file" accept=".zip,application/zip" hidden onChange={(e) => restoreLibraryBackup(e.target.files?.[0])}/>
+  </div>;
+}
+
+const root = createRoot(document.getElementById("root")!);
+const shareToken = window.location.pathname.split("/")[2] ?? "";
+const isSharePath = window.location.pathname.startsWith("/s/") && /^[A-Za-z0-9_-]{32,64}$/.test(shareToken);
+const isPrivacyPath = window.location.pathname === "/privacy";
+root.render(<React.StrictMode>{isSharePath ? <ShareViewer token={shareToken} /> : isPrivacyPath ? <PrivacyPage /> : <App />}</React.StrictMode>);

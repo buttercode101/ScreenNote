@@ -33,6 +33,39 @@ window.__ANDROID_APP__=true;
    Object.assign(button.style,{width:'44px',height:'44px',minWidth:'44px',minHeight:'44px',padding:'10px',display:'inline-flex',alignItems:'center',justifyContent:'center',flex:'0 0 44px',color:'inherit',borderRadius:'12px',background:'transparent',border:'1px solid currentColor',opacity:'0.8',boxSizing:'border-box'});
    button.onclick=()=>call('appMenu').catch(e=>alert(e.message));header.append(button);
   }
+  // Rebuilt React PWA: expose the native Android capture path inside its own capture panel.
+  const rebuiltActions=document.querySelector('.capture-panel .capture-actions');
+  if(rebuiltActions){
+   let nativeRow=rebuiltActions.querySelector(':scope > [data-android-capture]');
+   if(!nativeRow){
+    nativeRow=document.createElement('div');nativeRow.dataset.androidCapture='';nativeRow.className='capture-actions';
+    Object.assign(nativeRow.style,{display:'flex',flexWrap:'wrap',gap:'10px',width:'100%',justifyContent:'flex-start'});
+    for(const [label,op,primary]of [['Record on Android','recordScreen',true],['Device recordings','openRecordings',false]]){
+     const button=document.createElement('button');button.type='button';button.className=primary?'button primary':'button secondary';button.textContent=label;button.dataset.androidAction=op;
+     Object.assign(button.style,{flex:'1 1 180px',minHeight:'48px',margin:'0',width:'auto',whiteSpace:'normal',overflowWrap:'anywhere'});
+     button.onclick=()=>call(op).catch(e=>alert(e.message));nativeRow.append(button);
+    }
+    rebuiltActions.append(nativeRow);
+   }
+   // Reapply on every DOM update: React can recreate the unsupported browser
+   // warning or settings after a native recording changes the app state.
+   for(const control of rebuiltActions.querySelectorAll(':scope > .toggle-option,:scope > button')){
+    control.hidden=true;control.style.setProperty('display','none','important');control.setAttribute('aria-hidden','true');
+   }
+   const advanced=document.querySelector('.capture-panel .capture-advanced');
+   if(advanced){advanced.hidden=true;advanced.style.setProperty('display','none','important');advanced.setAttribute('aria-hidden','true')}
+   const unavailable=document.querySelector('.capture-panel .capture-unavailable');
+   if(unavailable){unavailable.hidden=true;unavailable.style.setProperty('display','none','important');unavailable.setAttribute('aria-hidden','true')}
+   const copy=document.querySelector('.capture-panel .capture-copy p');
+   if(copy)copy.textContent='Use Android’s native screen-capture prompt, then review your recording before sharing.';
+   let note=document.querySelector('[data-android-capture-note]');
+   if(!note){
+    note=document.createElement('p');note.dataset.androidCaptureNote='';note.setAttribute('role','status');
+    note.textContent='Android asks for screen-capture consent each time. Choose Screen only or Screen + microphone. System audio and camera bubble are not available in this native recorder. Recordings stay on this device until you import and choose to share.';
+    Object.assign(note.style,{margin:'12px 0 0',padding:'12px',border:'1px solid var(--sn-line, #d9ddd4)',borderRadius:'8px',background:'var(--sn-surface, #fbfaf6)',color:'var(--sn-muted, #626c63)',fontSize:'13px',lineHeight:'1.5'});
+   }
+   if(note.parentElement!==rebuiltActions.parentElement)rebuiltActions.after(note);
+  }
   const panel=document.querySelector('.record-options.import-only');
   if(panel&&!panel.querySelector('[data-android-capture]')){
    const original=panel.querySelector('[data-action="record"]');

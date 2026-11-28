@@ -26,7 +26,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
  @androidx.test.filters.SdkSuppress(minSdkVersion=29) @Test public void integratedChromeTracksThemeAndDoesNotStealContentSpace()throws Exception{
   Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
   try(ActivityScenario<MainActivity> scenario=launch()){
-   ready(scenario);js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true})()");
+   ready(scenario);
+   assertEquals("true",js(scenario,"window.__ANDROID_APP__===true"));
+   assertEquals("false",js(scenario,"document.body.innerText.includes('Offline support could not be enabled in this browser.')"));
+   js(scenario,"(()=>{const d=document.getElementById('record-setup');if(d)d.open=true})()");
    for(int n=0;n<60&&!"1".equals(js(scenario,"document.querySelectorAll('[data-android-menu]').length"));n++)Thread.sleep(100);
    assertEquals("1",js(scenario,"document.querySelectorAll('[data-android-menu]').length"));
    scenario.onActivity(a->{android.view.ViewGroup parent=(android.view.ViewGroup)a.web.getParent();assertSame("No native toolbar may sit below the product",a.web,parent.getChildAt(parent.getChildCount()-1));});
@@ -34,8 +37,12 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
     assertEquals("2",js(scenario,"document.querySelectorAll('[data-android-capture] button').length"));
     assertEquals("true",js(scenario,"Array.from(document.querySelectorAll('[data-android-capture] button')).every(b=>b.getBoundingClientRect().height>=48&&!b.disabled)"));
     assertEquals("false",js(scenario,"document.body.innerText.includes('Use Record screen below')"));
+    assertEquals("false",js(scenario,"Array.from(document.querySelectorAll('.capture-panel .capture-setup > .capture-actions > .toggle-option,.capture-panel .capture-setup > .capture-actions > button,.capture-panel .capture-setup > .capture-advanced')).some(el=>getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden')"));
+    assertEquals("true",js(scenario,"!!document.querySelector('[data-android-capture-note]')&&document.querySelector('[data-android-capture-note]').innerText.includes('System audio and camera bubble are not available')"));
+    assertEquals("true",js(scenario,"(()=>{const w=document.querySelector('.capture-panel .capture-unavailable');return !w||getComputedStyle(w).display==='none'})()"));
+    assertEquals("true",js(scenario,"document.querySelector('.capture-panel .capture-copy p').innerText.includes('Android’s native screen-capture prompt')"));
    }
-   boolean themes="true".equals(js(scenario,"!!document.querySelector('[data-action=theme],#themeBtn')"));
+   boolean themes="true".equals(js(scenario,"!!document.querySelector('[data-action=theme],#themeBtn,button[aria-label=\"Toggle appearance\"]')"));
    for(String theme:themes?new String[]{"light","dark"}:new String[]{"light"}){
     js(scenario,"document.documentElement.dataset.theme='"+theme+"'");
     AtomicBoolean matched=new AtomicBoolean(false);
@@ -91,6 +98,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
   js(scenario,"document.querySelector('[data-android-action=recordScreen]').click()");nativeText("Stop recording",true);
   for(int n=0;n<60&&ScreenRecordingService.active;n++)Thread.sleep(200);
   assertFalse("Native recorder did not stop",ScreenRecordingService.active);
+  assertEquals("true",js(scenario,"(()=>{const w=document.querySelector('.capture-panel .capture-unavailable');return !w||getComputedStyle(w).display==='none'})()"));
+  assertEquals("false",js(scenario,"document.body.innerText.includes('Offline support could not be enabled in this browser.')"));
   File video=new File(new File(context.getFilesDir(),"recordings"),name);assertTrue(video.exists());assertTrue(video.length()>0);
   return name;
  }

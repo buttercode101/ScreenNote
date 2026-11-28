@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScreenNote Repro Capsule</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header><span class="mark" aria-hidden="true">SN</span><div><p class="eyebrow">SCREENNOTE TOOL</p><h1>Repro Capsule</h1></div></header>
+  <p class="intro">Capture a short interaction outline for a bug report. It stays in this tab until you review and export it.</p>
+  <div class="privacy"><strong>Local capture only</strong><p>No upload, keystroke values, form contents, cookies, network logs or page body. Click labels and navigation keys may be recorded. Review the page path and every step before export.</p></div>
+  <p id="status" role="status" aria-live="polite">Ready. Start only when you intend to capture this tab.</p>
+  <button id="start" class="primary">Start capture</button>
+  <button id="stop" class="secondary" hidden>Stop &amp; review</button>
+  <section id="review" hidden>
+    <label for="packet">Review and redact the capsule JSON</label>
+    <textarea id="packet" rows="12" spellcheck="false"></textarea>
+    <button id="download" class="primary">Download JSON</button>
+    <button id="clear" class="secondary">Discard capsule</button>
+  </section>
+  <footer>Max 500 steps · No background capture · You choose what to export</footer>
+  <script src="popup.js"></script>
+</body>
+</html>

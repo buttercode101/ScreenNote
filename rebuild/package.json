@@ -1,0 +1,38 @@
+{
+  "name": "screennote-rebuild",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "node scripts/prepare-public.mjs && cf build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run tests",
+    "deploy": "cf deploy",
+    "e2e": "playwright test",
+    "perf:budget": "node scripts/performance-budget.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "fix-webm-duration": "1.0.6",
+    "mediabunny": "1.62.1",
+    "fflate": "0.8.2"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^2.0.0-rc.0",
+    "@cloudflare/workers-types": "^5.20261124.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "cf": "^1.0.0-rc.4",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0",
+    "fake-indexeddb": "^6.2.0",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.0.0",
+    "esbuild": "0.28.2"
+  }
+}
