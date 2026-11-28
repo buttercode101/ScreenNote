@@ -35,7 +35,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
     assertEquals("true",js(scenario,"Array.from(document.querySelectorAll('[data-android-capture] button')).every(b=>b.getBoundingClientRect().height>=48&&!b.disabled)"));
     assertEquals("false",js(scenario,"document.body.innerText.includes('Use Record screen below')"));
    }
-   boolean themes="true".equals(js(scenario,"!!document.querySelector('[data-action=theme],#themeBtn,button[aria-label='Toggle appearance']')"));
+   boolean themes="true".equals(js(scenario,"!!document.querySelector('[data-action=theme],#themeBtn,button[aria-label=\"Toggle appearance\"]')"));
    for(String theme:themes?new String[]{"light","dark"}:new String[]{"light"}){
     js(scenario,"document.documentElement.dataset.theme='"+theme+"'");
     AtomicBoolean matched=new AtomicBoolean(false);
