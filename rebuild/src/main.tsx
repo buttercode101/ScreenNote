@@ -342,7 +342,7 @@ function App() {
   // Native Android recording stays private until the user imports and shares it.
   const nativeImportStarted = useRef(false);
   useEffect(() => {
-    if (!window.__ANDROID_APP__ || nativeImportStarted.current) return;
+    if (!(window as Window & { __ANDROID_APP__?: boolean }).__ANDROID_APP__ || nativeImportStarted.current) return;
     const url = new URL(window.location.href);
     const id = url.searchParams.get("nativeRecording");
     if (!id) return;
