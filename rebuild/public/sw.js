@@ -1,14 +1,21 @@
-const CACHE_NAME = "screennote-shell-v1";
+const CACHE_NAME = "screennote-pwa-shell-v5";
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
+const OLD_SHELL_PREFIXES = ["screennote-shell-", "screennote-react-shell-", "screennote-pwa-shell-"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("screennote-shell-") && key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) =>
+        OLD_SHELL_PREFIXES.some((prefix) => key.startsWith(prefix)) && key !== CACHE_NAME
+      ).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -21,25 +28,27 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put("/", copy)));
+        if (response.ok && url.pathname === "/") {
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put("/", response.clone())));
         }
         return response;
-      }).catch(async () => (await caches.match("/")) || (await caches.match("/index.html")) || new Response("ScreenNote is offline. Reconnect and try again.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } }))
+      }).catch(async () =>
+        (await caches.match(request)) ||
+        (await caches.match("/")) ||
+        (await caches.match("/index.html")) ||
+        new Response("ScreenNote is offline. Reconnect and try again.", { status: 503, headers: { "content-type": "text/plain; charset=utf-8" } })
+      )
     );
     return;
   }
 
   if (url.pathname.startsWith("/assets/") || APP_SHELL.includes(url.pathname)) {
-    event.respondWith(
-      (async () => {
-        const cached = await caches.match(request);
-        if (cached) return cached;
-        const response = await fetch(request);
-        if (response.ok) await caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
-        return response;
-      })()
-    );
+    event.respondWith((async () => {
+      const cached = await caches.match(request);
+      if (cached) return cached;
+      const response = await fetch(request);
+      if (response.ok) await caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+      return response;
+    })());
   }
 });

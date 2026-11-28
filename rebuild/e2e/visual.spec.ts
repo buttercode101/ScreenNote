@@ -76,6 +76,28 @@ async function assertTextContrast(page:import("@playwright/test").Page,label:str
 
 test.beforeAll(async()=>{await mkdir("test-results/screenshots",{recursive:true});});
 
+test("PWA install metadata and native install prompt work",async({page})=>{
+  await page.goto("/");
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href","/manifest.webmanifest");
+  const manifest=await page.evaluate(async()=>await(await fetch("/manifest.webmanifest")).json());
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.start_url).toBe("/");
+  expect(manifest.icons).toEqual(expect.arrayContaining([expect.objectContaining({src:"/icon.svg",purpose:"any maskable"})]));
+  const worker=await page.evaluate(async()=>await(await fetch("/sw.js")).text());
+  expect(worker).toContain("screennote-pwa-shell-v5");
+  await page.evaluate(()=>{
+    const event=new Event("beforeinstallprompt",{cancelable:true});
+    Object.defineProperty(event,"prompt",{value:async()=>{(window as Window & {__snPrompted?:boolean}).__snPrompted=true;}});
+    Object.defineProperty(event,"userChoice",{value:Promise.resolve({outcome:"accepted",platform:"test"})});
+    window.dispatchEvent(event);
+  });
+  const install=page.getByRole("button",{name:"Install ScreenNote"});
+  await expect(install).toBeVisible();
+  await install.click();
+  await expect(install).toHaveCount(0);
+  expect(await page.evaluate(()=>Boolean((window as Window & {__snPrompted?:boolean}).__snPrompted))).toBe(true);
+});
+
 test("independent React workspace is contained at 13 widths, short landscape heights and light/dark",async({page})=>{
   await page.goto("/");
   await expect(page.getByRole("heading",{level:1,name:/Make it clear/i})).toBeVisible();

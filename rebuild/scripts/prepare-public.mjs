@@ -1,9 +1,9 @@
-import { mkdir, cp, rm, writeFile } from "node:fs/promises";
+import { mkdir, cp, writeFile } from "node:fs/promises";
 
-// Keep only static assets needed by the new React app. Never copy legacy UI files.
-const source = "legacy/public";
+// Preserve the rebuilt PWA assets in public/. Only reuse the legacy sample video;
+// never delete the manifest, service worker or icon supplied by this rebuild.
+const legacy = "legacy/public";
 const output = "public";
-await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 await writeFile(`${output}/_headers`, `/index.html
   Cache-Control: no-cache
@@ -11,7 +11,9 @@ await writeFile(`${output}/_headers`, `/index.html
 /sw.js
   Cache-Control: no-cache
 `);
-for (const file of ["sw.js", "icon.svg", "manifest.webmanifest", "sample.webm"]) {
-  try { await cp(`${source}/${file}`, `${output}/${file}`); } catch { /* optional static asset */ }
+try {
+  await cp(`${legacy}/sample.webm`, `${output}/sample.webm`, { force: true });
+} catch {
+  // The sample clip is only used by automated editor tests.
 }
-console.log("Prepared isolated Cloudflare public assets; legacy HTML, CSS and JS are excluded.");
+console.log("Preserved the Cloudflare PWA shell and prepared the legacy test sample.");

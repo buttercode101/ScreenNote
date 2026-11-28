@@ -692,3 +692,20 @@ body{font-family:var(--sn-font-ui)!important;line-height:var(--sn-leading-body)}
 .preview-version-history li button{color:var(--sn-alert);border-color:var(--sn-alert)}
 .share-version-badge{display:inline-flex;align-items:center;width:max-content;padding:4px 8px;border:1px solid var(--sn-line);border-radius:999px;background:var(--sn-accent-soft);color:var(--sn-ink);font:650 11px/1.4 var(--sn-font-ui)}
 @media(max-width:600px){.preview-version-history li{grid-template-columns:minmax(0,1fr) auto}.preview-version-history li button{grid-column:2;grid-row:2;min-height:44px}.preview-version-history li a{grid-column:2;grid-row:1;min-height:44px}.preview-version-history li>div{grid-column:1;grid-row:1/3}}
+
+/* PWA install affordance and compact native-like install guidance. */
+.install-button{min-height:38px;padding-inline:11px;font-size:12px;white-space:nowrap}
+.install-help-modal{width:min(440px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:24px;background:var(--sn-surface);color:var(--sn-ink);border:1px solid var(--sn-line);border-radius:var(--sn-radius-md);box-shadow:var(--sn-shadow-lg)}
+.install-help-modal header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.install-help-modal h2{margin:8px 0;font:650 25px/var(--sn-leading-heading) var(--sn-font-ui);letter-spacing:-.04em}
+.install-help-modal p{margin:0;color:var(--sn-muted);font-size:13px;line-height:var(--sn-leading-relaxed)}
+.install-help-modal ol{display:grid;gap:10px;padding-left:22px;margin:22px 0;color:var(--sn-ink);font-size:14px;line-height:1.55}
+.install-help-modal>.button{width:100%}
+@media(max-width:600px){.top-actions{gap:10px}.install-button{min-height:36px;padding-inline:9px}.install-help-modal{padding:18px}}
+@media(max-width:360px){.topbar{padding-inline:12px}.top-actions{gap:7px}.secure-label{display:none}.breadcrumb{font-size:15px}.install-button{padding-inline:8px;font-size:11px}}
+/* Contrast fixes found by the real browser accessibility gate. */
+.button.secondary{background:var(--sn-surface)!important;color:var(--sn-ink)!important;border-color:var(--sn-line-strong)}
+.capture-panel .button.secondary{background:var(--sn-capture-action)!important;color:var(--sn-capture-action-ink)!important;border-color:var(--sn-capture-outline)!important}
+.publish-status{color:var(--sn-ink)!important;background:var(--sn-alert-soft)!important;border:1px solid var(--sn-line)}
+.capture-unavailable{color:var(--sn-ink)!important;background:var(--sn-warning-soft)!important}
+.shared-review-status{color:var(--sn-ink)!important}

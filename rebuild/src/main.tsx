@@ -20,6 +20,12 @@ import { useDialogFocus } from "./useDialogFocus";
 import { importMedia } from "../legacy/lib/import-media.js";
 import "./styles.css";
 
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+type StandaloneNavigator = Navigator & { standalone?: boolean };
+
 const recorder = new ScreenRecorder();
 const formatTime = (seconds: number) => {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -65,6 +71,10 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [online, setOnline] = useState(() => typeof navigator === "undefined" ? true : navigator.onLine);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [installed, setInstalled] = useState(() => window.matchMedia("(display-mode: standalone)").matches || (navigator as StandaloneNavigator).standalone === true);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const isIosBrowser = /iphone|ipad|ipod/i.test(navigator.userAgent) && (navigator as StandaloneNavigator).standalone !== true;
   const [dark, setDark] = useState(() => { try { return localStorage.getItem("screennote-theme") === "dark"; } catch { return false; } });
   const [query, setQuery] = useState("");
   const [previewClip, setPreviewClip] = useState<Clip | null>(null);
@@ -130,11 +140,50 @@ function App() {
   }, []);
   useEffect(() => { const theme = dark ? "dark" : "light"; document.documentElement.dataset.theme = theme; document.documentElement.style.colorScheme = theme; document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#171d19" : "#f4f2ec"); try { localStorage.setItem("screennote-theme", theme); } catch { /* Appearance remains usable when storage is blocked. */ } }, [dark]);
   useEffect(() => {
+    const beforeInstall = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const appInstalled = () => {
+      setInstalled(true);
+      setInstallPrompt(null);
+      setShowInstallHelp(false);
+    };
+    const displayMode = window.matchMedia("(display-mode: standalone)");
+    const syncDisplayMode = () => setInstalled(displayMode.matches || (navigator as StandaloneNavigator).standalone === true);
+    window.addEventListener("beforeinstallprompt", beforeInstall);
+    window.addEventListener("appinstalled", appInstalled);
+    displayMode.addEventListener("change", syncDisplayMode);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", beforeInstall);
+      window.removeEventListener("appinstalled", appInstalled);
+      displayMode.removeEventListener("change", syncDisplayMode);
+    };
+  }, []);
+
+  useEffect(() => {
     if ("serviceWorker" in navigator && window.isSecureContext) {
       navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => setMessage("Offline support could not be enabled in this browser."));
     }
   }, []);
 
+  async function installApp() {
+    if (!installPrompt) {
+      setShowInstallHelp(true);
+      return;
+    }
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === "accepted") setInstalled(true);
+      setInstallPrompt(null);
+    } catch {
+      setMessage("The install prompt could not be opened. Use your browser menu to install ScreenNote.");
+      setInstallPrompt(null);
+    }
+  }
+
+  const showInstallButton = !installed && (Boolean(installPrompt) || isIosBrowser);
   const visibleClips = useMemo(() => clips.filter((clip) => clip.title.toLowerCase().includes(query.toLowerCase())), [clips, query]);
 
   async function start() {
@@ -520,7 +569,7 @@ function App() {
 
     <main className="main-content">
       {!online && <div className="offline-banner" role="status"><WifiOff size={15}/> Offline mode — your local library, preview, editing and downloads remain available. Publishing and shared discussions need a connection.</div>}
-      <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> Overview</div><div className="top-actions"><span className="secure-label"><ShieldCheck size={14}/> Private by default</span><button className="icon-button" aria-label="Open preferences" onClick={() => setShowSettings(true)}><Settings2 size={18}/></button><button className="icon-button" aria-label="Toggle appearance" onClick={() => setDark(!dark)}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><span className="avatar small" aria-label="Guest workspace">S</span></div></header>
+      <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> Overview</div><div className="top-actions"><span className="secure-label"><ShieldCheck size={14}/> Private by default</span>{showInstallButton&&<button className="button secondary install-button" aria-label="Install ScreenNote" onClick={installApp}><Download size={15}/> Install</button>}<button className="icon-button" aria-label="Open preferences" onClick={() => setShowSettings(true)}><Settings2 size={18}/></button><button className="icon-button" aria-label="Toggle appearance" onClick={() => setDark(!dark)}>{dark ? <Sun size={18}/> : <Moon size={18}/>}</button><span className="avatar small" aria-label="Guest workspace">S</span></div></header>
       <div className="page-wrap">
         <section className="welcome-row"><div><div className="eyebrow">YOUR CREATIVE WORKSPACE</div><h1>Make it clear.<br/><span>Show what you mean.</span></h1><p className="intro">Capture a moment, explain an idea, and bring everyone onto the same page.</p></div><div className="welcome-art" aria-hidden="true"><div className="art-window"><div className="art-bar"><i/><i/><i/></div><div className="art-screen"><div className="art-sidebar"/><div className="art-content"><div/><div/><div/><div/></div><div className="art-cursor"/></div><div className="art-play"><Play size={15} fill="currentColor"/></div></div><div className="art-caption">A clearer way to communicate</div></div></section>
 
@@ -545,6 +594,7 @@ function App() {
         <footer><span>© {new Date().getFullYear()} ScreenNote</span><span>Made for clear communication.</span><a href="/privacy">Privacy</a></footer>
       </div>
     </main>
+    {showInstallHelp && <div className="modal-backdrop install-help-backdrop" role="presentation" onClick={() => setShowInstallHelp(false)}><section className="install-help-modal" role="dialog" aria-modal="true" aria-labelledby="install-help-title" onClick={e => e.stopPropagation()}><header><div><span className="eyebrow">ADD TO YOUR HOME SCREEN</span><h2 id="install-help-title">Install ScreenNote</h2><p>Use ScreenNote like an app, with its own icon and a focused workspace.</p></div><button className="icon-button" onClick={() => setShowInstallHelp(false)} aria-label="Close install instructions"><X size={18}/></button></header><ol><li>In Safari, tap the <strong>Share</strong> button.</li><li>Choose <strong>Add to Home Screen</strong>.</li><li>Tap <strong>Add</strong> to install ScreenNote.</li></ol><button className="button primary" onClick={() => setShowInstallHelp(false)}>Got it</button></section></div>}
     {previewClip && previewUrl && (previewMode === "edit" ? <EditorWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onUpdated={refresh} onShare={() => shareClip(previewClip.id,Boolean(previewClip.share))} shareLabel={previewClip.share?"Publish new version":"Share a reviewed copy"} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} /> : <PreviewWorkspace clip={previewClip} url={previewUrl} onClose={closePreview} onEdit={() => setPreviewMode("edit")} onShare={() => shareClip(previewClip.id)} onNewVersion={() => shareClip(previewClip.id,true)} onRevokeVersion={version=>revokeShareVersion(previewClip.id,version)} onDownload={() => download(previewClip.id)} onDelete={async () => { await remove(previewClip.id); closePreview(); }} />)}
     {showSettings && <div className="modal-backdrop" role="presentation" onClick={() => setShowSettings(false)}><section ref={settingsDialogRef} className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={e => e.stopPropagation()}>
       <header><div><span className="eyebrow">YOUR SPACE</span><h2 id="settings-title">Preferences & backups</h2><p>Keep control of your recordings, appearance and recovery keys.</p></div><button className="icon-button" onClick={() => setShowSettings(false)} aria-label="Close preferences"><X size={18}/></button></header>

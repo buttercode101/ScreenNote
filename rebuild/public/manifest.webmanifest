@@ -1,11 +1,30 @@
 {
-  "name": "ScreenNote",
+  "id": "/",
+  "name": "ScreenNote — Make it clear",
   "short_name": "ScreenNote",
-  "description": "Clear screen recordings, thoughtful conversations.",
+  "description": "Record, explain and share short screen videos with focused, timestamped feedback.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f7f7f4",
-  "theme_color": "#f7f7f4",
-  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "background_color": "#f4f2ec",
+  "theme_color": "#f4f2ec",
+  "categories": [
+    "productivity",
+    "video",
+    "utilities"
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
