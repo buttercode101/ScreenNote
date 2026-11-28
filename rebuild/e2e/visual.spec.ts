@@ -245,7 +245,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   const modalLayer=await page.locator(".modal-backdrop").evaluate(el=>Number(getComputedStyle(el).zIndex));
   const editorLayer=await page.locator(".editor-workspace").evaluate(el=>Number(getComputedStyle(el).zIndex));
   expect(modalLayer).toBeGreaterThan(editorLayer);
-  await expect(page.getByText(/Only this shared copy is uploaded/i)).toBeVisible();
+  await expect(page.getByText(/Only the new shared copy is uploaded/i)).toBeVisible();
   await page.locator(".review-brief-fields > summary").click({force:true});
   await expect(page.locator(".review-brief-fields")).toHaveJSProperty("open",true);
   await page.getByLabel("Review purpose").fill("Check the checkout flow");
