@@ -32,7 +32,7 @@ jobs:
       - name: Prepare pinned web assets
         run: node android/prepare.mjs
       - name: Compile and verify Android
-        run: ./android/gradlew -p android --no-daemon assembleDebug bundleRelease testDebugUnitTest lintRelease
+        run: ./android/gradlew -p android --no-daemon -PscreenNoteAppOrigin=https://screennote-dev.buttercoder-dev.workers.dev assembleDebug bundleRelease testDebugUnitTest lintRelease
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

@@ -33,6 +33,18 @@ window.__ANDROID_APP__=true;
    Object.assign(button.style,{width:'44px',height:'44px',minWidth:'44px',minHeight:'44px',padding:'10px',display:'inline-flex',alignItems:'center',justifyContent:'center',flex:'0 0 44px',color:'inherit',borderRadius:'12px',background:'transparent',border:'1px solid currentColor',opacity:'0.8',boxSizing:'border-box'});
    button.onclick=()=>call('appMenu').catch(e=>alert(e.message));header.append(button);
   }
+  // Rebuilt React PWA: expose the native Android capture path inside its own capture panel.
+  const rebuiltActions=document.querySelector('.capture-panel .capture-actions');
+  if(rebuiltActions&&!rebuiltActions.querySelector('[data-android-capture]')){
+   const row=document.createElement('div');row.dataset.androidCapture='';row.className='capture-actions';
+   Object.assign(row.style,{display:'flex',flexWrap:'wrap',gap:'10px',width:'100%',justifyContent:'flex-start'});
+   for(const [label,op,primary]of [['Record on Android','recordScreen',true],['Device recordings','openRecordings',false]]){
+    const button=document.createElement('button');button.type='button';button.className=primary?'button primary':'button secondary';button.textContent=label;button.dataset.androidAction=op;
+    Object.assign(button.style,{flex:'1 1 180px',minHeight:'48px',margin:'0',width:'auto',whiteSpace:'normal',overflowWrap:'anywhere'});
+    button.onclick=()=>call(op).catch(e=>alert(e.message));row.append(button);
+   }
+   rebuiltActions.append(row);
+  }
   const panel=document.querySelector('.record-options.import-only');
   if(panel&&!panel.querySelector('[data-android-capture]')){
    const original=panel.querySelector('[data-action="record"]');
