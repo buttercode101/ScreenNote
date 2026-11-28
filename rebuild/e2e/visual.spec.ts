@@ -79,7 +79,7 @@ test.beforeAll(async()=>{await mkdir("test-results/screenshots",{recursive:true}
 test("PWA install metadata and native install prompt work",async({page})=>{
   await page.goto("/");
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href","/manifest.webmanifest");
-  const manifest=await page.evaluate(async()=>await(await fetch("/manifest.webmanifest")).json());
+  const manifest=await page.evaluate(async()=>await(await fetch("/manifest.webmanifest")).json() as {display:string;start_url:string;icons:Array<{src:string;sizes:string;purpose?:string}>});
   expect(manifest.display).toBe("standalone");
   expect(manifest.start_url).toBe("/");
   expect(manifest.icons).toEqual(expect.arrayContaining([expect.objectContaining({src:"/icon-192.svg",sizes:"192x192"}),expect.objectContaining({src:"/icon-512.svg",sizes:"512x512",purpose:"any maskable"})]));
