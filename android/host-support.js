@@ -35,30 +35,36 @@ window.__ANDROID_APP__=true;
   }
   // Rebuilt React PWA: expose the native Android capture path inside its own capture panel.
   const rebuiltActions=document.querySelector('.capture-panel .capture-actions');
-  if(rebuiltActions&&!rebuiltActions.querySelector('[data-android-capture]')){
-   const row=document.createElement('div');row.dataset.androidCapture='';row.className='capture-actions';
-   Object.assign(row.style,{display:'flex',flexWrap:'wrap',gap:'10px',width:'100%',justifyContent:'flex-start'});
-   for(const [label,op,primary]of [['Record on Android','recordScreen',true],['Device recordings','openRecordings',false]]){
-    const button=document.createElement('button');button.type='button';button.className=primary?'button primary':'button secondary';button.textContent=label;button.dataset.androidAction=op;
-    Object.assign(button.style,{flex:'1 1 180px',minHeight:'48px',margin:'0',width:'auto',whiteSpace:'normal',overflowWrap:'anywhere'});
-    button.onclick=()=>call(op).catch(e=>alert(e.message));row.append(button);
+  if(rebuiltActions){
+   let nativeRow=rebuiltActions.querySelector(':scope > [data-android-capture]');
+   if(!nativeRow){
+    nativeRow=document.createElement('div');nativeRow.dataset.androidCapture='';nativeRow.className='capture-actions';
+    Object.assign(nativeRow.style,{display:'flex',flexWrap:'wrap',gap:'10px',width:'100%',justifyContent:'flex-start'});
+    for(const [label,op,primary]of [['Record on Android','recordScreen',true],['Device recordings','openRecordings',false]]){
+     const button=document.createElement('button');button.type='button';button.className=primary?'button primary':'button secondary';button.textContent=label;button.dataset.androidAction=op;
+     Object.assign(button.style,{flex:'1 1 180px',minHeight:'48px',margin:'0',width:'auto',whiteSpace:'normal',overflowWrap:'anywhere'});
+     button.onclick=()=>call(op).catch(e=>alert(e.message));nativeRow.append(button);
+    }
+    rebuiltActions.append(nativeRow);
    }
-   rebuiltActions.append(row);
-   // The browser capture controls are not the native recorder's settings.
-   // Hide them instead of leaving misleading system-audio/camera options visible.
-   for(const control of rebuiltActions.querySelectorAll(':scope > .toggle-option,:scope > button')){control.hidden=true;control.style.setProperty('display','none','important');control.setAttribute('aria-hidden','true')}
+   // Reapply on every DOM update: React can recreate the unsupported browser
+   // warning or settings after a native recording changes the app state.
+   for(const control of rebuiltActions.querySelectorAll(':scope > .toggle-option,:scope > button')){
+    control.hidden=true;control.style.setProperty('display','none','important');control.setAttribute('aria-hidden','true');
+   }
    const advanced=document.querySelector('.capture-panel .capture-advanced');
    if(advanced){advanced.hidden=true;advanced.style.setProperty('display','none','important');advanced.setAttribute('aria-hidden','true')}
    const unavailable=document.querySelector('.capture-panel .capture-unavailable');
    if(unavailable){unavailable.hidden=true;unavailable.style.setProperty('display','none','important');unavailable.setAttribute('aria-hidden','true')}
    const copy=document.querySelector('.capture-panel .capture-copy p');
    if(copy)copy.textContent='Use Android’s native screen-capture prompt, then review your recording before sharing.';
-   if(!document.querySelector('[data-android-capture-note]')){
-    const note=document.createElement('p');note.dataset.androidCaptureNote='';note.setAttribute('role','status');
+   let note=document.querySelector('[data-android-capture-note]');
+   if(!note){
+    note=document.createElement('p');note.dataset.androidCaptureNote='';note.setAttribute('role','status');
     note.textContent='Android asks for screen-capture consent each time. Choose Screen only or Screen + microphone. System audio and camera bubble are not available in this native recorder. Recordings stay on this device until you import and choose to share.';
     Object.assign(note.style,{margin:'12px 0 0',padding:'12px',border:'1px solid var(--sn-line, #d9ddd4)',borderRadius:'8px',background:'var(--sn-surface, #fbfaf6)',color:'var(--sn-muted, #626c63)',fontSize:'13px',lineHeight:'1.5'});
-    rebuiltActions.after(note);
    }
+   if(note.parentElement!==rebuiltActions.parentElement)rebuiltActions.after(note);
   }
   const panel=document.querySelector('.record-options.import-only');
   if(panel&&!panel.querySelector('[data-android-capture]')){

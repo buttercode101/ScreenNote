@@ -36,6 +36,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
     assertEquals("false",js(scenario,"document.body.innerText.includes('Use Record screen below')"));
     assertEquals("false",js(scenario,"Array.from(document.querySelectorAll('.capture-panel .capture-setup > .capture-actions > .toggle-option,.capture-panel .capture-setup > .capture-actions > button,.capture-panel .capture-setup > .capture-advanced')).some(el=>getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden')"));
     assertEquals("true",js(scenario,"!!document.querySelector('[data-android-capture-note]')&&document.querySelector('[data-android-capture-note]').innerText.includes('System audio and camera bubble are not available')"));
+    assertEquals("true",js(scenario,"(()=>{const w=document.querySelector('.capture-panel .capture-unavailable');return !w||getComputedStyle(w).display==='none'})()"));
     assertEquals("true",js(scenario,"document.querySelector('.capture-panel .capture-copy p').innerText.includes('Android’s native screen-capture prompt')"));
    }
    boolean themes="true".equals(js(scenario,"!!document.querySelector('[data-action=theme],#themeBtn,button[aria-label=\"Toggle appearance\"]')"));
@@ -94,6 +95,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
   js(scenario,"document.querySelector('[data-android-action=recordScreen]').click()");nativeText("Stop recording",true);
   for(int n=0;n<60&&ScreenRecordingService.active;n++)Thread.sleep(200);
   assertFalse("Native recorder did not stop",ScreenRecordingService.active);
+  assertEquals("true",js(scenario,"(()=>{const w=document.querySelector('.capture-panel .capture-unavailable');return !w||getComputedStyle(w).display==='none'})()"));
   File video=new File(new File(context.getFilesDir(),"recordings"),name);assertTrue(video.exists());assertTrue(video.length()>0);
   return name;
  }
