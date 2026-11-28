@@ -34,6 +34,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;import androidx.test.platfo
     assertEquals("2",js(scenario,"document.querySelectorAll('[data-android-capture] button').length"));
     assertEquals("true",js(scenario,"Array.from(document.querySelectorAll('[data-android-capture] button')).every(b=>b.getBoundingClientRect().height>=48&&!b.disabled)"));
     assertEquals("false",js(scenario,"document.body.innerText.includes('Use Record screen below')"));
+    assertEquals("false",js(scenario,"Array.from(document.querySelectorAll('.capture-panel .capture-actions > .toggle-option,.capture-panel .capture-actions > button,.capture-panel .capture-advanced')).some(el=>getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden')"));
+    assertEquals("true",js(scenario,"!!document.querySelector('[data-android-capture-note]')&&document.querySelector('[data-android-capture-note]').innerText.includes('System audio and camera bubble are not available')"));
+    assertEquals("true",js(scenario,"document.querySelector('.capture-panel .capture-copy p').innerText.includes('Android’s native screen-capture prompt')"));
    }
    boolean themes="true".equals(js(scenario,"!!document.querySelector('[data-action=theme],#themeBtn,button[aria-label=\"Toggle appearance\"]')"));
    for(String theme:themes?new String[]{"light","dark"}:new String[]{"light"}){
