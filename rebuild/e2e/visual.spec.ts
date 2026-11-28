@@ -146,6 +146,18 @@ test("high-DPI mobile viewport keeps controls contained and reachable",async({br
   await context.close();
 });
 
+test("Android native recording handoff imports the private MP4 into the PWA library",async({page})=>{
+  const nativeId="native-test-recording-123";
+  const sample=await readFile(path.resolve("legacy/public/sample.webm"));
+  await page.addInitScript("window.__ANDROID_APP__ = true;");
+  await page.route("**/__native_recordings/"+nativeId,route=>route.fulfill({status:200,contentType:"video/webm",body:sample,headers:{"cache-control":"no-store"}}));
+  await page.goto("/?nativeRecording="+nativeId);
+  await expect(page.getByRole("heading",{name:"ScreenNote native recording "+nativeId})).toBeVisible({timeout:20000});
+  await expect(page.locator(".preview-workspace")).toBeVisible({timeout:20000});
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator(".preview-workspace video")).toBeVisible();
+});
+
 test("imported recording opens the full editor with preview, annotations, captions and sharing",async({page})=>{
   test.setTimeout(90000);
   await page.goto("/");

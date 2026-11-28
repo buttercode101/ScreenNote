@@ -326,17 +326,45 @@ function App() {
     catch { setMessage("Could not discard the unfinished recording."); }
   }
 
-  async function importFile(file?: File) {
+  async function importFile(file?: File): Promise<Clip | undefined> {
     if (!file) return;
     try {
       const media = await importMedia(file);
       const duration = await readVideoDuration(media.blob);
       if (!duration) throw new Error("This video has no readable duration.");
-      const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\\.[^.]+$/, ""), createdAt: Date.now(), duration, size: media.blob.size, mimeType: media.type, blob: media.blob, thumbnail: await createVideoThumbnail(media.blob) };
+      const clip: Clip = { id: crypto.randomUUID(), title: file.name.replace(/\.[^.]+$/, ""), createdAt: Date.now(), duration, size: media.blob.size, mimeType: media.type, blob: media.blob, thumbnail: await createVideoThumbnail(media.blob) };
       await saveClip(clip); await refresh(); setMessage("Video added to your private library.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this file. Check available device storage."); }
-    if (fileRef.current) fileRef.current.value = "";
+      return clip;
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save this file. Check available device storage."); return undefined; }
+    finally { if (fileRef.current) fileRef.current.value = ""; }
   }
+
+  // Native Android recording stays private until the user imports and shares it.
+  const nativeImportStarted = useRef(false);
+  useEffect(() => {
+    if (!window.__ANDROID_APP__ || nativeImportStarted.current) return;
+    const url = new URL(window.location.href);
+    const id = url.searchParams.get("nativeRecording");
+    if (!id) return;
+    nativeImportStarted.current = true;
+    url.searchParams.delete("nativeRecording");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    void (async () => {
+      try {
+        if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new Error("The native recording reference is invalid.");
+        setBusy(true); setMessage("Importing your native recording…");
+        const response = await fetch("/__native_recordings/" + encodeURIComponent(id), { cache: "no-store" });
+        if (!response.ok) throw new Error(response.status === 404 ? "That native recording is no longer available on this device." : "Could not read the native recording.");
+        const blob = await response.blob();
+        if (!blob.size || blob.size > 250 * 1024 * 1024) throw new Error("This native recording is empty or exceeds the 250 MB import limit.");
+        const file = new File([blob], "ScreenNote native recording " + id + ".mp4", { type: blob.type || "video/mp4" });
+        const imported = await importFile(file);
+        if (imported) await openPreview(imported.id);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not import the native recording.");
+      } finally { setBusy(false); }
+    })();
+  }, []);
 
   async function openPreview(id: string) {
     setPreviewMode("preview");
