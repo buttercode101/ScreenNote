@@ -67,7 +67,7 @@ async function assertTextContrast(page:import("@playwright/test").Page,label:str
       const fg={r:foreground.r*foreground.a+background.r*(1-foreground.a),g:foreground.g*foreground.a+background.g*(1-foreground.a),b:foreground.b*foreground.a+background.b*(1-foreground.a)};
       const size=parseFloat(own.fontSize)||16,weight=parseInt(own.fontWeight)||400,minimum=size>=24||(size>=18.66&&weight>=700)?3:4.5;
       const value=ratio(fg,background);
-      if(value+0.01<minimum)failures.push(el.tagName.toLowerCase()+"."+String(el.className||"").toString().replace(/\s+/g,".")+" text="+text.slice(0,72)+" contrast="+value.toFixed(2)+" required="+minimum);
+      if(value+0.01<minimum)failures.push(el.tagName.toLowerCase()+"."+String(el.className||"").toString().replace(/\s+/g,".")+" text="+text.slice(0,72)+" contrast="+value.toFixed(2)+" required="+minimum+" fg="+JSON.stringify(fg)+" bg="+JSON.stringify(background)+" ownColor="+own.color+" ownBg="+own.backgroundColor+" opacity="+own.opacity);
     }
     return failures.slice(0,80);
   });
@@ -509,7 +509,7 @@ test("publishing new versions retains links only by consent and stop-sharing rev
   await page.getByRole("checkbox",{name:/Keep previous share as a version/i}).check();
   await page.getByRole("button",{name:"Publish new version"}).last().click();
   await expect(page.getByText("Version 2 link ready")).toBeVisible({timeout:20000});
-  await page.getByRole("button",{name:"Dismiss"}).click();
+  await page.locator(".share-link-toast").getByRole("button",{name:"Dismiss"}).click();
   const history=page.getByRole("region",{name:"Previous share versions"});
   await expect(history).toContainText("Version 1");
   await assertTextContrast(page,"version history light");
@@ -526,7 +526,7 @@ test("publishing new versions retains links only by consent and stop-sharing rev
   await page.getByRole("checkbox",{name:/Keep previous share as a version/i}).check();
   await page.getByRole("button",{name:"Publish new version"}).last().click();
   await expect(page.getByText("Version 3 link ready")).toBeVisible({timeout:20000});
-  await page.getByRole("button",{name:"Dismiss"}).click();
+  await page.locator(".share-link-toast").getByRole("button",{name:"Dismiss"}).click();
   await expect(page.getByRole("region",{name:"Previous share versions"})).toContainText("Version 2");
   await assertTextContrast(page,"version history after republish");
   await page.getByRole("button",{name:"Close preview"}).click();
@@ -571,16 +571,17 @@ test("transient share and alert surfaces keep readable contrast in both themes",
   const contrast=async(selector:string)=>page.locator(selector).evaluateAll(elements=>elements.map(el=>{
     const rgb=(value:string)=>value.match(/[\d.]+/g)!.slice(0,3).map(Number).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});
     const lum=(v:number[])=>.2126*v[0]+.7152*v[1]+.0722*v[2];
-    const style=getComputedStyle(el),fg=lum(rgb(style.color));let bgColor=style.backgroundColor;
+    const style=getComputedStyle(el);let bgColor=style.backgroundColor;
     if(bgColor==="transparent"||bgColor==="rgba(0, 0, 0, 0)"){let parent=el.parentElement;while(parent){const candidate=getComputedStyle(parent).backgroundColor;if(candidate!=="transparent"&&candidate!=="rgba(0, 0, 0, 0)"){bgColor=candidate;break;}parent=parent.parentElement;}}
-    const bg=lum(rgb(bgColor));return (Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);
+    const fg=lum(rgb(style.color)),bg=lum(rgb(bgColor));
+    return {ratio:(Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05),color:style.color,background:bgColor,opacity:style.opacity,disabled:(el as HTMLButtonElement).disabled};
   }));
   for(const theme of ["light","dark"]){
-    if(theme==="dark")await page.getByRole("button",{name:"Toggle appearance"}).click();
+    if(theme==="dark"){await page.getByRole("button",{name:"Toggle appearance"}).click();await expect(page.locator("html")).toHaveAttribute("data-theme","dark");}
     for(const selector of [".share-link-toast",".share-link-toast span",".share-link-toast button",".share-error",".shared-review-status.changes-requested",".review-decision-options button[aria-pressed=true]",".editor-status",".offline-banner",".capture-unavailable",".button.danger",".duration",".capture-panel",".capture-panel .button.primary",".capture-panel .capture-advanced summary",".toggle-option",".button.danger",".duration"]){
       const ratios=await contrast(selector);
       expect(ratios.length,selector+" must exist in "+theme).toBeGreaterThan(0);
-      expect(ratios.every(value=>value>=4.5),selector+" contrast in "+theme+": "+ratios.map(value=>value.toFixed(2)).join(", ")).toBe(true);
+      expect(ratios.every(value=>value.ratio>=4.5),selector+" contrast in "+theme+": "+ratios.map(value=>value.ratio.toFixed(2)+" fg="+value.color+" bg="+value.background+" opacity="+value.opacity+" disabled="+value.disabled).join("; ")).toBe(true);
     }
   }
 });

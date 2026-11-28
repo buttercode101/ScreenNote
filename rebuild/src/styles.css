@@ -722,3 +722,12 @@ body{font-family:var(--sn-font-ui)!important;line-height:var(--sn-leading-body)}
 :root[data-theme="dark"] .publish-status{background-color:#3c2b27!important;color:#edf0e9!important}
 :root:not([data-theme="dark"]) .capture-unavailable{background-color:#f4e4cb!important;color:#202a24!important}
 :root[data-theme="dark"] .capture-unavailable{background-color:#3a3021!important;color:#edf0e9!important}
+
+/* Disabled controls remain readable; disabled state is conveyed by muted surfaces, not opacity. */
+.button:disabled{opacity:1!important;filter:none!important;transform:none!important;cursor:not-allowed!important;box-shadow:none!important}
+:root:not([data-theme="dark"]) .button.primary:disabled{background-color:#e6e9e1!important;color:#4d584e!important;border-color:#aab8a5!important}
+:root[data-theme="dark"] .button.primary:disabled{background-color:#536256!important;color:#edf0e9!important;border-color:#69786b!important}
+:root:not([data-theme="dark"]) .button.secondary:disabled{background-color:#f1f2ec!important;color:#4d584e!important;border-color:#aab8a5!important}
+:root[data-theme="dark"] .button.secondary:disabled{background-color:#263129!important;color:#b0b9af!important;border-color:#536256!important}
+:root:not([data-theme="dark"]) .share-link-toast .button.secondary{background-color:#fbfaf6!important;color:#202a24!important;border-color:#7d887d!important}
+:root[data-theme="dark"] .share-link-toast .button.secondary{background-color:#354238!important;color:#edf0e9!important;border-color:#69786b!important;opacity:1!important}
