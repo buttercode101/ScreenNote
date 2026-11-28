@@ -725,3 +725,5 @@ body{font-family:var(--sn-font-ui)!important;line-height:var(--sn-leading-body)}
 .shared-review-status.needs-feedback{background-color:#e9eee5!important;color:#202a24!important;border-color:#9aa797!important}
 .publish-status{background-color:#f3e5df!important;color:#202a24!important;border-color:#b37b67!important}
 .capture-unavailable{background-color:#f4e4cb!important;color:#202a24!important;border-color:#c5a26c!important}
+
+.button.danger{background-color:#8f3f32!important;color:#fffaf2!important;border-color:#8f3f32!important}

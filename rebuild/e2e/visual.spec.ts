@@ -192,7 +192,7 @@ test("imported recording opens the full editor with preview, annotations, captio
   await expect(page.getByText(/OWNER-SUPPLIED CAPTIONS/i)).toBeVisible();
   const capsule={schema:"screennote.repro-capsule",version:1,createdAt:"2026-11-26T12:00:00.000Z",durationMs:1200,page:{url:"https://user:secret@example.com/checkout?session=private#payment",title:"Checkout",userAgent:"Playwright test browser",viewport:{width:390,height:844}},steps:[{atMs:250,action:"click",target:{tag:"button",role:"button",label:"Continue to payment"}},{atMs:900,action:"key",key:"Enter",target:{tag:"button",role:"button",label:"Pay"}}]};
   await page.locator('input[accept=".json,application/json"]').setInputFiles({name:"repro-capsule.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(capsule))});
-  await expect(page.getByRole("status")).toContainText(/Repro Capsule imported locally/i);
+  await expect(page.locator(".editor-status")).toContainText(/Repro Capsule imported locally/i);
   await expect(page.locator(".context-editor label").filter({hasText:"Page URL"}).locator("input")).toHaveValue("https://example.com/checkout");
   await expect(page.getByLabel("Reproduction steps")).toHaveValue(/Continue to payment/);
   await expect(page.getByLabel("Reproduction steps")).toHaveValue(/Press Enter/);
@@ -408,7 +408,7 @@ test("temporary share viewer and privacy route use the independent responsive de
   expect(markdown).toContain("Review packet — A product walkthrough");
   expect(markdown).toContain("Review the checkout flow");
   expect(markdown).toContain("Please adjust the payment state.");
-  expect(markdown).toContain("[Comment deleted]");
+  expect(markdown).toContain("\\[Comment deleted\\]");
   expect(markdown).not.toContain("deleted private feedback must not leak");
   await expect(page.locator(".share-video-wrap")).toBeVisible();
   await expect(page.locator(".shared-annotation-overlay .shared-mark")).toHaveCount(1); // Only the untimed legacy mark is active at 0s.
