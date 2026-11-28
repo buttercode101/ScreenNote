@@ -1,7 +1,15 @@
 import {mkdir,cp,readFile,writeFile,readdir,rm} from 'node:fs/promises';import {createHash} from 'node:crypto';import {execFileSync} from 'node:child_process';import path from 'node:path';import {fileURLToPath} from 'node:url';
 const here=path.dirname(fileURLToPath(import.meta.url)),repo=path.dirname(here),name=path.basename(repo);
 process.chdir(repo);const out=path.join(here,'app/src/main/assets/web');await rm(out,{recursive:true,force:true});await mkdir(out,{recursive:true});
-if(name==='ScreenNote'){execFileSync(process.execPath,['scripts/build.mjs'],{stdio:'inherit'});await cp('dist',out,{recursive:true})}
+if(name==='ScreenNote'){
+ const rebuild=path.join(repo,'rebuild');
+ execFileSync('npm',['install','--no-audit','--no-fund'],{cwd:rebuild,stdio:'inherit'});
+ execFileSync('npm',['run','build'],{cwd:rebuild,stdio:'inherit',env:{...process.env,SCREENNOTE_WORKER_FIRST_ALL:'1'}});
+ const built=path.join(rebuild,'.cloudflare/output/v1/workers/default/assets');
+ await cp(built,out,{recursive:true});
+ const bundleFiles=await readdir(path.join(out,'assets'));
+ if(!bundleFiles.some(file=>file.endsWith('.js'))||!bundleFiles.some(file=>file.endsWith('.css')))throw Error('Cloudflare PWA bundle is incomplete; refusing to package the Android app.');
+}
 else if(name==='InvoiceFlow')await cp('dist',out,{recursive:true});
 else if(name==='ContractCheq'){
  await cp('public',out,{recursive:true});await mkdir(path.join(out,'vendor'),{recursive:true});const assets=(await import(path.join(repo,'server/vendorAssets.js'))).default;for(const [name,source]of Object.entries(assets))await cp(source,path.join(out,'vendor',name));
