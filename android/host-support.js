@@ -46,18 +46,18 @@ window.__ANDROID_APP__=true;
    rebuiltActions.append(row);
    // The browser capture controls are not the native recorder's settings.
    // Hide them instead of leaving misleading system-audio/camera options visible.
-   for(const control of rebuiltActions.querySelectorAll(':scope > .toggle-option,:scope > button')){control.hidden=true;control.setAttribute('aria-hidden','true')}
+   for(const control of rebuiltActions.querySelectorAll(':scope > .toggle-option,:scope > button')){control.hidden=true;control.style.setProperty('display','none','important');control.setAttribute('aria-hidden','true')}
    const advanced=document.querySelector('.capture-panel .capture-advanced');
-   if(advanced){advanced.hidden=true;advanced.setAttribute('aria-hidden','true')}
+   if(advanced){advanced.hidden=true;advanced.style.setProperty('display','none','important');advanced.setAttribute('aria-hidden','true')}
    const unavailable=document.querySelector('.capture-panel .capture-unavailable');
-   if(unavailable){unavailable.hidden=true;unavailable.setAttribute('aria-hidden','true')}
+   if(unavailable){unavailable.hidden=true;unavailable.style.setProperty('display','none','important');unavailable.setAttribute('aria-hidden','true')}
    const copy=document.querySelector('.capture-panel .capture-copy p');
    if(copy)copy.textContent='Use Android’s native screen-capture prompt, then review your recording before sharing.';
    if(!document.querySelector('[data-android-capture-note]')){
     const note=document.createElement('p');note.dataset.androidCaptureNote='';note.setAttribute('role','status');
     note.textContent='Android asks for screen-capture consent each time. Choose Screen only or Screen + microphone. System audio and camera bubble are not available in this native recorder. Recordings stay on this device until you import and choose to share.';
     Object.assign(note.style,{margin:'12px 0 0',padding:'12px',border:'1px solid var(--sn-line, #d9ddd4)',borderRadius:'8px',background:'var(--sn-surface, #fbfaf6)',color:'var(--sn-muted, #626c63)',fontSize:'13px',lineHeight:'1.5'});
-    rebuiltActions.parentElement.append(note);
+    rebuiltActions.after(note);
    }
   }
   const panel=document.querySelector('.record-options.import-only');
