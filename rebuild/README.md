@@ -41,3 +41,9 @@ The temporary share viewer can export a versioned review packet in JSON or Markd
 The optional Chrome/Edge Manifest V3 extension is in [extension/](extension/README.md). It starts only after a user click, captures a short click/navigation-key outline in the active tab, has no host permissions or network code, and asks the user to review/edit the JSON before download. Import it from the editor's **Captions & context → Bug report → Import Repro Capsule** action. ScreenNote sanitizes URL credentials, query and fragment again on import. Imported context remains local until the creator explicitly saves/publishes it; publishing makes saved context visible to share-link viewers.
 
 The extension does not collect screenshots, form values, typed characters, cookies, network requests or console logs. It is an interaction outline, not automatic full telemetry or a guaranteed reproduction.
+
+## Android PWA/native handoff
+
+The native Android shell bundles the rebuilt PWA assets from the Cloudflare Vite output. Native screen recordings remain in app-private storage and are exposed to the trusted WebView only through the origin-scoped `/__native_recordings/{id}` route. The PWA imports the selected recording into its local library and opens the preview; publishing remains an explicit user action.
+
+The PWA keeps the local library usable offline, while publishing and guest sharing require connectivity. Android internal builds use the isolated Cloudflare development origin for backend calls; the production origin is unchanged until a separate release decision.
