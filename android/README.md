@@ -25,3 +25,15 @@ InvoiceFlow and GreenLight bundle first-launch offline content. ScreenNote bundl
 ScreenNote alone includes the native recorder: fresh Android capture consent, foreground notification/stop control, screen-only or microphone audio, private MP4s, a 5-minute/25-MiB cap, recording list and explicit native-to-editor import. It never restarts capture without new consent after service/task termination. System audio and camera overlays are not implemented in this first native recorder and must not be advertised. Physical recording, interruption and media tests remain mandatory.
 
 No Play Console setup, invitations, payments, legal acceptance, upload signing, physical-device tests or publication are implied by this source build.
+
+## Internal PWA/native integration testing
+
+The native Android screen-capture client opens the configured HTTPS web origin and hands its private MP4 to the PWA through the origin-scoped `/__native_recordings/{id}` WebView route. The PWA imports it into its local library and opens the preview; it does not publish automatically. The native recording remains on-device until the user explicitly shares from the editor.
+
+To test the isolated Cloudflare development deployment without changing the release origin:
+
+```sh
+./android/gradlew -p android -PscreenNoteAppOrigin=https://screennote-dev.buttercoder-dev.workers.dev assembleDebug
+```
+
+The property must be a bare HTTPS origin. The default remains the existing production origin until the rebuild is accepted and production routing is deliberately switched.

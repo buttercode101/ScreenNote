@@ -1,9 +1,12 @@
 plugins { id 'com.android.application' }
+def screenNoteAppOrigin = providers.gradleProperty('screenNoteAppOrigin').orElse('https://screennote-woad.vercel.app').get()
+def screenNoteOriginUri = new java.net.URI(screenNoteAppOrigin)
+if (screenNoteOriginUri.scheme != 'https' || !screenNoteOriginUri.host || screenNoteOriginUri.rawPath != '' || screenNoteOriginUri.rawQuery != null || screenNoteOriginUri.rawFragment != null || screenNoteOriginUri.userInfo != null) throw new GradleException('screenNoteAppOrigin must be a bare HTTPS origin without path, query, fragment or credentials.')
 android {
  namespace 'com.buttercode.mobile'
  compileSdk 36
  defaultConfig { applicationId 'za.co.buttercode.screennote'; minSdk 26; targetSdk 36; versionCode 4; versionName '0.5.0-internal'; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
-  buildConfigField 'String','APP_ORIGIN','"https://screennote-woad.vercel.app"'
+  buildConfigField 'String','APP_ORIGIN', '"' + screenNoteAppOrigin + '"'
   buildConfigField 'boolean','SCREEN_CAPTURE','true'
   buildConfigField 'boolean','BUNDLED_OFFLINE','false'
  }
