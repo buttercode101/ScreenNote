@@ -709,3 +709,16 @@ body{font-family:var(--sn-font-ui)!important;line-height:var(--sn-leading-body)}
 .publish-status{color:var(--sn-ink)!important;background:var(--sn-alert-soft)!important;border:1px solid var(--sn-line)}
 .capture-unavailable{color:var(--sn-ink)!important;background:var(--sn-warning-soft)!important}
 .shared-review-status{color:var(--sn-ink)!important}
+
+/* Explicit theme colors for secondary controls and review status; both themes are AA-safe. */
+:root:not([data-theme="dark"]) .button.secondary{background-color:#fbfaf6!important;color:#202a24!important;border-color:#7d887d!important}
+:root[data-theme="dark"] .button.secondary{background-color:#202822!important;color:#edf0e9!important;border-color:#7d887d!important}
+.capture-panel .button.secondary{background-color:#dce5d4!important;color:#24372b!important;border-color:#aab8a5!important}
+:root:not([data-theme="dark"]) .shared-review-status{background-color:#e9eee5!important;color:#202a24!important;border-color:#9aa797!important}
+:root[data-theme="dark"] .shared-review-status{background-color:#354238!important;color:#edf0e9!important;border-color:#69786b!important}
+.shared-review-status.approved{background-color:#dce5d4!important;color:#24372b!important;border-color:#aab8a5!important}
+:root[data-theme="dark"] .shared-review-status.approved{background-color:#354b3a!important;color:#edf0e9!important;border-color:#69786b!important}
+:root:not([data-theme="dark"]) .publish-status{background-color:#f3e5df!important;color:#202a24!important}
+:root[data-theme="dark"] .publish-status{background-color:#3c2b27!important;color:#edf0e9!important}
+:root:not([data-theme="dark"]) .capture-unavailable{background-color:#f4e4cb!important;color:#202a24!important}
+:root[data-theme="dark"] .capture-unavailable{background-color:#3a3021!important;color:#edf0e9!important}
