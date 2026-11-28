@@ -152,7 +152,7 @@ test("Android native recording handoff imports the private MP4 into the PWA libr
   await page.addInitScript("window.__ANDROID_APP__ = true;");
   await page.route("**/__native_recordings/"+nativeId,route=>route.fulfill({status:200,contentType:"video/webm",body:sample,headers:{"cache-control":"no-store"}}));
   await page.goto("/?nativeRecording="+nativeId);
-  await expect(page.getByRole("heading",{name:"ScreenNote native recording "+nativeId})).toBeVisible({timeout:20000});
+  await expect(page.locator(".clip-card h3").filter({hasText:"ScreenNote native recording "+nativeId})).toBeVisible({timeout:20000});
   await expect(page.locator(".preview-workspace")).toBeVisible({timeout:20000});
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator(".preview-workspace video")).toBeVisible();
