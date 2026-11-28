@@ -1,5 +1,5 @@
 const CACHE_NAME = "screennote-pwa-shell-v5";
-const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
+const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/icon-192.svg", "/icon-512.svg"];
 const OLD_SHELL_PREFIXES = ["screennote-shell-", "screennote-react-shell-", "screennote-pwa-shell-"];
 
 self.addEventListener("install", (event) => {

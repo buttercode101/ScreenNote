@@ -82,7 +82,7 @@ test("PWA install metadata and native install prompt work",async({page})=>{
   const manifest=await page.evaluate(async()=>await(await fetch("/manifest.webmanifest")).json());
   expect(manifest.display).toBe("standalone");
   expect(manifest.start_url).toBe("/");
-  expect(manifest.icons).toEqual(expect.arrayContaining([expect.objectContaining({src:"/icon.svg",purpose:"any maskable"})]));
+  expect(manifest.icons).toEqual(expect.arrayContaining([expect.objectContaining({src:"/icon-192.svg",sizes:"192x192"}),expect.objectContaining({src:"/icon-512.svg",sizes:"512x512",purpose:"any maskable"})]));
   const worker=await page.evaluate(async()=>await(await fetch("/sw.js")).text());
   expect(worker).toContain("screennote-pwa-shell-v5");
   await page.evaluate(()=>{
