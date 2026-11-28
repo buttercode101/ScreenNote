@@ -710,24 +710,18 @@ body{font-family:var(--sn-font-ui)!important;line-height:var(--sn-leading-body)}
 .capture-unavailable{color:var(--sn-ink)!important;background:var(--sn-warning-soft)!important}
 .shared-review-status{color:var(--sn-ink)!important}
 
-/* Explicit theme colors for secondary controls and review status; both themes are AA-safe. */
-:root[data-theme="light"] .button.secondary{background-color:#fbfaf6!important;color:#202a24!important;border-color:#7d887d!important}
-:root[data-theme="dark"] .button.secondary{background-color:#202822!important;color:#edf0e9!important;border-color:#7d887d!important}
-.capture-panel .button.secondary{background-color:#dce5d4!important;color:#24372b!important;border-color:#aab8a5!important}
-:root[data-theme="light"] .shared-review-status{background-color:#e9eee5!important;color:#202a24!important;border-color:#9aa797!important}
-:root[data-theme="dark"] .shared-review-status{background-color:#354238!important;color:#edf0e9!important;border-color:#69786b!important}
-.shared-review-status.approved{background-color:#dce5d4!important;color:#24372b!important;border-color:#aab8a5!important}
-:root[data-theme="dark"] .shared-review-status.approved{background-color:#354b3a!important;color:#edf0e9!important;border-color:#69786b!important}
-:root[data-theme="light"] .publish-status{background-color:#f3e5df!important;color:#202a24!important}
-:root[data-theme="dark"] .publish-status{background-color:#3c2b27!important;color:#edf0e9!important}
-:root[data-theme="light"] .capture-unavailable{background-color:#f4e4cb!important;color:#202a24!important}
-:root[data-theme="dark"] .capture-unavailable{background-color:#3a3021!important;color:#edf0e9!important}
 
-/* Disabled controls remain readable; disabled state is conveyed by muted surfaces, not opacity. */
+/* High-contrast action palette shared by light and dark modes. */
+.button.primary{background-color:#183d32!important;color:#f7f7f4!important;border-color:#183d32!important}
+.button.secondary{background-color:#354238!important;color:#edf0e9!important;border-color:#69786b!important}
+.capture-panel .button.primary,.capture-panel .button.secondary{background-color:#dce5d4!important;color:#24372b!important;border-color:#aab8a5!important}
 .button:disabled{opacity:1!important;filter:none!important;transform:none!important;cursor:not-allowed!important;box-shadow:none!important}
-:root[data-theme="light"] .button.primary:disabled{background-color:#e6e9e1!important;color:#4d584e!important;border-color:#aab8a5!important}
-:root[data-theme="dark"] .button.primary:disabled{background-color:#536256!important;color:#edf0e9!important;border-color:#69786b!important}
-:root[data-theme="light"] .button.secondary:disabled{background-color:#f1f2ec!important;color:#4d584e!important;border-color:#aab8a5!important}
-:root[data-theme="dark"] .button.secondary:disabled{background-color:#263129!important;color:#b0b9af!important;border-color:#536256!important}
-:root[data-theme="light"] .share-link-toast .button.secondary{background-color:#fbfaf6!important;color:#202a24!important;border-color:#7d887d!important}
-:root[data-theme="dark"] .share-link-toast .button.secondary{background-color:#354238!important;color:#edf0e9!important;border-color:#69786b!important;opacity:1!important}
+.button.primary:disabled{background-color:#536256!important;color:#edf0e9!important;border-color:#69786b!important}
+.button.secondary:disabled{background-color:#263129!important;color:#b0b9af!important;border-color:#536256!important}
+.share-link-toast .button.secondary{background-color:#354238!important;color:#edf0e9!important;border-color:#69786b!important;opacity:1!important}
+.shared-review-status{background-color:#354238!important;color:#edf0e9!important;border-color:#69786b!important}
+.shared-review-status.approved{background-color:#dce5d4!important;color:#24372b!important;border-color:#aab8a5!important}
+.shared-review-status.changes-requested{background-color:#f3e5df!important;color:#202a24!important;border-color:#b37b67!important}
+.shared-review-status.needs-feedback{background-color:#e9eee5!important;color:#202a24!important;border-color:#9aa797!important}
+.publish-status{background-color:#f3e5df!important;color:#202a24!important;border-color:#b37b67!important}
+.capture-unavailable{background-color:#f4e4cb!important;color:#202a24!important;border-color:#c5a26c!important}
